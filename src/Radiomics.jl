@@ -1,4 +1,4 @@
-module radiomics
+module Radiomics
 
 
 function extract_features(img, mask)
