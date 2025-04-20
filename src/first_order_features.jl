@@ -1,16 +1,23 @@
+#=
+# First orde features
+=#
+
 function first_order_features(img, mask, verbose=false)
     println("Extracting first order features...")
 
+    # Some data can be useful for features extraction
     voxel_volume = img.header.pixdim[2] * img.header.pixdim[3] * img.header.pixdim[4]
 
+    # Energy
     energy = get_energy(img, mask)
     if verbose
-        println("Energy = $energy")
+        println("  Energy = $energy")
     end
-
+    
+    # Total energy
     total_energy = get_total_energy(voxel_volume, energy)
     if verbose
-        println("Total energy = $total_energy")
+        println("  Total energy = $total_energy")
     end
 
 end
