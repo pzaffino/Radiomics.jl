@@ -2,6 +2,9 @@
 # First orde features
 =#
 
+using StatsBase
+
+
 function first_order_features(img, mask, verbose=false)
     println("Extracting first order features...")
 
@@ -19,6 +22,12 @@ function first_order_features(img, mask, verbose=false)
     total_energy = get_total_energy(voxel_volume, energy)
     if verbose
         println("  Total energy = $total_energy")
+    end
+
+    # Entropy
+    entropy = get_entropy(roi_voxels)
+    if verbose
+        println("  Entropy = $entropy")
     end
 
 end
@@ -53,4 +62,14 @@ function get_total_energy(voxel_volume, energy)
     return total_energy 
 end
 
+
+function get_entropy(roi_voxels, eps=2.2e-16)
+
+    freqs = countmap(roi_voxels)
+    total = sum(values(freqs))
+    probs = [roi_voxels / total for roi_voxels in values(freqs)]
+    entropy = -sum(p * log2(p + eps) for p in probs if p > 0)
+
+    return entropy
+end
 
