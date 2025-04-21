@@ -1,5 +1,5 @@
 #=
-# First orde features
+# First order features
 =#
 
 using StatsBase
