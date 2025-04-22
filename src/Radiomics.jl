@@ -3,8 +3,10 @@ module Radiomics
 include("first_order_features.jl")
 
 
-function extract_features(img, mask; binarize_mask = false, verbose=false)
+function extract_radiomic_features(img, mask; binarize_mask = false, verbose=false)
     println("Extracting...")
+
+    radiomic_features = Dict()
 
     # Sanity check on inputs
     input_sanity_check(img, mask, verbose)
@@ -15,7 +17,11 @@ function extract_features(img, mask; binarize_mask = false, verbose=false)
     end
 
     # First order features
-    first_order_features(img, mask, verbose)
+    first_order_features = get_first_order_features(img, mask, verbose)
+    merge!(radiomic_features, first_order_features)
+
+    return radiomic_features
+
 end
 
 
