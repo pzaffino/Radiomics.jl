@@ -54,6 +54,18 @@ function first_order_features(img, mask, verbose=false)
         println("  Maximum = $maximum_feature_value")
     end
 
+    # Mean
+    mean_feature_value = get_mean_feature_value(roi_voxels)
+    if verbose
+        println("  Mean = $mean_feature_value")
+    end
+
+    # Median
+    median_feature_value = get_median_feature_value(roi_voxels)
+    if verbose
+        println("  Median = $median_feature_value")
+    end
+
 end
 
 
@@ -114,5 +126,15 @@ end
 
 function get_maximum_feature_value(roi_voxels)
     return maximum(roi_voxels)
+end
+
+
+function get_mean_feature_value(roi_voxels)
+    return mean(roi_voxels)
+end
+
+
+function get_median_feature_value(roi_voxels)
+    return median(roi_voxels)
 end
 
