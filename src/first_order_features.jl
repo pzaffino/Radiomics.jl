@@ -13,45 +13,45 @@ function first_order_features(img, mask, verbose=false)
     roi_voxels = extract_roi_voxels(img, mask)
 
     # Energy
-    energy = get_energy(roi_voxels)
+    energy_feature_value = get_energy_feature_value(roi_voxels)
     if verbose
-        println("  Energy = $energy")
+        println("  energy_feature_value = $energy_feature_value")
     end
     
     # Total energy
-    total_energy = get_total_energy(voxel_volume, energy)
+    total_energy_feature_value = get_total_energy_feature_value(voxel_volume, energy_feature_value)
     if verbose
-        println("  Total energy = $total_energy")
+        println("  Total energy = $total_energy_feature_value")
     end
 
     # Entropy
-    entropy = get_entropy(roi_voxels)
+    entropy_feature_value = get_entropy_feature_value(roi_voxels)
     if verbose
-        println("  Entropy = $entropy")
+        println("  Entropy = $entropy_feature_value")
     end
 
     # Minimum
-    min = get_minimum(roi_voxels)
+    minimum_feature_value = get_minimum_feature_value(roi_voxels)
     if verbose
-        println("  Minimum = $min")
+        println("  Minimum = $minimum_feature_value")
     end
 
     # 10th percentile
-    perc10 = get_10percentile(roi_voxels)
+    percentile10_feature_value = get_percentile10_feature_value(roi_voxels)
     if verbose
-        println("  10th percentile = $perc10")
+        println("  10th percentile = $percentile10_feature_value")
     end
 
     # 90th percentile
-    perc90 = get_90percentile(roi_voxels)
+    percentile90_feature_value = get_percentile90_feature_value(roi_voxels)
     if verbose
-        println("  90th percentile = $perc90")
+        println("  90th percentile = $percentile90_feature_value")
     end
 
     # Maximum
-    max = get_maximum(roi_voxels)
+    maximum_feature_value = get_maximum_feature_value(roi_voxels)
     if verbose
-        println("  Maximum = $max")
+        println("  Maximum = $maximum_feature_value")
     end
 
 end
@@ -72,47 +72,47 @@ function extract_roi_voxels(img, mask)
 end
 
 
-function get_energy(roi_voxels, c=0.0)
-    energy = 0.0
+function get_energy_feature_value(roi_voxels, c=0.0)
+    energy_feature_value = 0.0
     for i in 1:size(roi_voxels, 1)
-        energy = energy + (roi_voxels[i] + c)^2
+        energy_feature_value = energy_feature_value + (roi_voxels[i] + c)^2
     end
-    return energy
+    return energy_feature_value
 end
 
 
-function get_total_energy(voxel_volume, energy)
-    total_energy = voxel_volume * energy
-    return total_energy 
+function get_total_energy_feature_value(voxel_volume, energy_feature_value)
+    total_energy_feature_value = voxel_volume * energy_feature_value
+    return total_energy_feature_value 
 end
 
 
-function get_entropy(roi_voxels, eps=2.2e-16)
+function get_entropy_feature_value(roi_voxels, eps=2.2e-16)
 
     freqs = countmap(roi_voxels)
     total = sum(values(freqs))
     probs = [roi_voxels / total for roi_voxels in values(freqs)]
-    entropy = -sum(p * log2(p + eps) for p in probs if p > 0)
+    entropy_feature_value = -sum(p * log2(p + eps) for p in probs if p > 0)
 
-    return entropy
+    return entropy_feature_value
 end
 
-function get_minimum(roi_voxels)
+function get_minimum_feature_value(roi_voxels)
     return minimum(roi_voxels)
 end
 
 
-function get_10percentile(roi_voxels)
+function get_percentile10_feature_value(roi_voxels)
     return percentile(roi_voxels, 10)
 end
 
 
-function get_90percentile(roi_voxels)
+function get_percentile90_feature_value(roi_voxels)
     return percentile(roi_voxels, 90)
 end
 
 
-function get_maximum(roi_voxels)
+function get_maximum_feature_value(roi_voxels)
     return maximum(roi_voxels)
 end
 
