@@ -3,7 +3,7 @@ module Radiomics
 include("first_order_features.jl")
 
 
-function extract_features(img, mask, binarize_mask = false, verbose=false)
+function extract_features(img, mask; binarize_mask = false, verbose=false)
     println("Extracting...")
 
     # Sanity check on inputs

@@ -30,6 +30,30 @@ function first_order_features(img, mask, verbose=false)
         println("  Entropy = $entropy")
     end
 
+    # Minimum
+    min = get_minimum(roi_voxels)
+    if verbose
+        println("  Minimum = $min")
+    end
+
+    # 10th percentile
+    perc10 = get_10percentile(roi_voxels)
+    if verbose
+        println("  10th percentile = $perc10")
+    end
+
+    # 90th percentile
+    perc90 = get_90percentile(roi_voxels)
+    if verbose
+        println("  90th percentile = $perc90")
+    end
+
+    # Maximum
+    max = get_maximum(roi_voxels)
+    if verbose
+        println("  Maximum = $max")
+    end
+
 end
 
 
@@ -71,5 +95,24 @@ function get_entropy(roi_voxels, eps=2.2e-16)
     entropy = -sum(p * log2(p + eps) for p in probs if p > 0)
 
     return entropy
+end
+
+function get_minimum(roi_voxels)
+    return minimum(roi_voxels)
+end
+
+
+function get_10percentile(roi_voxels)
+    return percentile(roi_voxels, 10)
+end
+
+
+function get_90percentile(roi_voxels)
+    return percentile(roi_voxels, 90)
+end
+
+
+function get_maximum(roi_voxels)
+    return maximum(roi_voxels)
 end
 
