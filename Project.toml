@@ -7,4 +7,5 @@ version = "0.0.1"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 
 [compat]
+julia = "1.11"
 StatsBase = "0.34.4"
