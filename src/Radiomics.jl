@@ -3,22 +3,34 @@ module Radiomics
 include("first_order_features.jl")
 
 
-function extract_radiomic_features(img, mask; binarize_mask = false, verbose=false)
+function extract_radiomic_features(img, mask; binarize_mask=false, verbose=false)
     println("Extracting...")
 
     radiomic_features = Dict()
 
     # Sanity check on inputs
+    sanity_check_start_time = time()
     input_sanity_check(img, mask, verbose)
+    if verbose
+        println("Sanity check time = $(time() - sanity_check_start_time)")
+    end
 
     # Binarize mask
     if binarize_mask == true
+        binarize_start_time = time()
         mask = run_mask_binarization(mask)
+        if verbose
+            println("Masking time = $(time() - binarize_start_time)")
+        end
     end
 
     # First order features
+    first_order_start_time = time()
     first_order_features = get_first_order_features(img, mask, verbose)
     merge!(radiomic_features, first_order_features)
+    if verbose
+        println("First order time = $(time() - first_order_start_time)")
+    end
 
     return radiomic_features
 
@@ -52,5 +64,4 @@ end
 
 
 end
-
 
