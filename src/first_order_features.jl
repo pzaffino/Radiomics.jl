@@ -105,6 +105,13 @@ function get_first_order_features(img, mask, verbose=false)
         println("  Robust mean absolute deviation = $robust_mean_absolute_deviation_feature_value")
     end
 
+    # Root mean square
+    root_mean_squared_feature_value = get_root_mean_squared_feature_value(roi_voxels)
+    first_order_features["firstorder_root_mean_squared"] = root_mean_squared_feature_value
+    if verbose
+        println("  Root mean squared = $root_mean_squared_feature_value")
+    end
+
     # Return dictionrary with first order features
     return first_order_features
 
@@ -220,5 +227,15 @@ function get_robust_mean_absolute_deviation_feature_value(roi_voxels)
     end
 
     return (1/size(roi_voxels_10_90, 1)) * robust_absolute_deviation
+end
+
+
+function get_root_mean_squared_feature_value(roi_voxels, c=0.0)
+    squared = 0
+    for i in 1:size(roi_voxels, 1)
+        squared = squared + (roi_voxels[i] + c)^2
+    end
+
+    return sqrt((1/size(roi_voxels, 1)) * squared)
 end
 
