@@ -77,6 +77,21 @@ function get_first_order_features(img, mask, verbose=false)
         println("  Median = $median_feature_value")
     end
 
+    # Interquartile range
+    interquartile_range_feature_value = get_interquartile_range_feature_value(roi_voxels)
+    first_order_features["firstorder_interquartile_range"] = interquartile_range_feature_value
+    if verbose
+        println("  Interquartile range = $interquartile_range_feature_value")
+    end
+
+    # Range
+    range_feature_value = get_range_feature_value(maximum_feature_value, minimum_feature_value)
+    first_order_features["firstorder_range"] = range_feature_value
+    if verbose
+        println("  Range = $range_feature_value")
+    end
+   
+    # Return dictionrary with first order features
     return first_order_features
 
 end
@@ -149,5 +164,15 @@ end
 
 function get_median_feature_value(roi_voxels)
     return median(roi_voxels)
+end
+
+
+function get_interquartile_range_feature_value(roi_voxels)
+    return percentile(roi_voxels, 75) - percentile(roi_voxels, 25)
+end
+
+
+function get_range_feature_value(maximum_feature_value, minimum_feature_value)
+    return maximum_feature_value - minimum_feature_value
 end
 
