@@ -98,6 +98,13 @@ function get_first_order_features(img, mask, verbose=false)
         println("  Mean absolute deviation = $mean_absolute_deviation_feature_value")
     end
 
+    # Robust mean absolute deviation
+    robust_mean_absolute_deviation_feature_value = get_robust_mean_absolute_deviation_feature_value(roi_voxels)
+    first_order_features["firstorder_robust_mean_absolute_deviation"] = robust_mean_absolute_deviation_feature_value
+    if verbose
+        println("  Robust mean absolute deviation = $robust_mean_absolute_deviation_feature_value")
+    end
+
     # Return dictionrary with first order features
     return first_order_features
 
@@ -191,5 +198,27 @@ function get_mean_absolute_deviation_feature_value(roi_voxels, mean_feature_valu
     end
 
     return (1/size(roi_voxels, 1)) * absolute_deviation
+end
+
+
+function get_robust_mean_absolute_deviation_feature_value(roi_voxels)
+    perc10 = percentile(roi_voxels, 10)
+    perc90 = percentile(roi_voxels, 90)
+
+    roi_voxels_10_90 = Vector{Float32}()
+    for i in 1:size(roi_voxels, 1)
+        if (roi_voxels[i] >= perc10 && roi_voxels[i] <= perc90)
+            push!(roi_voxels_10_90, roi_voxels[i])
+        end
+    end
+
+    mean_10_90 = mean(roi_voxels_10_90)
+
+    robust_absolute_deviation = 0
+    for i in 1:size(roi_voxels_10_90, 1)
+        robust_absolute_deviation = robust_absolute_deviation + abs(roi_voxels_10_90[i] - mean_10_90)
+    end
+
+    return (1/size(roi_voxels_10_90, 1)) * robust_absolute_deviation
 end
 
