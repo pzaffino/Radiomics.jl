@@ -91,6 +91,13 @@ function get_first_order_features(img, mask, verbose=false)
         println("  Range = $range_feature_value")
     end
    
+    # Mean absolute deviation
+    mean_absolute_deviation_feature_value = get_mean_absolute_deviation_feature_value(roi_voxels, mean_feature_value)
+    first_order_features["firstorder_mean_absolute_deviation"] = mean_absolute_deviation_feature_value
+    if verbose
+        println("  Mean absolute deviation = $mean_absolute_deviation_feature_value")
+    end
+
     # Return dictionrary with first order features
     return first_order_features
 
@@ -174,5 +181,15 @@ end
 
 function get_range_feature_value(maximum_feature_value, minimum_feature_value)
     return maximum_feature_value - minimum_feature_value
+end
+
+
+function get_mean_absolute_deviation_feature_value(roi_voxels, mean_feature_value)
+    absolute_deviation = 0
+    for i in 1:size(roi_voxels, 1)
+        absolute_deviation = absolute_deviation + abs(roi_voxels[i] - mean_feature_value)
+    end
+
+    return (1/size(roi_voxels, 1)) * absolute_deviation
 end
 
