@@ -16,63 +16,63 @@ function get_first_order_features(img, mask, verbose=false)
 
     # Energy
     energy_feature_value = get_energy_feature_value(roi_voxels)
-    first_order_features["energy_feature_value"] = energy_feature_value
+    first_order_features["firstorder_energy"] = energy_feature_value
     if verbose
         println("  energy_feature_value = $energy_feature_value")
     end
     
     # Total energy
     total_energy_feature_value = get_total_energy_feature_value(voxel_volume, energy_feature_value)
-    first_order_features["total_energy_feature_value"] = total_energy_feature_value
+    first_order_features["firstorder_total_energy"] = total_energy_feature_value
     if verbose
         println("  Total energy = $total_energy_feature_value")
     end
 
     # Entropy
     entropy_feature_value = get_entropy_feature_value(roi_voxels)
-    first_order_features["entropy_feature_value"] = entropy_feature_value
+    first_order_features["firstorder_entropy"] = entropy_feature_value
     if verbose
         println("  Entropy = $entropy_feature_value")
     end
 
     # Minimum
     minimum_feature_value = get_minimum_feature_value(roi_voxels)
-    first_order_features["minimum_feature_value"] = minimum_feature_value
+    first_order_features["firstorder_minimum"] = minimum_feature_value
     if verbose
         println("  Minimum = $minimum_feature_value")
     end
 
     # 10th percentile
     percentile10_feature_value = get_percentile10_feature_value(roi_voxels)
-    first_order_features["percentile10_feature_value"] = percentile10_feature_value
+    first_order_features["firstorder_percentile10"] = percentile10_feature_value
     if verbose
         println("  10th percentile = $percentile10_feature_value")
     end
 
     # 90th percentile
     percentile90_feature_value = get_percentile90_feature_value(roi_voxels)
-    first_order_features["percentile90_feature_value"] = percentile90_feature_value
+    first_order_features["firstorder_percentile90"] = percentile90_feature_value
     if verbose
         println("  90th percentile = $percentile90_feature_value")
     end
 
     # Maximum
     maximum_feature_value = get_maximum_feature_value(roi_voxels)
-    first_order_features["maximum_feature_value"] = maximum_feature_value
+    first_order_features["firstorder_maximum"] = maximum_feature_value
     if verbose
         println("  Maximum = $maximum_feature_value")
     end
 
     # Mean
     mean_feature_value = get_mean_feature_value(roi_voxels)
-    first_order_features["mean_feature_value"] = mean_feature_value
+    first_order_features["firstorder_mean"] = mean_feature_value
     if verbose
         println("  Mean = $mean_feature_value")
     end
 
     # Median
     median_feature_value = get_median_feature_value(roi_voxels)
-    first_order_features["median_feature_value"] = median_feature_value
+    first_order_features["firstorder_median"] = median_feature_value
     if verbose
         println("  Median = $median_feature_value")
     end
