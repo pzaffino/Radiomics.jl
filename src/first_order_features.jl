@@ -119,6 +119,13 @@ function get_first_order_features(img, mask, verbose=false)
         println("  Standard deviation = $standard_deviation_feature_value")
     end
 
+    # Skewness
+    skewness_feature_value = get_skewness_feature_value(roi_voxels, mean_feature_value)
+    first_order_features["firstorder_skewness"] = skewness_feature_value
+    if verbose
+        println("  Skewness = $skewness_feature_value")
+    end
+
     # Return dictionrary with first order features
     return first_order_features
 
@@ -249,5 +256,20 @@ end
 
 function get_standard_deviation_feature_value(roi_voxels)
     return std(roi_voxels)
+end
+
+
+function get_skewness_feature_value(roi_voxels, mean_feature_value)
+    mu3 = 0
+    sigma3 = 0
+    for i in 1:size(roi_voxels, 1)
+        mu3 = mu3 + (roi_voxels[i] - mean_feature_value)^3
+        sigma3 = sigma3 + (roi_voxels[i] - mean_feature_value)^2
+    end
+
+    mu3 = (1/size(roi_voxels, 1)) * mu3
+    sigma3 = sqrt((1/size(roi_voxels, 1)) * sigma3)^3
+
+    return mu3/sigma3
 end
 
