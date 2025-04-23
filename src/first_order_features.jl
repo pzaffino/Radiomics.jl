@@ -126,6 +126,13 @@ function get_first_order_features(img, mask, verbose=false)
         println("  Skewness = $skewness_feature_value")
     end
 
+    # Kurtosis
+    kurtosis_feature_value = get_kurtosis_feature_value(roi_voxels, mean_feature_value)
+    first_order_features["firstorder_kurtosis"] = kurtosis_feature_value
+    if verbose
+        println("  Kurtosis = $kurtosis_feature_value")
+    end
+
     # Return dictionrary with first order features
     return first_order_features
 
@@ -271,5 +278,19 @@ function get_skewness_feature_value(roi_voxels, mean_feature_value)
     sigma3 = sqrt((1/size(roi_voxels, 1)) * sigma3)^3
 
     return mu3/sigma3
+end
+
+function get_kurtosis_feature_value(roi_voxels, mean_feature_value)
+    mu4 = 0
+    sigma4 = 0
+    for i in 1:size(roi_voxels, 1)
+        mu4 = mu4 + (roi_voxels[i] - mean_feature_value)^4
+        sigma4 = sigma4 + (roi_voxels[i] - mean_feature_value)^2
+    end
+
+    mu4 = (1/size(roi_voxels, 1)) * mu4
+    sigma4 = ((1/size(roi_voxels, 1)) * sigma4)^2
+
+    return mu4/sigma4
 end
 
