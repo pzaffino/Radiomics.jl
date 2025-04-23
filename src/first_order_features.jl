@@ -105,11 +105,18 @@ function get_first_order_features(img, mask, verbose=false)
         println("  Robust mean absolute deviation = $robust_mean_absolute_deviation_feature_value")
     end
 
-    # Root mean square
+    # Root mean squared
     root_mean_squared_feature_value = get_root_mean_squared_feature_value(roi_voxels)
     first_order_features["firstorder_root_mean_squared"] = root_mean_squared_feature_value
     if verbose
         println("  Root mean squared = $root_mean_squared_feature_value")
+    end
+
+    # Standard deviation
+    standard_deviation_feature_value = get_standard_deviation_feature_value(roi_voxels)
+    first_order_features["firstorder_standard_deviation"] = standard_deviation_feature_value
+    if verbose
+        println("  Standard deviation = $standard_deviation_feature_value")
     end
 
     # Return dictionrary with first order features
@@ -237,5 +244,10 @@ function get_root_mean_squared_feature_value(roi_voxels, c=0.0)
     end
 
     return sqrt((1/size(roi_voxels, 1)) * squared)
+end
+
+
+function get_standard_deviation_feature_value(roi_voxels)
+    return std(roi_voxels)
 end
 
