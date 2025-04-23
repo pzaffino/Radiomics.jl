@@ -234,7 +234,7 @@ end
 
 
 function get_mean_absolute_deviation_feature_value(roi_voxels, mean_feature_value)
-    absolute_deviation = 0
+    absolute_deviation = 0.0
     for i in 1:size(roi_voxels, 1)
         absolute_deviation = absolute_deviation + abs(roi_voxels[i] - mean_feature_value)
     end
@@ -256,7 +256,7 @@ function get_robust_mean_absolute_deviation_feature_value(roi_voxels)
 
     mean_10_90 = mean(roi_voxels_10_90)
 
-    robust_absolute_deviation = 0
+    robust_absolute_deviation = 0.0
     for i in 1:size(roi_voxels_10_90, 1)
         robust_absolute_deviation = robust_absolute_deviation + abs(roi_voxels_10_90[i] - mean_10_90)
     end
@@ -266,7 +266,7 @@ end
 
 
 function get_root_mean_squared_feature_value(roi_voxels, c=0.0)
-    squared = 0
+    squared = 0.0
     for i in 1:size(roi_voxels, 1)
         squared = squared + (roi_voxels[i] + c)^2
     end
@@ -281,8 +281,8 @@ end
 
 
 function get_skewness_feature_value(roi_voxels, mean_feature_value)
-    mu3 = 0
-    sigma3 = 0
+    mu3 = 0.0
+    sigma3 = 0.0
     for i in 1:size(roi_voxels, 1)
         mu3 = mu3 + (roi_voxels[i] - mean_feature_value)^3
         sigma3 = sigma3 + (roi_voxels[i] - mean_feature_value)^2
@@ -296,8 +296,8 @@ end
 
 
 function get_kurtosis_feature_value(roi_voxels, mean_feature_value)
-    mu4 = 0
-    sigma4 = 0
+    mu4 = 0.0
+    sigma4 = 0.0
     for i in 1:size(roi_voxels, 1)
         mu4 = mu4 + (roi_voxels[i] - mean_feature_value)^4
         sigma4 = sigma4 + (roi_voxels[i] - mean_feature_value)^2
@@ -311,7 +311,7 @@ end
 
 
 function get_variance_feature_value(roi_voxels, mean_feature_value)
-    squared_diff = 0
+    squared_diff = 0.0
     for i in 1:size(roi_voxels, 1)
         squared_diff = squared_diff + (roi_voxels[i] - mean_feature_value)^2
     end
@@ -321,7 +321,7 @@ end
 
 
 function get_uniformity_feature_value(roi_voxels)
-    uniformity = 0
+    uniformity = 0.0
     for i in 1:size(roi_voxels, 1)
         uniformity = uniformity + roi_voxels[i]^2
     end
