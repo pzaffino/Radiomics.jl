@@ -5,10 +5,15 @@
 
 :warning: :warning: :warning: **THE LIBRARY IS CURRENTLY IN AN EARLY STAGE AND UNDER HEAVY DEVELOPMENT** :warning: :warning: :warning:
 
-Several features have not been implemented yet, but we are on the right path!
+:email: If you're interested in contributing to the project, please contact us via email at "p DOT zaffino AT unicz DOT it" :email:
 
-If you want to contribute to the project, feel absolutely free to get in touch! :email:
 
+## **Implemented features**
+
+Right now, the implemented features are:
+- first order features
+
+Additional features (e.g. shape and texture) have not been implemented yet, but we are on the right path!
 
 ## **Example**
 
