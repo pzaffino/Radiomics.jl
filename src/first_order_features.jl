@@ -183,14 +183,22 @@ function get_total_energy_feature_value(voxel_volume, energy_feature_value)
 end
 
 
-function get_entropy_feature_value(roi_voxels, eps=2.2e-16)
+function get_entropy_feature_value(roi_voxels, bin_width=25.0, eps=2.2e-16)
+    max_val = maximum(roi_voxels)
+    min_val = minimum(roi_voxels)
+    edges = min_val:bin_width:(ceil(max_val/bin_width) * bin_width)
 
-    freqs = countmap(roi_voxels)
-    total = sum(values(freqs))
-    probs = [roi_voxels / total for roi_voxels in values(freqs)]
-    entropy_feature_value = -sum(p * log2(p + eps) for p in probs if p > 0)
+    h = fit(Histogram, roi_voxels, edges)
+    p = h.weights / sum(h.weights)
 
-    return entropy_feature_value
+    entropy_feature_value = 0.0
+    for i in 1:size(p,1)
+        if p[i]>0.0
+            entropy_feature_value = entropy_feature_value + (p[i] * log2(p[i]+eps))
+        end
+    end
+
+    return -entropy_feature_value
 end
 
 function get_minimum_feature_value(roi_voxels)
@@ -320,12 +328,19 @@ function get_variance_feature_value(roi_voxels, mean_feature_value)
 end
 
 
-function get_uniformity_feature_value(roi_voxels)
+function get_uniformity_feature_value(roi_voxels, bin_width=25.0)
+    max_val = maximum(roi_voxels)
+    min_val = minimum(roi_voxels)
+    edges = min_val:bin_width:(ceil(max_val/bin_width) * bin_width)
+
+    h = fit(Histogram, roi_voxels, edges)
+    p = h.weights / sum(h.weights)
+
     uniformity = 0.0
-    for i in 1:size(roi_voxels, 1)
-        uniformity = uniformity + roi_voxels[i]^2
+    for i in 1:size(p, 1)
+        uniformity = uniformity + p[i]^2
     end
 
-    return (1/size(roi_voxels, 1)) * uniformity
+    return uniformity
 end
 
