@@ -6,7 +6,7 @@
 
 **Radiomics.jl** is an open-source Julia library for extracting radiomics features from medical images.
 
-:warning: :warning: :warning: **THE LIBRARY IS CURRENTLY IN AN EARLY STAGE AND UNDER HEAVY DEVELOPMENT** :warning: :warning: :warning:
+:warning: **THE LIBRARY IS CURRENTLY IN AN EARLY STAGE AND UNDER HEAVY DEVELOPMENT** :warning:
 
 :email: If you're interested in contributing to the project, please contact us via email at "p DOT zaffino AT unicz DOT it" :email:
 
