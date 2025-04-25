@@ -170,8 +170,8 @@ end
 
 function get_energy_feature_value(roi_voxels::Vector{Float32}, c::Float32=0.0f0)::Float32
     energy_feature_value::Float32 = 0.0f0
-    for i in 1:size(roi_voxels, 1)
-        energy_feature_value = energy_feature_value + (roi_voxels[i] + c)^2
+    for roi_voxel in roi_voxels
+        energy_feature_value = energy_feature_value + (roi_voxel + c)^2
     end
     return energy_feature_value
 end
@@ -243,8 +243,8 @@ end
 
 function get_mean_absolute_deviation_feature_value(roi_voxels::Vector{Float32}, mean_feature_value::Float32)::Float32
     absolute_deviation::Float32 = 0.0f0
-    for i in 1:size(roi_voxels, 1)
-        absolute_deviation = absolute_deviation + abs(roi_voxels[i] - mean_feature_value)
+    for roi_voxel in roi_voxels
+        absolute_deviation = absolute_deviation + abs(roi_voxel - mean_feature_value)
     end
 
     return (1/size(roi_voxels, 1)) * absolute_deviation
@@ -256,17 +256,17 @@ function get_robust_mean_absolute_deviation_feature_value(roi_voxels::Vector{Flo
     perc90::Float32 = percentile(roi_voxels, 90)
 
     roi_voxels_10_90 = Vector{Float32}()
-    for i in 1:size(roi_voxels, 1)
-        if (roi_voxels[i] >= perc10 && roi_voxels[i] <= perc90)
-            push!(roi_voxels_10_90, roi_voxels[i])
+    for roi_voxel in roi_voxels
+        if (roi_voxel >= perc10 && roi_voxel <= perc90)
+            push!(roi_voxels_10_90, roi_voxel)
         end
     end
 
     mean_10_90::Float32 = mean(roi_voxels_10_90)
 
     robust_absolute_deviation::Float32 = 0.0f0
-    for i in 1:size(roi_voxels_10_90, 1)
-        robust_absolute_deviation = robust_absolute_deviation + abs(roi_voxels_10_90[i] - mean_10_90)
+    for roi_voxel_10_90 in roi_voxels_10_90
+        robust_absolute_deviation = robust_absolute_deviation + abs(roi_voxel_10_90 - mean_10_90)
     end
 
     return (1/size(roi_voxels_10_90, 1)) * robust_absolute_deviation
@@ -275,8 +275,8 @@ end
 
 function get_root_mean_squared_feature_value(roi_voxels::Vector{Float32}, c::Float32=0.0f0)::Float32
     squared::Float32 = 0.0f0
-    for i in 1:size(roi_voxels, 1)
-        squared = squared + (roi_voxels[i] + c)^2
+    for roi_voxel in roi_voxels
+        squared = squared + (roi_voxel + c)^2
     end
 
     return sqrt((1/size(roi_voxels, 1)) * squared)
@@ -291,9 +291,9 @@ end
 function get_skewness_feature_value(roi_voxels::Vector{Float32}, mean_feature_value::Float32)::Float32
     mu3::Float32 = 0.0f0
     sigma3::Float32 = 0.0f0
-    for i in 1:size(roi_voxels, 1)
-        mu3 = mu3 + (roi_voxels[i] - mean_feature_value)^3
-        sigma3 = sigma3 + (roi_voxels[i] - mean_feature_value)^2
+    for roi_voxel in roi_voxels
+        mu3 = mu3 + (roi_voxel - mean_feature_value)^3
+        sigma3 = sigma3 + (roi_voxel - mean_feature_value)^2
     end
 
     mu3 = (1/size(roi_voxels, 1)) * mu3
@@ -306,9 +306,9 @@ end
 function get_kurtosis_feature_value(roi_voxels::Vector{Float32}, mean_feature_value::Float32)::Float32
     mu4::Float32 = 0.0f0
     sigma4::Float32 = 0.0f0
-    for i in 1:size(roi_voxels, 1)
-        mu4 = mu4 + (roi_voxels[i] - mean_feature_value)^4
-        sigma4 = sigma4 + (roi_voxels[i] - mean_feature_value)^2
+    for roi_voxel in roi_voxels
+        mu4 = mu4 + (roi_voxel - mean_feature_value)^4
+        sigma4 = sigma4 + (roi_voxel - mean_feature_value)^2
     end
 
     mu4 = (1/size(roi_voxels, 1)) * mu4
@@ -320,8 +320,8 @@ end
 
 function get_variance_feature_value(roi_voxels::Vector{Float32}, mean_feature_value::Float32)::Float32
     squared_diff::Float32 = 0.0f0
-    for i in 1:size(roi_voxels, 1)
-        squared_diff = squared_diff + (roi_voxels[i] - mean_feature_value)^2
+    for roi_voxel in roi_voxels
+        squared_diff = squared_diff + (roi_voxel - mean_feature_value)^2
     end
 
     return (1/size(roi_voxels, 1)) * squared_diff
@@ -337,8 +337,8 @@ function get_uniformity_feature_value(roi_voxels::Vector{Float32}, bin_width::Fl
     p = h.weights / sum(h.weights)
 
     uniformity = 0.0
-    for i in 1:size(p, 1)
-        uniformity = uniformity + p[i]^2
+    for p_i in p
+        uniformity = uniformity + p_i^2
     end
 
     return uniformity
