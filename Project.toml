@@ -1,7 +1,7 @@
 name = "Radiomics"
 uuid = "a80a7044-09a6-4a0a-a486-eb806178b9ba"
 authors = ["Paolo Zaffino <p.zaffino@unicz.it>"]
-version = "0.0.1"
+version = "0.1.0"
 
 [deps]
 NIfTI = "a3a9e032-41b5-5fc4-967a-a6b7a19844d3"
