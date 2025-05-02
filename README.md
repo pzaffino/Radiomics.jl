@@ -20,7 +20,7 @@ Additional features (e.g. shape and texture) have not been implemented yet, but 
 
 ## **Example**
 
-```
+```julia
 using NIfTI
 using Radiomics
 
