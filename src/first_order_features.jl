@@ -181,11 +181,11 @@ function get_entropy_feature_value(roi_voxels::Vector{Float32}, bin_width::Float
     h = fit(Histogram, roi_voxels, edges)
     p = h.weights / sum(h.weights)
 
-    entropy::Float64 = 0.0
+    entropy_feature_value::Float64 = 0.0
     @inbounds for i in eachindex(p)
         pi = p[i]
         if pi > 0.0f0
-            entropy += pi * log2(pi + eps)
+            entropy_feature_value += pi * log2(pi + eps)
         end
     end
 
