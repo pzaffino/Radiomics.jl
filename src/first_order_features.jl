@@ -5,13 +5,13 @@
 using StatsBase
 
 
-function get_first_order_features(img, mask, verbose=false)
+function get_first_order_features(img::Array{Float32, 3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}, verbose::Bool=false)
     println("Extracting first order features...")
 
     first_order_features = Dict{String, Float32}()
 
     # Some data can be useful for features extraction
-    voxel_volume::Float32 = img.header.pixdim[2] * img.header.pixdim[3] * img.header.pixdim[4]
+    voxel_volume::Float32 = voxel_spacing[1] * voxel_spacing[2] * voxel_spacing[3]
     roi_voxels::Vector{Float32} = extract_roi_voxels(img, mask)
 
     # Energy
