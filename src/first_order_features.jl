@@ -147,26 +147,16 @@ function get_first_order_features(img::Array{Float32, 3}, mask::BitArray{3}, vox
         println("  Uniformity = $uniformity_feature_value")
     end
 
-    # Return dictionrary with first order features
+    # Return dictionary with first order features
     return first_order_features
 
 end
 
 
-function extract_roi_voxels(img, mask)::Vector{Float32}
-    roi_voxels = Vector{Float32}()
-    for i in 1:size(img, 1)
-        for j in 1:size(img, 2)
-            for k in 1:size(img, 3)
-                if mask[i,j,k] == 1
-                    push!(roi_voxels, img[i,j,k])
-                end
-            end
-        end
-    end
-    return roi_voxels
-end
 
+function extract_roi_voxels(img::Array{Float32, 3}, mask::BitArray{3})::Vector{Float32}
+    return vec(img[mask])
+end
 
 function get_energy_feature_value(roi_voxels::Vector{Float32}, c::Float32=0.0f0)::Float32
     energy_feature_value::Float32 = 0.0f0
@@ -191,10 +181,11 @@ function get_entropy_feature_value(roi_voxels::Vector{Float32}, bin_width::Float
     h = fit(Histogram, roi_voxels, edges)
     p = h.weights / sum(h.weights)
 
-    entropy_feature_value::Float32 = 0.0f0
-    for i in 1:size(p,1)
-        if p[i]>0.0
-            entropy_feature_value = entropy_feature_value + (p[i] * log2(p[i]+eps))
+    entropy_feature_value::Float64 = 0.0
+    @inbounds for i in eachindex(p)
+        pi = p[i]
+        if pi > 0.0f0
+            entropy_feature_value += pi * log2(pi + eps)
         end
     end
 
