@@ -154,7 +154,7 @@ end
 
 
 
-function extract_roi_voxels(img::Array{T,3}, mask::BitArray{3})::Vector{T} where T
+function extract_roi_voxels(img::Array{Float32, 3}, mask::BitArray{3})::Vector{Float32}
     return vec(img[mask])
 end
 
