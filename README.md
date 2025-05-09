@@ -20,12 +20,13 @@ Additional features (e.g. shape and texture) have not been implemented yet, but 
 
 ## **Example**
 
-```
+```julia
 using NIfTI
 using Radiomics
 
-ct = niread("sample_data/CTChest.nii.gz");
-mask = niread("sample_data/Lungs.nii.gz");
+ct = niread("sample_data/CTChest.nii.gz")
+mask = niread("sample_data/Lungs.nii.gz")
+spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-radiomic_features = Radiomics.extract_radiomic_features(ct, mask; binarize_mask = true, verbose = false);
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true)
 ```

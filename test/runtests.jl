@@ -7,8 +7,9 @@ using Radiomics
 
     ct = niread("../sample_data/CTChest.nii.gz")
     mask = niread("../sample_data/Lungs.nii.gz")
+    spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-    radiomic_features = Radiomics.extract_radiomic_features(ct, mask; binarize_mask = true, verbose = false)
+    radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = false)
 
     @test isapprox(radiomic_features["firstorder_entropy"]                        , 2.7950206f0; atol=1e-4)
     @test isapprox(radiomic_features["firstorder_energy"]                         , 3.835767f11; atol=1e-4)
