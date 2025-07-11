@@ -61,7 +61,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
         merge!(radiomic_features, shape_3d_features)
         println("Finished shape3D in $(time() - shape_3d_start_time) sec")
     end
-
+    
     return radiomic_features
 
 end
@@ -82,9 +82,7 @@ function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, fo
     return img, mask, voxel_spacing
 end
 
-
 function input_sanity_check(img, mask, verbose::Bool)
-
     if verbose
         println("Running input sanity check...")
     end
@@ -92,8 +90,6 @@ function input_sanity_check(img, mask, verbose::Bool)
     if size(img) != size(mask)
         throw(ArgumentError("img and mask have different size!"))
     end
-
 end
 
-
-end
+end # module Radiomics

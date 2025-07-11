@@ -15,8 +15,10 @@
 
 Right now, the implemented features are:
 - first order features
+- 2D shape features
 
-Additional features (e.g. shape and texture) have not been implemented yet, but we are on the right path!
+
+Additional features (e.g. 3D shape and texture) have not been implemented yet, but we are on the right path!
 
 ## **Example**
 
