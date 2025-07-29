@@ -9,46 +9,46 @@ function get_shape2d_features(mask_array::BitArray{2}, spacing::Vector{Float32},
         println("Extracting 2D shape features...")
     end
 
-    features = Dict{String, Float32}()
+    shape_2d_features = Dict{String, Float32}()
 
     perimeter, surface, diameter = get_coefficients(mask_array, spacing)
 
     # Perimeter
-    features["shape2d_perimeter"] = perimeter
+    shape_2d_features["shape2d_perimeter"] = perimeter
 
     # Mesh Surface
-    features["shape2d_mesh_surface"] = surface
+    shape_2d_features["shape2d_mesh_surface"] = surface
 
     # Maximum 2D Diameter
-    features["shape2d_maximum_diameter"] = diameter
+    shape_2d_features["shape2d_maximum_diameter"] = diameter
 
     # Pixel Surface
-    features["shape2d_pixel_surface"] = get_pixel_surface(mask_array, spacing)
+    shape_2d_features["shape2d_pixel_surface"] = get_pixel_surface(mask_array, spacing)
 
     # Perimeter Surface Ratio
-    features["shape2d_perimeter_surface_ratio"] = get_perimeter_surface_ratio(perimeter, surface)
+    shape_2d_features["shape2d_perimeter_surface_ratio"] = get_perimeter_surface_ratio(perimeter, surface)
 
     # Sphericity
-    features["shape2d_sphericity"] = get_sphericity(perimeter, surface)
+    shape_2d_features["shape2d_sphericity"] = get_sphericity(perimeter, surface)
 
     ev = get_eigenvalues(mask_array, spacing)
 
     # Major Axis Length
-    features["shape2d_major_axis_length"] = get_major_axis_length(ev)
+    shape_2d_features["shape2d_major_axis_length"] = get_major_axis_length(ev)
 
     # Minor Axis Length
-    features["shape2d_minor_axis_length"] = get_minor_axis_length(ev)
+    shape_2d_features["shape2d_minor_axis_length"] = get_minor_axis_length(ev)
 
     # Elongation
-    features["shape2d_elongation"] = get_elongation(ev)
+    shape_2d_features["shape2d_elongation"] = get_elongation(ev)
 
     if verbose
-        for (k, v) in features
+        for (k, v) in shape_2d_features
             println("  $k = $v")
         end
     end
 
-    return features
+    return shape_2d_features
 end
 
 function get_perimeter_surface_ratio(perimeter::Float32, surface::Float32)::Float32

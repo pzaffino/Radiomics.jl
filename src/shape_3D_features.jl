@@ -1,6 +1,11 @@
 using LinearAlgebra, Random
 
 function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbose=false)
+    
+    if verbose
+        println("Extracting 3D shape features...")
+    end
+
     shape_3d_features = Dict{String, Float32}()
 
     triangles = marching_cubes_surface(mask, spacing)
@@ -19,6 +24,13 @@ function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbo
     shape_3d_features["shape3d_elongation"] = elongation
     shape_3d_features["shape3d_flatness"] = flatness
     shape_3d_features["shape3d_voxel_volume"] = voxel_volume(mask, spacing)
+    
+    # Print features
+    if verbose
+        for (k, v) in shape_3d_features
+            println("  $k = $v")
+        end
+    end
 
     return shape_3d_features
 end
