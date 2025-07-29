@@ -5,8 +5,8 @@ using Radiomics
 
 @testset "Radiomics test - First Order Features" begin
 
-    ct = niread("../sample_data/CTChest.nii.gz")
-    mask = niread("../sample_data/Lungs.nii.gz")
+    ct = niread("sample_data/CTChest.nii.gz")
+    mask = niread("sample_data/Lungs.nii.gz")
     spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
     radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = false)
@@ -34,8 +34,8 @@ end
 
 @testset "Radiomics test - Shape2D Features" begin
 
-    ct = niread("../sample_data/CTChest.nii.gz")
-    mask = niread("../sample_data/Lungs.nii.gz")
+    ct = niread("sample_data/CTChest.nii.gz")
+    mask = niread("sample_data/Lungs.nii.gz")
     spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
     # Extract a single slice for Shape2D features
@@ -65,8 +65,8 @@ end
 @testset "Radiomics test - Shape3D Features" begin
     # Read NIfTI files
 
-    ct = niread("../sample_data/CTChest.nii.gz")
-    mask = niread("../sample_data/Lungs.nii.gz")
+    ct = niread("sample_data/CTChest.nii.gz")
+    mask = niread("sample_data/Lungs.nii.gz")
     spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
     spacing_perm = reverse(spacing)
 

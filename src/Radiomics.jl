@@ -97,4 +97,19 @@ function input_sanity_check(img, mask, verbose::Bool)
     end
 end
 
+
+function keep_largest_component(mask::AbstractArray{Bool})
+    return mask
+end
+
+
+function pad_mask(mask::AbstractArray, pad::Int)
+    sz = size(mask)
+    new_shape = ntuple(i -> sz[i] + 2*pad, ndims(mask))
+    new_mask = falses(new_shape)
+    ranges = ntuple(i -> (1+pad):(sz[i]+pad), ndims(mask))
+    new_mask[ranges...] .= mask
+    return new_mask
+end
+
 end # module Radiomics
