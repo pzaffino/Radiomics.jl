@@ -1,10 +1,28 @@
 using LinearAlgebra, Random
 
-const vertList = [
-    (0.5, 0.0, 0.0), (1.0, 0.5, 0.0), (0.5, 1.0, 0.0), (0.0, 0.5, 0.0),
-    (0.5, 0.0, 1.0), (1.0, 0.5, 1.0), (0.5, 1.0, 1.0), (0.0, 0.5, 1.0),
-    (0.0, 0.0, 0.5), (1.0, 0.0, 0.5), (1.0, 1.0, 0.5), (0.0, 1.0, 0.5)
-]
+function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbose=false)
+    shape_3d_features = Dict{String, Float32}()
+
+    triangles = marching_cubes_surface(mask, spacing)
+    area, meshvol = surface_and_volume(triangles)
+    shape_3d_features["shape3d_surface_area"] = area
+    shape_3d_features["shape3d_mesh_volume"] = meshvol
+    shape_3d_features["shape3d_surface_volume_ratio"] = area / meshvol
+    shape_3d_features["shape3d_sphericity"] = sphericity(meshvol, area)
+
+    coords = get_voxel_coords(mask, spacing)
+    
+    axes_lengths, elongation, flatness = principal_axes_features(coords)
+    shape_3d_features["shape3d_major_axis_length"] = axes_lengths[3]
+    shape_3d_features["shape3d_minor_axis_length"] = axes_lengths[2]
+    shape_3d_features["shape3d_least_axis_length"] = axes_lengths[1]
+    shape_3d_features["shape3d_elongation"] = elongation
+    shape_3d_features["shape3d_flatness"] = flatness
+    shape_3d_features["shape3d_voxel_volume"] = voxel_volume(mask, spacing)
+
+    return shape_3d_features
+end
+
 const edge_to_vertex = [
     (1,2), (2,3), (3,4), (4,1),
     (5,6), (6,7), (7,8), (8,5),
@@ -45,6 +63,7 @@ const edgeTable = UInt16[
 0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
 0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
 ]
+
 const triTable = [(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 (0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
 (0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
@@ -361,7 +380,9 @@ function surface_and_volume(triangles)
     return Float32(area), Float32(abs(volume))
 end
 
-sphericity(volume, area) = (36π * volume^2)^(1/3) / area
+function sphericity(volume, area)
+    return (36 * pi * volume^2)^(1/3) / area
+end
 
 function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
     coords = Vector{Vector{Float64}}()
@@ -378,52 +399,18 @@ function principal_axes_features(coords)
     n = length(coords)
     if n == 0 return zeros(Float32,3), NaN32, NaN32 end
     M = reduce(hcat, coords)
-    μ = mean(M, dims=2)
-    centered = M .- μ
+    mu = mean(M, dims=2)
+    centered = M .- mu
     covmat = centered * centered' / n
     eigvals = sort(eigen(Symmetric(covmat)).values)
-    λ1, λ2, λ3 = eigvals
-    axes_lengths = Float32.([4*sqrt(λ) for λ in eigvals])
-    elongation = λ3 > 0 && λ2 > 0 ? sqrt(λ2/λ3) : NaN32
-    flatness = λ3 > 0 && λ1 > 0 ? sqrt(λ1/λ3) : NaN32
+    lambda1, lambda2, lambda3 = eigvals
+    axes_lengths = Float32.([4*sqrt(lambda) for lambda in eigvals])
+    elongation = lambda3 > 0 && lambda2 > 0 ? sqrt(lambda2/lambda3) : NaN32
+    flatness = lambda3 > 0 && lambda1 > 0 ? sqrt(lambda1/lambda3) : NaN32
     return axes_lengths, Float32(elongation), Float32(flatness)
 end
 
-voxel_volume(mask, spacing) = Float32(count(mask) * spacing[1] * spacing[2] * spacing[3])
-
-function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbose=false)
-    features = Dict{String, Float32}()
-
-    triangles = marching_cubes_surface(mask, spacing)
-    area, meshvol = surface_and_volume(triangles)
-    features["shape3d_surface_area"] = area
-    features["shape3d_mesh_volume"] = meshvol
-    features["shape3d_surface_volume_ratio"] = area / meshvol
-    features["shape3d_sphericity"] = sphericity(meshvol, area)
-
-    
-    coords = get_voxel_coords(mask, spacing)
-    
-    axes_lengths, elongation, flatness = principal_axes_features(coords)
-    features["shape3d_major_axis_length"] = axes_lengths[3]
-    features["shape3d_minor_axis_length"] = axes_lengths[2]
-    features["shape3d_least_axis_length"] = axes_lengths[1]
-    features["shape3d_elongation"] = elongation
-    features["shape3d_flatness"] = flatness
-    features["shape3d_voxel_volume"] = voxel_volume(mask, spacing)
-
-    return features
+function voxel_volume(mask, spacing)
+    return Float32(count(mask) * spacing[1] * spacing[2] * spacing[3])
 end
 
-function keep_largest_component(mask::AbstractArray{Bool})
-    return mask
-end
-
-function pad_mask(mask::AbstractArray, pad::Int)
-    sz = size(mask)
-    new_shape = ntuple(i -> sz[i] + 2*pad, ndims(mask))
-    new_mask = falses(new_shape)
-    ranges = ntuple(i -> (1+pad):(sz[i]+pad), ndims(mask))
-    new_mask[ranges...] .= mask
-    return new_mask
-end

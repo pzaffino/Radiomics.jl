@@ -6,7 +6,9 @@ using StatsBase
 
 
 function get_first_order_features(img::Array{Float32, 3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}, verbose::Bool=false)
-    println("Extracting first order features...")
+    if verbose
+        println("Extracting first order features...")
+    end
 
     first_order_features = Dict{String, Float32}()
 

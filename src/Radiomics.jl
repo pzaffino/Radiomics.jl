@@ -1,9 +1,9 @@
 module Radiomics
-using IterTools: unzip
+#using IterTools: unzip
 
 include("first_order_features.jl")
-include("shape2D.jl")
-include("shape3D.jl")
+include("shape_2D_features.jl")
+include("shape_3D_features.jl")
 
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; force_2d::Bool=false, force_2d_dimension::Int=1, verbose::Bool=false)::Dict{String, Float32}
     """
@@ -44,22 +44,27 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
         first_order_features::Dict{String, Float32} = get_first_order_features(img, mask, voxel_spacing, verbose)
         merge!(radiomic_features, first_order_features)
         if verbose
-            println("First order time = $(time() - first_order_start_time)")
+            println("First order feature extraction time = $(time() - first_order_start_time) sec")
         end
     end
 
     if ndims(mask) == 2
-        println("Starting shape2D")
+        # 2D shape features
         shape_2d_start_time::Float64 = time()
         shape_2d_features::Dict{String, Float32} = get_shape2d_features(mask, voxel_spacing, verbose)
         merge!(radiomic_features, shape_2d_features)
-        println("Finished shape2D in $(time() - shape_2d_start_time) sec")
+        if verbose
+            println("2D shape feature extraction time = $(time() - shape_2d_start_time) sec")
+        end
+
     elseif ndims(mask) == 3
-        println("Starting shape3D")
+        # 3D shape features
         shape_3d_start_time::Float64 = time()
         shape_3d_features::Dict{String, Float32} = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
         merge!(radiomic_features, shape_3d_features)
-        println("Finished shape3D in $(time() - shape_3d_start_time) sec")
+        if verbose
+            println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
+        end
     end
     
     return radiomic_features
@@ -78,7 +83,7 @@ function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, fo
         end
         voxel_spacing = Float32.(voxel_spacing_input[setdiff(1:3, force_2d_dimension)])
     end
-    print(ndims(img), ndims(mask), force_2d, force_2d_dimension)
+
     return img, mask, voxel_spacing
 end
 
