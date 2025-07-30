@@ -1,5 +1,4 @@
 module Radiomics
-#using IterTools: unzip
 
 include("first_order_features.jl")
 include("shape_2D_features.jl")
