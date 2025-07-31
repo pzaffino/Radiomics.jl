@@ -18,10 +18,21 @@ Right now, the implemented features are:
 - 2D shape features
 - 3D shape features
 
-
 Additional features (e.g. texture) have not been implemented yet, but we are on the right path!
 
+## **Getting started**
+
+To install Radiomics.jl, simply run:
+
+```julia
+import Pkg
+Pkg.add("Radiomics")
+```
+You can install Radiomics.jl on either your local machine or Google Colab.
+
 ## **Example**
+
+Once the library is installed, radiomics features can be extracted as reported in the following example (sample data shipped with the library are used):
 
 ```julia
 using NIfTI
