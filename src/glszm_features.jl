@@ -1,6 +1,20 @@
 
 using StatsBase
 
+"""
+    get_glszm_features(img, mask, voxel_spacing; verbose=false)
+
+Calculates and returns a dictionary of GLSZM (Gray Level Size Zone Matrix) features.
+
+# Arguments
+- `img`: The input image.
+- `mask`: The mask defining the region of interest.
+- `voxel_spacing`: The spacing of the voxels in the image.
+- `verbose`: If true, prints progress messages.
+
+# Returns
+- A dictionary where keys are the feature names and values are the calculated feature values.
+"""
 function get_glszm_features(img, mask, voxel_spacing; verbose=false)
     if verbose
         println("Calculating GLSZM features...")
@@ -39,6 +53,19 @@ function get_glszm_features(img, mask, voxel_spacing; verbose=false)
     return glszm_features
 end
 
+"""
+    discretize(img, mask; bin_width=25)
+
+Discretizes the input image using a fixed bin width, following the pyradiomics implementation.
+
+# Arguments
+- `img`: The input image.
+- `mask`: The mask defining the region of interest.
+- `bin_width`: The width of each bin.
+
+# Returns
+- The discretized image.
+"""
 function discretize(img, mask; bin_width=25)
     masked_img = img[mask]
     min_val = minimum(masked_img)
@@ -49,6 +76,19 @@ function discretize(img, mask; bin_width=25)
     return Int.(discretized)
 end
 
+"""
+    calculate_glszm_matrix(discretized_img, mask, verbose)
+
+Calculates the Gray Level Size Zone Matrix (GLSZM).
+
+# Arguments
+- `discretized_img`: The discretized input image.
+- `mask`: The mask defining the region of interest.
+- `verbose`: If true, prints progress messages.
+
+# Returns
+- A tuple containing the GLSZM matrix and the gray levels present in the ROI.
+"""
 function calculate_glszm_matrix(discretized_img, mask, verbose)
     if verbose
         println("Calculating GLSZM matrix...")
@@ -103,6 +143,18 @@ function calculate_glszm_matrix(discretized_img, mask, verbose)
     return P_glszm, gray_levels
 end
 
+"""
+    get_neighbors(idx, dims)
+
+Gets the 26-connected neighbors of a voxel in a 3D image.
+
+# Arguments
+- `idx`: The linear index of the voxel.
+- `dims`: The dimensions of the image.
+
+# Returns
+- A vector of linear indices of the neighbors.
+"""
 function get_neighbors(idx, dims)
     neighbors = []
     cartesian_idx = CartesianIndices(dims)[idx]
@@ -123,6 +175,18 @@ function get_neighbors(idx, dims)
 end
 
 
+"""
+    calculate_glszm_coefficients(P_glszm, gray_levels)
+
+Calculates the coefficients used in the GLSZM feature calculations.
+
+# Arguments
+- `P_glszm`: The GLSZM matrix.
+- `gray_levels`: The gray levels present in the ROI.
+
+# Returns
+- A tuple containing the number of voxels, number of zones, sum over gray levels, sum over sizes, gray level vector, and size vector.
+"""
 function calculate_glszm_coefficients(P_glszm, gray_levels)
     ps = sum(P_glszm, dims=1)
     pg = sum(P_glszm, dims=2)

@@ -17,6 +17,7 @@ Right now, the implemented features are:
 - first order features
 - 2D shape features
 - 3D shape features
+- GLSZM features
 
 Additional features (e.g. texture) have not been implemented yet, but we are on the right path!
 
