@@ -19,6 +19,7 @@ Right now, the implemented features are:
 - 3D shape features
 - GLSZM features
 - NGTDM features
+- GLRLM features
 
 Additional features (e.g. texture) have not been implemented yet, but we are on the right path!
 

@@ -6,6 +6,7 @@ include("shape_2D_features.jl")
 include("shape_3D_features.jl")
 include("glszm_features.jl")
 include("ngtdm_features.jl")
+include("glrlm_features.jl")
 
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; force_2d::Bool=false, force_2d_dimension::Int=1, verbose::Bool=false)::Dict{String, Float32}
     """
@@ -82,6 +83,14 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
         merge!(radiomic_features, ngtdm_features)
         if verbose
             println("NGTDM feature extraction time = $(time() - ngtdm_start_time) sec")
+        end
+
+        # GLRLM features
+        glrlm_start_time::Float64 = time()
+        glrlm_features::Dict{String, Float32} = get_glrlm_features(img, mask, voxel_spacing, verbose=verbose)
+        merge!(radiomic_features, glrlm_features)
+        if verbose
+            println("GLRLM feature extraction time = $(time() - glrlm_start_time) sec")
         end
     end
     
