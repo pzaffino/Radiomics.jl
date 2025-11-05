@@ -25,3 +25,4 @@ docs/site/
 # environment.
 Manifest.toml
 .local/
+sample_data/lungs_data.npz

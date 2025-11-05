@@ -1,3 +1,4 @@
+include("test_glszm.jl")
 using Test
 
 using NIfTI
