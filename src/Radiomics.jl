@@ -1,6 +1,7 @@
 module Radiomics
 
 include("utils.jl")
+include("glcm_features.jl")
 include("first_order_features.jl")
 include("shape_2D_features.jl")
 include("shape_3D_features.jl")
@@ -26,7 +27,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
     A dictionary (Dict{String, Float32}) containing the extracted radiomic features as key-value pairs.
     """
     if verbose
-        println("Extracting...")
+        println("Extracting radiomic features...")
     end
 
     radiomic_features = Dict{String, Float32}()
@@ -35,76 +36,111 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
     img, mask, voxel_spacing = prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
 
     # Sanity check on inputs
-    sanity_check_start_time::Float64 = time()
+    sanity_check_start_time = time()
     input_sanity_check(img, mask, verbose)
     if verbose
-        println("Sanity check time = $(time() - sanity_check_start_time)")
+        println("Sanity check time = $(time() - sanity_check_start_time) sec")
     end
 
-    # Extract features
+    # Extract features based on dimensionality
     if ndims(img) == 3
         # First order features
-        first_order_start_time::Float64 = time()
-        first_order_features::Dict{String, Float32} = get_first_order_features(img, mask, voxel_spacing, verbose)
+        first_order_start_time = time()
+        first_order_features = get_first_order_features(img, mask, voxel_spacing, verbose)
         merge!(radiomic_features, first_order_features)
         if verbose
             println("First order feature extraction time = $(time() - first_order_start_time) sec")
+            print_features("First Order Features", first_order_features)
         end
     end
 
+    # GLCM Features (works for both 2D and 3D)
+    glcm_start_time = time()
+    glcm_features = get_glcm_features(img, mask, voxel_spacing; verbose=verbose)
+    merge!(radiomic_features, glcm_features)
+    if verbose
+        println("GLCM feature extraction time = $(time() - glcm_start_time) sec")
+        print_features("GLCM Features", glcm_features)
+    end
+
+    # Shape features
     if ndims(mask) == 2
         # 2D shape features
-        shape_2d_start_time::Float64 = time()
-        shape_2d_features::Dict{String, Float32} = get_shape2d_features(mask, voxel_spacing, verbose)
+        shape_2d_start_time = time()
+        shape_2d_features = get_shape2d_features(mask, voxel_spacing, verbose)
         merge!(radiomic_features, shape_2d_features)
         if verbose
             println("2D shape feature extraction time = $(time() - shape_2d_start_time) sec")
+            print_features("2D Shape Features", shape_2d_features)
         end
 
     elseif ndims(mask) == 3
         # 3D shape features
-        shape_3d_start_time::Float64 = time()
-        shape_3d_features::Dict{String, Float32} = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
+        shape_3d_start_time = time()
+        shape_3d_features = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
         merge!(radiomic_features, shape_3d_features)
         if verbose
             println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
+            print_features("3D Shape Features", shape_3d_features)
         end
 
         # GLSZM features
-        glszm_start_time::Float64 = time()
-        glszm_features::Dict{String, Float32} = get_glszm_features(img, mask, voxel_spacing, verbose=verbose)
+        glszm_start_time = time()
+        glszm_features = get_glszm_features(img, mask, voxel_spacing, verbose=verbose)
         merge!(radiomic_features, glszm_features)
         if verbose
             println("GLSZM feature extraction time = $(time() - glszm_start_time) sec")
+            print_features("GLSZM Features", glszm_features)
         end
 
         # NGTDM features
-        ngtdm_start_time::Float64 = time()
-        ngtdm_features::Dict{String, Float32} = get_ngtdm_features(img, mask, voxel_spacing, verbose=verbose)
+        ngtdm_start_time = time()
+        ngtdm_features = get_ngtdm_features(img, mask, voxel_spacing, verbose=verbose)
         merge!(radiomic_features, ngtdm_features)
         if verbose
             println("NGTDM feature extraction time = $(time() - ngtdm_start_time) sec")
+            print_features("NGTDM Features", ngtdm_features)
         end
 
         # GLRLM features
-        glrlm_start_time::Float64 = time()
-        glrlm_features::Dict{String, Float32} = get_glrlm_features(img, mask, voxel_spacing, verbose=verbose)
+        glrlm_start_time = time()
+        glrlm_features = get_glrlm_features(img, mask, voxel_spacing, verbose=verbose)
         merge!(radiomic_features, glrlm_features)
         if verbose
             println("GLRLM feature extraction time = $(time() - glrlm_start_time) sec")
+            print_features("GLRLM Features", glrlm_features)
         end
 
         # GLDM features
-        gldm_start_time::Float64 = time()
-        gldm_features::Dict{String, Float32} = get_gldm_features(img, mask, voxel_spacing, verbose=verbose)
+        gldm_start_time = time()
+        gldm_features = get_gldm_features(img, mask, voxel_spacing, verbose=verbose)
         merge!(radiomic_features, gldm_features)
         if verbose
             println("GLDM feature extraction time = $(time() - gldm_start_time) sec")
+            print_features("GLDM Features", gldm_features)
         end
     end
     
+    if verbose
+        println("\n======================")
+        println("Total features extracted: $(length(radiomic_features))")
+        println("======================\n")
+    end
+    
     return radiomic_features
+end
 
+function print_features(title::String, features::Dict{String, Float32})
+    """
+    Helper function to print features in a formatted list.
+    """
+    println("\n--- $title ---")
+    sorted_keys = sort(collect(keys(features)))
+    for (i, k) in enumerate(sorted_keys)
+        println("  $i. $(rpad(k, 35)) => $(features[k])")
+    end
+    println("Subtotal: $(length(features)) features")
+    println("---------------------\n")
 end
 
 function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
@@ -133,11 +169,9 @@ function input_sanity_check(img, mask, verbose::Bool)
     end
 end
 
-
 function keep_largest_component(mask::AbstractArray{Bool})
     return mask
 end
-
 
 function pad_mask(mask::AbstractArray, pad::Int)
     sz = size(mask)
@@ -149,3 +183,6 @@ function pad_mask(mask::AbstractArray, pad::Int)
 end
 
 end # module Radiomics
+
+# Esegui come: 
+# radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=true);
