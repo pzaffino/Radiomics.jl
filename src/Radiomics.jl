@@ -1,8 +1,13 @@
 module Radiomics
 
+include("utils.jl")
 include("first_order_features.jl")
 include("shape_2D_features.jl")
 include("shape_3D_features.jl")
+include("glszm_features.jl")
+include("ngtdm_features.jl")
+include("glrlm_features.jl")
+include("gldm_features.jl")
 
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; force_2d::Bool=false, force_2d_dimension::Int=1, verbose::Bool=false)::Dict{String, Float32}
     """
@@ -63,6 +68,38 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
         merge!(radiomic_features, shape_3d_features)
         if verbose
             println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
+        end
+
+        # GLSZM features
+        glszm_start_time::Float64 = time()
+        glszm_features::Dict{String, Float32} = get_glszm_features(img, mask, voxel_spacing, verbose=verbose)
+        merge!(radiomic_features, glszm_features)
+        if verbose
+            println("GLSZM feature extraction time = $(time() - glszm_start_time) sec")
+        end
+
+        # NGTDM features
+        ngtdm_start_time::Float64 = time()
+        ngtdm_features::Dict{String, Float32} = get_ngtdm_features(img, mask, voxel_spacing, verbose=verbose)
+        merge!(radiomic_features, ngtdm_features)
+        if verbose
+            println("NGTDM feature extraction time = $(time() - ngtdm_start_time) sec")
+        end
+
+        # GLRLM features
+        glrlm_start_time::Float64 = time()
+        glrlm_features::Dict{String, Float32} = get_glrlm_features(img, mask, voxel_spacing, verbose=verbose)
+        merge!(radiomic_features, glrlm_features)
+        if verbose
+            println("GLRLM feature extraction time = $(time() - glrlm_start_time) sec")
+        end
+
+        # GLDM features
+        gldm_start_time::Float64 = time()
+        gldm_features::Dict{String, Float32} = get_gldm_features(img, mask, voxel_spacing, verbose=verbose)
+        merge!(radiomic_features, gldm_features)
+        if verbose
+            println("GLDM feature extraction time = $(time() - gldm_start_time) sec")
         end
     end
     

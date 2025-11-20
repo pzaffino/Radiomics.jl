@@ -1,3 +1,7 @@
+include("test_glszm.jl")
+include("test_ngtdm.jl")
+include("test_glrlm.jl")
+include("test_gldm.jl")
 using Test
 
 using NIfTI
