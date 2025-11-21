@@ -1,7 +1,7 @@
 name = "Radiomics"
 uuid = "a80a7044-09a6-4a0a-a486-eb806178b9ba"
 version = "0.2.0"
-authors = ["Paolo Zaffino <p.zaffino@unicz.it>", "Ciro Benito Raggio <ciro.raggio@kit.edu>", "Mohammadreza Javadi Namin <mohammadreza.javadi@mail.polimi.it>", "Nastaran Ghaffari Elkhechi <nastaran.ghaffari@mail.polimi.it>"]
+authors = ["Paolo Zaffino <p.zaffino@unicz.it>", "Ciro Benito Raggio <ciro.raggio@kit.edu>", "Mohammadreza Javadi Namin <mohammadreza.javadi@mail.polimi.it>", "Nastaran Ghaffari Elkhechi <nastaran.ghaffari@mail.polimi.it>", "Aldo Giuliani <aldo.giuliani@studenti.unicz.it>", "Jakub Mitura <jakub.mitura14@gmail.com>"]
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
