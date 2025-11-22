@@ -71,7 +71,8 @@ function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
     num_gl = length(gray_levels)
     gl_map = Dict(gl => i for (i, gl) in enumerate(gray_levels))
 
-    max_dependence = 26
+    # Max dependence is 26 (neighbors) + 1 (center) = 27 for 3D
+    max_dependence = 27
     P_gldm = zeros(Int, num_gl, max_dependence)
 
     for i in eachindex(discretized_img)
@@ -87,9 +88,10 @@ function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
                 end
             end
 
-            if dependence_count > 0
-                P_gldm[gl_idx, dependence_count] += 1
-            end
+            # Add center voxel (always dependent)
+            dependence_count += 1
+
+            P_gldm[gl_idx, dependence_count] += 1
         end
     end
 
