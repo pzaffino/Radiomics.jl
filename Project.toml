@@ -1,12 +1,13 @@
 name = "Radiomics"
 uuid = "a80a7044-09a6-4a0a-a486-eb806178b9ba"
-authors = ["Paolo Zaffino <p.zaffino@unicz.it>", "Ciro Benito Raggio <ciro.raggio@kit.edu>", "Mohammadreza Javadi Namin <mohammadreza.javadi@mail.polimi.it>", "Nastaran Ghaffari Elkhechi <nastaran.ghaffari@mail.polimi.it>"]
 version = "0.2.0"
+authors = ["Paolo Zaffino <p.zaffino@unicz.it>", "Ciro Benito Raggio <ciro.raggio@kit.edu>", "Mohammadreza Javadi Namin <mohammadreza.javadi@mail.polimi.it>", "Nastaran Ghaffari Elkhechi <nastaran.ghaffari@mail.polimi.it>", "Aldo Giuliani <aldo.giuliani@studenti.unicz.it>", "Jakub Mitura <jakub.mitura14@gmail.com>"]
 
 [deps]
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NIfTI = "a3a9e032-41b5-5fc4-967a-a6b7a19844d3"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
+Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
@@ -14,12 +15,8 @@ Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 LinearAlgebra = "1"
 NIfTI = "0.6"
 Random = "1"
+Statistics = "1.11.1"
 StatsBase = "0.34"
 Test = "1.11.0"
 julia = "1.10"
 
-[extras]
-Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
-
-[targets]
-test = ["Test"]
