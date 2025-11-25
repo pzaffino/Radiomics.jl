@@ -1,29 +1,66 @@
+###############################################################
+# NGTDM Radiomics - Using Shared Discretization Module
+###############################################################
 
 using StatsBase
 
-"""
-    get_ngtdm_features(img, mask, voxel_spacing; verbose=false)
+# La funzione discretize_image è in utils.jl che viene incluso da Radiomics.jl
 
-Calculates and returns a dictionary of NGTDM (Neighbouring Gray Tone Difference Matrix) features.
+function get_ngtdm_features(img, mask, voxel_spacing; 
+                           n_bins::Union{Int,Nothing}=nothing,
+                           bin_width::Union{Float32,Nothing}=nothing,
+                           verbose=false)
+    """
+    get_ngtdm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false)
 
-# Arguments
-- `img`: The input image.
-- `mask`: The mask defining the region of interest.
-- `voxel_spacing`: The spacing of the voxels in the image.
-- `verbose`: If true, prints progress messages.
+    Calculates and returns a dictionary of NGTDM (Neighbouring Gray Tone Difference Matrix) features.
 
-# Returns
-- A dictionary where keys are the feature names and values are the calculated feature values.
-"""
-function get_ngtdm_features(img, mask, voxel_spacing; verbose=false)
+    You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
+    - If n_bins is specified, bin_width is calculated automatically from the intensity range
+    - If bin_width is specified, the number of bins depends on the intensity range
+    - If neither is specified, defaults to n_bins=32
+
+    # Arguments
+    - `img`: The input image.
+    - `mask`: The mask defining the region of interest.
+    - `voxel_spacing`: The spacing of the voxels in the image.
+    - `n_bins`: The number of bins for discretizing intensity values (optional).
+    - `bin_width`: The width of each bin (optional).
+    - `verbose`: If true, prints progress messages.
+
+    # Returns
+    - A dictionary where keys are the feature names and values are the calculated feature values.
+
+    # Examples
+        # Using fixed number of bins (bin_width calculated automatically)
+        features = get_ngtdm_features(img, mask, spacing, n_bins=64)
+        
+        # Using fixed bin width (number of bins calculated automatically)
+        features = get_ngtdm_features(img, mask, spacing, bin_width=25.0f0)
+        
+        # Default (32 bins)
+        features = get_ngtdm_features(img, mask, spacing)
+    """
     if verbose
-        println("Calculating NGTDM features...")
+        if !isnothing(n_bins)
+            println("Calcolo NGTDM con $(n_bins) bins...")
+        elseif !isnothing(bin_width)
+            println("Calcolo NGTDM con bin_width=$(bin_width)...")
+        else
+            println("Calcolo NGTDM con 32 bins (default)...")
+        end
     end
 
     ngtdm_features = Dict{String, Float32}()
 
     # 1. Discretize the image
-    discretized_img = discretize(img, mask)
+    discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+
+    if verbose
+        println("Range intensità: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Bin width utilizzata: $(bin_width_used)")
+        println("Numero di gray levels effettivi: $(n_bins_actual)")
+    end
 
     # 2. Calculate the NGTDM matrix
     P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, verbose)
@@ -38,23 +75,27 @@ function get_ngtdm_features(img, mask, voxel_spacing; verbose=false)
     ngtdm_features["ngtdm_Complexity"] = complexity(p_i, s_i, ivector, Nvp)
     ngtdm_features["ngtdm_Strength"] = strength(p_i, s_i, ivector)
 
+    if verbose
+        println("Completato! Estratte $(length(ngtdm_features)) features.")
+    end
+
     return ngtdm_features
 end
 
-"""
+function calculate_ngtdm_matrix(discretized_img, mask, verbose)
+    """
     calculate_ngtdm_matrix(discretized_img, mask, verbose)
 
-Calculates the Neighbouring Gray Tone Difference Matrix (NGTDM).
+    Calculates the Neighbouring Gray Tone Difference Matrix (NGTDM).
 
-# Arguments
-- `discretized_img`: The discretized input image.
-- `mask`: The mask defining the region of interest.
-- `verbose`: If true, prints progress messages.
+    # Arguments
+    - `discretized_img`: The discretized input image.
+    - `mask`: The mask defining the region of interest.
+    - `verbose`: If true, prints progress messages.
 
-# Returns
-- A tuple containing the NGTDM matrix and the gray levels present in the ROI.
-"""
-function calculate_ngtdm_matrix(discretized_img, mask, verbose)
+    # Returns
+    - A tuple containing the NGTDM matrix and the gray levels present in the ROI.
+    """
     if verbose
         println("Calculating NGTDM matrix...")
     end
@@ -93,19 +134,19 @@ function calculate_ngtdm_matrix(discretized_img, mask, verbose)
     return P_ngtdm, gray_levels
 end
 
-"""
+function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
+    """
     calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
 
-Calculates the coefficients used in the NGTDM feature calculations.
+    Calculates the coefficients used in the NGTDM feature calculations.
 
-# Arguments
-- `P_ngtdm`: The NGTDM matrix.
-- `gray_levels`: The gray levels present in the ROI.
+    # Arguments
+    - `P_ngtdm`: The NGTDM matrix.
+    - `gray_levels`: The gray levels present in the ROI.
 
-# Returns
-- A tuple containing the number of voxels with a valid region, the gray level probability vector, the sum of absolute differences vector, the gray level vector, and the number of gray levels for which `p_i` > 0.
-"""
-function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
+    # Returns
+    - A tuple containing the number of voxels with a valid region, the gray level probability vector, the sum of absolute differences vector, the gray level vector, and the number of gray levels for which `p_i` > 0.
+    """
     Nvp = sum(P_ngtdm[:, 1])
     p_i = P_ngtdm[:, 1] ./ Nvp
     s_i = P_ngtdm[:, 2]
@@ -116,22 +157,20 @@ function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
 end
 
 # Feature implementations
-"""
-    coarseness(p_i, s_i)
-
-Calculates the Coarseness feature.
-"""
 function coarseness(p_i, s_i)
+    """
+    coarseness(p_i, s_i)
+    Calculates the Coarseness feature.
+    """
     sum_coarse = sum(p_i .* s_i)
     return sum_coarse == 0 ? 1e6 : 1 / sum_coarse
 end
 
-"""
-    contrast(p_i, s_i, i, Ngp, Nvp)
-
-Calculates the Contrast feature.
-"""
 function contrast(p_i, s_i, i, Ngp, Nvp)
+    """
+    contrast(p_i, s_i, i, Ngp, Nvp)
+    Calculates the Contrast feature.
+    """
     if Ngp <= 1
         return 0.0
     end
@@ -143,12 +182,11 @@ function contrast(p_i, s_i, i, Ngp, Nvp)
     return contrast_val / div
 end
 
-"""
-    busyness(p_i, s_i, i)
-
-Calculates the Busyness feature.
-"""
 function busyness(p_i, s_i, i)
+    """
+    busyness(p_i, s_i, i)
+    Calculates the Busyness feature.
+    """
     p_zero_mask = p_i .== 0
     i_pi = i .* p_i
 
@@ -165,12 +203,11 @@ function busyness(p_i, s_i, i)
     return sum(p_i .* s_i) / sum_abs_diff
 end
 
-"""
-    complexity(p_i, s_i, i, Nvp)
-
-Calculates the Complexity feature.
-"""
 function complexity(p_i, s_i, i, Nvp)
+    """
+    complexity(p_i, s_i, i, Nvp)
+    Calculates the Complexity feature.
+    """
     p_zero_mask = p_i .== 0
     pi_si = p_i .* s_i
 
@@ -185,12 +222,11 @@ function complexity(p_i, s_i, i, Nvp)
     return complexity_val
 end
 
-"""
-    strength(p_i, s_i, i)
-
-Calculates the Strength feature.
-"""
 function strength(p_i, s_i, i)
+    """
+    strength(p_i, s_i, i)
+    Calculates the Strength feature.
+    """
     sum_s_i = sum(s_i)
     if sum_s_i == 0
         return 0.0
