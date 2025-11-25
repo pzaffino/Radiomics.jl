@@ -374,3 +374,17 @@ function get_glcm_features(img::Array{Float32,3},
 
     return feats
 end
+
+function get_glcm_features(img::Matrix{Float32},
+                           mask::BitMatrix,
+                           voxel_spacing::Vector{Float32};
+                           bin_width::Float32=25.0f0,
+                           verbose::Bool=false)
+
+    img_3d = reshape(img, size(img)..., 1)
+    mask_3d = reshape(mask, size(mask)..., 1)
+    # Handle voxel spacing if it's 2D
+    spacing_3d = length(voxel_spacing) == 2 ? [voxel_spacing..., 1.0f0] : voxel_spacing
+
+    return get_glcm_features(img_3d, mask_3d, spacing_3d; bin_width=bin_width, verbose=verbose)
+end
