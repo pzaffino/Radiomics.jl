@@ -15,6 +15,11 @@ function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbo
         println("Extracting 3D shape features...")
     end
 
+    spacing = reverse(spacing)
+    #mask = mask .> 0
+    #mask = keep_largest_component(mask)
+    mask = pad_mask(mask, 1)
+
     shape_3d_features = Dict{String, Float32}()
 
     triangles = marching_cubes_surface(mask, spacing)

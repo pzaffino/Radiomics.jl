@@ -95,15 +95,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         end
 
     elseif ndims(mask) == 3
-        # 3D shape features
-        shape_3d_start_time = time()
-        shape_3d_features = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
-        merge!(radiomic_features, shape_3d_features)
-        if verbose
-            println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
-            print_features("3D Shape Features", shape_3d_features)
-        end
-
         # GLSZM features
         glszm_start_time = time()
         glszm_features = get_glszm_features(img, mask, voxel_spacing; 
@@ -150,6 +141,15 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         if verbose
             println("GLDM feature extraction time = $(time() - gldm_start_time) sec")
             print_features("GLDM Features", gldm_features)
+        end
+
+       # 3D shape features
+        shape_3d_start_time = time()
+        shape_3d_features = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
+        merge!(radiomic_features, shape_3d_features)
+        if verbose
+            println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
+            print_features("3D Shape Features", shape_3d_features)
         end
     end
 
@@ -222,33 +222,6 @@ function input_sanity_check(img, mask, verbose::Bool)
     if size(img) != size(mask)
         throw(ArgumentError("img and mask have different size!"))
     end
-end
-
-function keep_largest_component(mask::AbstractArray{Bool})
-    """
-    Keeps only the largest connected component in the binary mask.
-        # Parameters:
-        - `mask`: The input binary mask (Array).
-        # Returns:
-        - The mask containing only the largest connected component (Array).
-    """
-    return mask
-end
-
-function pad_mask(mask::AbstractArray, pad::Int)
-    """
-    Pads the input mask with a specified number of layers of false values.
-        # Parameters:
-        - `mask`: The input mask (Array).
-        - `pad`: The number of layers to pad around the mask.
-        # Returns:
-        - The padded mask (Array)."""
-    sz = size(mask)
-    new_shape = ntuple(i -> sz[i] + 2*pad, ndims(mask))
-    new_mask = falses(new_shape)
-    ranges = ntuple(i -> (1+pad):(sz[i]+pad), ndims(mask))
-    new_mask[ranges...] .= mask
-    return new_mask
 end
 
 """

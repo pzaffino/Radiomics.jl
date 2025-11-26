@@ -117,3 +117,33 @@ function get_neighbors(idx, dims)
 
     return neighbors
 end
+
+
+function keep_largest_component(mask::AbstractArray{Bool})
+    """
+    Keeps only the largest connected component in the binary mask.
+        # Parameters:
+        - `mask`: The input binary mask (Array).
+        # Returns:
+        - The mask containing only the largest connected component (Array).
+    """
+    return mask
+end
+
+
+function pad_mask(mask::AbstractArray, pad::Int)
+    """
+    Pads the input mask with a specified number of layers of false values.
+        # Parameters:
+        - `mask`: The input mask (Array).
+        - `pad`: The number of layers to pad around the mask.
+        # Returns:
+        - The padded mask (Array)."""
+    sz = size(mask)
+    new_shape = ntuple(i -> sz[i] + 2*pad, ndims(mask))
+    new_mask = falses(new_shape)
+    ranges = ntuple(i -> (1+pad):(sz[i]+pad), ndims(mask))
+    new_mask[ranges...] .= mask
+    return new_mask
+end
+
