@@ -1,7 +1,16 @@
 using LinearAlgebra, Random
 
 function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbose=false)
-    
+    """
+    get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbose=false)
+    Extracts 3D shape features from the given binary mask.
+    # Arguments
+        - `mask`: A 3D binary mask where the region of interest is marked as true.
+        - `spacing`: A vector containing the voxel spacing in each dimension (x, y, z).
+        - `verbose`: If true, prints progress messages.
+        # Returns
+        - A dictionary containing the calculated 3D shape features.
+    """
     if verbose
         println("Extracting 3D shape features...")
     end
@@ -335,6 +344,10 @@ const triTable = [(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -
 ]
 
 function vertex_interp(p1, p2, valp1, valp2, isolevel)
+    """ 
+    Linearly interpolate the position where an isosurface cuts
+    an edge between two vertices, each with their own scalar value.
+    """
     if abs(valp2 - valp1) < 1e-8
         return p1
     end
@@ -343,6 +356,10 @@ function vertex_interp(p1, p2, valp1, valp2, isolevel)
 end
 
 function marching_cubes_surface(mask::BitArray{3}, spacing::Vector{Float32})
+    """
+    Extract the surface mesh from a 3D binary mask using the Marching Cubes algorithm
+    Returns a list of triangles, each represented as a tuple of three 3D points.
+    """
     nx, ny, nz = size(mask)
     triangles = Vector{NTuple{3,Vector{Float64}}}()
     corner_offsets = [(0,0,0), (1,0,0), (1,1,0), (0,1,0), (0,0,1), (1,0,1), (1,1,1), (0,1,1)]
@@ -381,6 +398,14 @@ function marching_cubes_surface(mask::BitArray{3}, spacing::Vector{Float32})
 end
 
 function surface_and_volume(triangles)
+    """
+    Calculate surface area and volume from a list of triangles.
+    Each triangle is represented as a tuple of three 3D points.
+    #Arguments
+    - triangles: Vector of triangles, each triangle is a tuple of three 3D points.
+    #Returns
+    - area: Surface area of the shape.
+    - volume: Volume of the shape."""
     area = 0.0
     volume = 0.0
     for (a, b, c) in triangles
@@ -393,10 +418,26 @@ function surface_and_volume(triangles)
 end
 
 function sphericity(volume, area)
+    """Calculate the sphericity given volume and surface area.
+    Sphericity = (36π * V²)^(1/3) / A
+    # Arguments
+    - volume: Volume of the shape.
+    - area: Surface area of the shape.
+    # Returns
+    - sphericity: The sphericity value.
+    """
     return (36 * pi * volume^2)^(1/3) / area
 end
 
 function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
+    """
+    Get the 3D coordinates of all voxels set to true in the binary mask.
+    # Returns a vector of 3D points.
+    #Arguments
+    - mask: 3D BitArray representing the binary mask.
+    - spacing: Vector of Float32 representing the voxel spacing in each dimension.
+    #Returns
+    - coords: Vector of 3D points (each point is a Vector{Float64"""
     coords = Vector{Vector{Float64}}()
     for I in CartesianIndices(mask)
         if mask[I]
@@ -408,6 +449,14 @@ function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
 end
 
 function principal_axes_features(coords)
+    """
+    Calculate the principal axes lengths, elongation, and flatness from a set of 3D coordinates.
+    # Arguments
+    - coords: Vector of 3D points (each point is a Vector{Float64}).
+    # Returns
+    - axes_lengths: Vector of Float32 containing the lengths of the principal axes.
+    - elongation: Float32 representing the elongation (sqrt(lambda2/lambda3)).
+    - flatness: Float32 representing the flatness (sqrt(lambda1/lambda3))."""
     n = length(coords)
     if n == 0 return zeros(Float32,3), NaN32, NaN32 end
     M = reduce(hcat, coords)
@@ -423,6 +472,13 @@ function principal_axes_features(coords)
 end
 
 function voxel_volume(mask, spacing)
+    """Calculate the volume of the shape represented by the binary mask.
+    # Arguments
+    - mask: 3D BitArray representing the binary mask.
+    - spacing: Vector of Float32 representing the voxel spacing in each dimension.
+    # Returns
+    - volume: Float32 representing the volume of the shape.
+    """
     return Float32(count(mask) * spacing[1] * spacing[2] * spacing[3])
 end
 

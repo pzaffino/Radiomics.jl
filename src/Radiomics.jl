@@ -1,7 +1,7 @@
 module Radiomics
 
 include("utils.jl")
-include("glcm_features.jl")#include GLCM features
+include("glcm_features.jl")
 include("first_order_features.jl")
 include("shape_2D_features.jl")
 include("shape_3D_features.jl")
@@ -10,39 +10,56 @@ include("ngtdm_features.jl")
 include("glrlm_features.jl")
 include("gldm_features.jl")
 
-function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; force_2d::Bool=false, force_2d_dimension::Int=1, verbose::Bool=false)::Dict{String, Float32}
+function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
+                                            force_2d::Bool=false,
+                                            force_2d_dimension::Int=1,
+                                            n_bins::Union{Int,Nothing}=nothing,
+                                            bin_width::Union{Float32,Nothing}=nothing,
+                                            verbose::Bool=false)::Dict{String, Float32}
     """
-    Extracts radiomic features from the given image and mask inputs. 
-    In case of two-dimensional input, 2D features will be extracted and returned for the single slice.
-
-    # Arguments
-    - img_input: The input image from which radiomic features will be extracted. Can be 2D or 3D.
-    - mask_input: The mask image defining the region of interest for feature extraction. Can be 2D or 3D.
-    - voxel_spacing_input: A tuple or array specifying the voxel spacing of the input image. Can be bidimensional or three-dimensional.
-    - force_2d::Bool: If true, forces the extraction to be performed in 2D by removing one dimension from the voxel spacing. This is useful when the input data is three-dimensional but should be treated as two-dimensional.
-    - force_2d_dimension::Int: Specifies which dimension to eliminate when force_2d is true. For example, if set to 1, the first dimension will be removed.
-    - verbose::Bool: If true, enables verbose output for debugging or detailed processing information.
-
-    # Returns
-    A dictionary (Dict{String, Float32}) containing the extracted radiomic features as key-value pairs.
+    extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
+                              force_2d=false,
+                              force_2d_dimension=1,
+                              n_bins=nothing,
+                              bin_width=nothing,
+                              verbose=false)
+    # Extracts radiomic features from the given image and mask. 
+    # Parameters:
+    - `img_input`: The input image (Array).
+    - `mask_input`: The mask defining the region of interest (Array).
+    - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
+    - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
+    - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
+    - `n_bins`: The number of bins for discretizing intensity values (optional).
+    - `bin_width`: The width of each bin (optional).
+    - `verbose`: If true, prints progress messages. 
+    # Returns:
+    - A dictionary where keys are the feature names and values are the calculated feature values.
     """
     if verbose
-        println("Extracting radiomic features...")
+        println("Extracting ONLY GLCM radiomic features...")
+        if !isnothing(n_bins)
+            println("Using n_bins = $n_bins")
+        elseif !isnothing(bin_width)
+            println("Using bin_width = $bin_width")
+        else
+            println("Using default n_bins = 32")
+        end
     end
 
     radiomic_features = Dict{String, Float32}()
 
-    # Cast inputs
-    img, mask, voxel_spacing = prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
+    # Cast + prepare inputs
+    img, mask, voxel_spacing = prepare_inputs(img_input, mask_input, voxel_spacing_input,
+                                              force_2d, force_2d_dimension)
 
-    # Sanity check on inputs
+    # Sanity check
     sanity_check_start_time = time()
     input_sanity_check(img, mask, verbose)
     if verbose
         println("Sanity check time = $(time() - sanity_check_start_time) sec")
     end
 
-    # Extract features based on dimensionality
     if ndims(img) == 3
         # First order features
         first_order_start_time = time()
@@ -54,16 +71,19 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
         end
     end
 
-    # GLCM Features (works for both 2D and 3D)
+    # Work with 3d or 2d images
     glcm_start_time = time()
-    glcm_features = get_glcm_features(img, mask, voxel_spacing; verbose=verbose)
+    glcm_features = get_glcm_features(img, mask, voxel_spacing; 
+                                      n_bins=n_bins, 
+                                      bin_width=bin_width, 
+                                      verbose=verbose)
     merge!(radiomic_features, glcm_features)
     if verbose
         println("GLCM feature extraction time = $(time() - glcm_start_time) sec")
         print_features("GLCM Features", glcm_features)
+        println("Total GLCM features extracted: $(length(radiomic_features))")
     end
 
-    # Shape features
     if ndims(mask) == 2
         # 2D shape features
         shape_2d_start_time = time()
@@ -86,7 +106,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
 
         # GLSZM features
         glszm_start_time = time()
-        glszm_features = get_glszm_features(img, mask, voxel_spacing, verbose=verbose)
+        glszm_features = get_glszm_features(img, mask, voxel_spacing; 
+                                      n_bins=n_bins, 
+                                      bin_width=bin_width, 
+                                      verbose=verbose)
         merge!(radiomic_features, glszm_features)
         if verbose
             println("GLSZM feature extraction time = $(time() - glszm_start_time) sec")
@@ -95,7 +118,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
 
         # NGTDM features
         ngtdm_start_time = time()
-        ngtdm_features = get_ngtdm_features(img, mask, voxel_spacing, verbose=verbose)
+        ngtdm_features = get_ngtdm_features(img, mask, voxel_spacing; 
+                                      n_bins=n_bins, 
+                                      bin_width=bin_width, 
+                                      verbose=verbose)
         merge!(radiomic_features, ngtdm_features)
         if verbose
             println("NGTDM feature extraction time = $(time() - ngtdm_start_time) sec")
@@ -104,7 +130,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
 
         # GLRLM features
         glrlm_start_time = time()
-        glrlm_features = get_glrlm_features(img, mask, voxel_spacing, verbose=verbose)
+        glrlm_features = get_glrlm_features(img, mask, voxel_spacing; 
+                                      n_bins=n_bins, 
+                                      bin_width=bin_width, 
+                                      verbose=verbose)
         merge!(radiomic_features, glrlm_features)
         if verbose
             println("GLRLM feature extraction time = $(time() - glrlm_start_time) sec")
@@ -113,26 +142,34 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input; f
 
         # GLDM features
         gldm_start_time = time()
-        gldm_features = get_gldm_features(img, mask, voxel_spacing, verbose=verbose)
+        gldm_features = get_gldm_features(img, mask, voxel_spacing; 
+                                      n_bins=n_bins, 
+                                      bin_width=bin_width, 
+                                      verbose=verbose)
         merge!(radiomic_features, gldm_features)
         if verbose
             println("GLDM feature extraction time = $(time() - gldm_start_time) sec")
             print_features("GLDM Features", gldm_features)
         end
     end
-    
+
     if verbose
         println("\n======================")
         println("Total features extracted: $(length(radiomic_features))")
         println("======================\n")
     end
-    
+
     return radiomic_features
 end
 
 function print_features(title::String, features::Dict{String, Float32})
     """
     Helper function to print features in a formatted list.
+        # Parameters:
+        - `title`: The title to display before the features.
+        - `features`: A dictionary of features to print.
+        # Returns:
+        - Nothing. Prints the features to the console.
     """
     println("\n--- $title ---")
     sorted_keys = sort(collect(keys(features)))
@@ -144,6 +181,16 @@ function print_features(title::String, features::Dict{String, Float32})
 end
 
 function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
+    """
+    Prepares and validates the input image, mask, and voxel spacing.
+        # Parameters:
+        - `img_input`: The input image (Array).
+        - `mask_input`: The mask defining the region of interest (Array).
+        - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
+        - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
+        - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
+        # Returns:
+        - A tuple containing the prepared image, mask, and voxel spacing."""
     img = Float32.(img_input)
     mask = BitArray(mask_input .!= 0.0f0)
     
@@ -160,6 +207,14 @@ function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, fo
 end
 
 function input_sanity_check(img, mask, verbose::Bool)
+    """
+    Performs sanity checks on the input image and mask.
+        # Parameters:
+        - `img`: The input image (Array).
+        - `mask`: The mask defining the region of interest (Array).
+        - `verbose`: If true, prints progress messages.
+        # Returns:
+        - Nothing. Throws an error if the inputs are invalid."""
     if verbose
         println("Running input sanity check...")
     end
@@ -170,10 +225,24 @@ function input_sanity_check(img, mask, verbose::Bool)
 end
 
 function keep_largest_component(mask::AbstractArray{Bool})
+    """
+    Keeps only the largest connected component in the binary mask.
+        # Parameters:
+        - `mask`: The input binary mask (Array).
+        # Returns:
+        - The mask containing only the largest connected component (Array).
+    """
     return mask
 end
 
 function pad_mask(mask::AbstractArray, pad::Int)
+    """
+    Pads the input mask with a specified number of layers of false values.
+        # Parameters:
+        - `mask`: The input mask (Array).
+        - `pad`: The number of layers to pad around the mask.
+        # Returns:
+        - The padded mask (Array)."""
     sz = size(mask)
     new_shape = ntuple(i -> sz[i] + 2*pad, ndims(mask))
     new_mask = falses(new_shape)
@@ -182,8 +251,15 @@ function pad_mask(mask::AbstractArray, pad::Int)
     return new_mask
 end
 
-end # module Radiomics
+"""
+Examples of usage:
+# 1) Whith specific n_bins: radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; n_bins=64, verbose=true);
 
-# Esegui come: 
-# radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=true);
-# Il punto e virgola finale evita la stampa automatica del dizionario
+# 2) Whith specific bin_width: radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; bin_width=25.0f0, verbose=true);
+
+# 3) Whith default setting: radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=true); use a default bin_width (25)
+"""
+
+end 
+
+

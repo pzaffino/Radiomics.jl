@@ -1,28 +1,64 @@
+###############################################################
+# GLRLM Radiomics
+###############################################################
 
 using StatsBase
 
-"""
-    get_glrlm_features(img, mask, voxel_spacing; verbose=false)
 
-Calculates and returns a dictionary of GLRLM (Gray Level Run Length Matrix) features.
+function get_glrlm_features(img, mask, voxel_spacing; 
+                           n_bins::Union{Int,Nothing}=nothing,
+                           bin_width::Union{Float32,Nothing}=nothing,
+                           verbose=false)
+    """
+        get_glrlm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false)
 
-# Arguments
-- `img`: The input image.
-- `mask`: The mask defining the region of interest.
-- `voxel_spacing`: The spacing of the voxels in the image.
-- `verbose`: If true, prints progress messages.
+    Calculates and returns a dictionary of GLRLM (Gray Level Run Length Matrix) features.
 
-# Returns
-- A dictionary where keys are the feature names and values are the calculated feature values.
-"""
-function get_glrlm_features(img, mask, voxel_spacing; verbose=false)
+    You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
+    - If n_bins is specified, bin_width is calculated automatically from the intensity range
+    - If bin_width is specified, the number of bins depends on the intensity range
+    - If neither is specified, defaults to n_bins=32
+
+    # Arguments
+    - `img`: The input image.
+    - `mask`: The mask defining the region of interest.
+    - `voxel_spacing`: The spacing of the voxels in the image.
+    - `n_bins`: The number of bins for discretizing intensity values (optional).
+    - `bin_width`: The width of each bin (optional).
+    - `verbose`: If true, prints progress messages.
+
+    # Returns
+    - A dictionary where keys are the feature names and values are the calculated feature values.
+
+    # Examples
+        # Using fixed number of bins (bin_width calculated automatically)
+        features = get_glrlm_features(img, mask, spacing, n_bins=64)
+        
+        # Using fixed bin width (number of bins calculated automatically)
+        features = get_glrlm_features(img, mask, spacing, bin_width=25.0f0)
+        
+        # Default (32 bins)
+        features = get_glrlm_features(img, mask, spacing)
+    """
     if verbose
-        println("Calculating GLRLM features...")
+        if !isnothing(n_bins)
+            println("Calcolo GLRLM con $(n_bins) bins...")
+        elseif !isnothing(bin_width)
+            println("Calcolo GLRLM con bin_width=$(bin_width)...")
+        else
+            println("Calcolo GLRLM con 32 bins (default)...")
+        end
     end
 
     glrlm_features = Dict{String, Float32}()
 
-    discretized_img = discretize(img, mask)
+    discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+
+    if verbose
+        println("Range intensità: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Bin width utilizzata: $(bin_width_used)")
+        println("Numero di gray levels effettivi: $(n_bins_actual)")
+    end
 
     P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, verbose)
 
@@ -40,23 +76,27 @@ function get_glrlm_features(img, mask, voxel_spacing; verbose=false)
         glrlm_features["glrlm_" * feature_name] = calculate_glrlm_feature(idx, P_glrlm)
     end
 
+    if verbose
+        println("Completato! Estratte $(length(glrlm_features)) features.")
+    end
+
     return glrlm_features
 end
 
-"""
+function calculate_glrlm_matrix(discretized_img, mask, verbose)
+    """
     calculate_glrlm_matrix(discretized_img, mask, verbose)
 
-Calculates the Gray Level Run Length Matrix (GLRLM).
+    Calculates the Gray Level Run Length Matrix (GLRLM).
 
-# Arguments
-- `discretized_img`: The discretized input image.
-- `mask`: The mask defining the region of interest.
-- `verbose`: If true, prints progress messages.
+    # Arguments
+    - `discretized_img`: The discretized input image.
+    - `mask`: The mask defining the region of interest.
+    - `verbose`: If true, prints progress messages.
 
-# Returns
-- A tuple containing the GLRLM matrix and the angles used for calculation.
-"""
-function calculate_glrlm_matrix(discretized_img, mask, verbose)
+    # Returns
+    - A tuple containing the GLRLM matrix and the angles used for calculation.
+    """
     if verbose
         println("Calculating GLRLM matrix...")
     end
@@ -118,19 +158,20 @@ function calculate_glrlm_matrix(discretized_img, mask, verbose)
     return P_glrlm, angles
 end
 
-"""
+
+function calculate_glrlm_feature(feature_idx, P_glrlm)
+    """
     calculate_glrlm_feature(feature_idx, P_glrlm)
 
-Calculates a specific GLRLM feature.
+    Calculates a specific GLRLM feature.
 
-# Arguments
-- `feature_idx`: The index of the feature to calculate.
-- `P_glrlm`: The GLRLM matrix.
+    # Arguments
+    - `feature_idx`: The index of the feature to calculate.
+    - `P_glrlm`: The GLRLM matrix.
 
-# Returns
-- The calculated feature value.
-"""
-function calculate_glrlm_feature(feature_idx, P_glrlm)
+    # Returns
+    - The calculated feature value.
+    """
     num_angles = size(P_glrlm, 3)
     feature_values = zeros(Float32, num_angles)
 
