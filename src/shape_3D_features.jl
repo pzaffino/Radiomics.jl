@@ -1,30 +1,108 @@
 using LinearAlgebra, Random
 
-function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbose=false)
+function get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; 
+                               verbose=false, 
+                               keep_largest_only=true,
+                               pad_width=1,
+                               threshold=0)
     """
-    get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbose=false)
-    Extracts 3D shape features from the given binary mask.
+    get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
+    
+    Extracts 3D shape features from the given mask.
+    
     # Arguments
-        - `mask`: A 3D binary mask where the region of interest is marked as true.
+        - `mask`: A 3D mask array (any numeric type). Values > threshold are considered foreground.
         - `spacing`: A vector containing the voxel spacing in each dimension (x, y, z).
         - `verbose`: If true, prints progress messages.
-        # Returns
+        - `keep_largest_only`: If true, keeps only the largest connected component (default: true).
+        - `pad_width`: Number of layers to pad around the mask for Marching Cubes (default: 1).
+        - `threshold`: Threshold for binarization (default: 0.5). Values > threshold are set to true.
+        
+    # Returns
         - A dictionary containing the calculated 3D shape features.
+        
+    # Notes
+        - The mask is automatically binarized using the specified threshold.
+        - The mask is automatically padded to ensure correct surface extraction at boundaries.
+        - By default, only the largest connected component is kept to ensure meaningful shape features.
+        
     """
     if verbose
         println("Extracting 3D shape features...")
+        println("Input mask size: $(size(mask))")
+        println("Input mask type: $(eltype(mask))")
+    end
+    
+    # Step 1: Binarize the mask
+    if verbose
+        println("Binarizing mask with threshold=$threshold...")
+    end
+    mask_bin = mask .> threshold
+    n_foreground = sum(mask_bin)
+    
+    if n_foreground == 0
+        error("Mask is empty after binarization (no voxels > $threshold)")
+    end
+    
+    if verbose
+        total_voxels = length(mask_bin)
+        percentage = 100 * n_foreground / total_voxels
+        println("Foreground voxels: $n_foreground / $total_voxels ($(round(percentage, digits=2))%)")
+    end
+    
+    # Step 2: Keep only largest component if requested
+    processed_mask = mask_bin
+    if keep_largest_only
+        if verbose
+            println("Checking for multiple connected components...")
+        end
+        processed_mask = keep_largest_component(mask_bin)
+        if verbose && sum(processed_mask) < sum(mask_bin)
+            removed_voxels = sum(mask_bin) - sum(processed_mask)
+            percentage = 100 * removed_voxels / sum(mask_bin)
+            println("Removed $removed_voxels voxels ($(round(percentage, digits=2))%) from smaller components")
+        end
+    end
+    
+    # Step 3: Pad the mask for Marching Cubes
+    if verbose
+        println("Padding mask with $pad_width layers...")
+    end
+    processed_mask = pad_mask(processed_mask, pad_width)
+    if verbose
+        println("Padded mask size: $(size(processed_mask))")
     end
 
     shape_3d_features = Dict{String, Float32}()
 
-    triangles = marching_cubes_surface(mask, spacing)
+    # Step 4: Extract surface mesh using Marching Cubes
+    if verbose
+        println("Running Marching Cubes algorithm...")
+    end
+    triangles = marching_cubes_surface(processed_mask, spacing)
+    if verbose
+        println("Generated $(length(triangles)) triangles")
+    end
+    
+    # Step 5: Calculate surface-based features
+    if verbose
+        println("Calculating surface area and volume...")
+    end
     area, meshvol = surface_and_volume(triangles)
     shape_3d_features["shape3d_surface_area"] = area
     shape_3d_features["shape3d_mesh_volume"] = meshvol
     shape_3d_features["shape3d_surface_volume_ratio"] = area / meshvol
     shape_3d_features["shape3d_sphericity"] = sphericity(meshvol, area)
 
-    coords = get_voxel_coords(mask, spacing)
+    # Step 6: Calculate principal axes features
+    if verbose
+        println("  Calculating principal axes features...")
+    end
+    coords = get_voxel_coords(processed_mask, spacing)
+
+    # Step 7: Maximum 3D Diameter
+    maxdiam = maximum_3d_diameter(triangles, sample_rate=0.3) # Sample rate for accuracy
+    shape_3d_features["shape3d_maximum_3d_diameter"] = maxdiam
     
     axes_lengths, elongation, flatness = principal_axes_features(coords)
     shape_3d_features["shape3d_major_axis_length"] = axes_lengths[3]
@@ -32,13 +110,17 @@ function get_shape3d_features(mask::BitArray{3}, spacing::Vector{Float32}; verbo
     shape_3d_features["shape3d_least_axis_length"] = axes_lengths[1]
     shape_3d_features["shape3d_elongation"] = elongation
     shape_3d_features["shape3d_flatness"] = flatness
-    shape_3d_features["shape3d_voxel_volume"] = voxel_volume(mask, spacing)
+    
+    # Step 7: Calculate voxel-based volume
+    shape_3d_features["shape3d_voxel_volume"] = voxel_volume(processed_mask, spacing)
     
     # Print features
     if verbose
-        for (k, v) in shape_3d_features
-            println("  $k = $v")
+        println("\n  ===== Computed Shape 3D Features =====")
+        for (k, v) in sort(collect(shape_3d_features))
+            println("    $k = $v")
         end
+        println("  =====================================")
     end
 
     return shape_3d_features
@@ -480,5 +562,77 @@ function voxel_volume(mask, spacing)
     - volume: Float32 representing the volume of the shape.
     """
     return Float32(count(mask) * spacing[1] * spacing[2] * spacing[3])
+end
+
+function maximum_3d_diameter(triangles::Vector{NTuple{3,Vector{Float64}}}; 
+                            sample_rate::Float64=1.0,
+                            min_samples::Int=100)
+    """
+    Calculate the maximum 3D diameter from surface mesh vertices.
+    Maximum 3D diameter is defined as the largest pairwise Euclidean distance 
+    between tumor surface mesh vertices (also known as Feret Diameter).
+    
+    # Arguments
+    - triangles: Vector of triangles from Marching Cubes, each triangle is a tuple of three 3D points.
+    - sample_rate: Fraction of vertices to sample (0.0 to 1.0). Default 1.0 uses all vertices.
+    - min_samples: Minimum number of vertices to use, regardless of sample_rate. Default 100.
+    
+    # Returns
+    - max_diameter: Float32 representing the maximum 3D diameter.
+    
+    # Notes
+    - sample_rate = 1.0: exact calculation (slow for large meshes)
+    - sample_rate = 0.1-0.3: good approximation with significant speedup, default 0.3
+    - sample_rate = 0.05: fast approximation, may underestimate slightly
+    """
+    if isempty(triangles)
+        return Float32(0.0)
+    end
+    
+    # Extract unique vertices from triangles
+    vertices = Vector{Vector{Float64}}()
+    for (a, b, c) in triangles
+        push!(vertices, a)
+        push!(vertices, b)
+        push!(vertices, c)
+    end
+    
+    # Remove duplicates (vertices shared by multiple triangles)
+    unique_vertices = unique(vertices)
+    
+    n = length(unique_vertices)
+    if n < 2
+        return Float32(0.0)
+    end
+    
+    # Determine number of vertices to use
+    n_sample = n
+    if sample_rate < 1.0
+        n_sample = max(min_samples, Int(ceil(n * sample_rate)))
+        n_sample = min(n_sample, n)  # Can't sample more than available
+    end
+    
+    # Sample vertices if needed
+    sampled_vertices = unique_vertices
+    if n_sample < n
+        Random.seed!(42)  # For reproducibility
+        indices = randperm(n)[1:n_sample]
+        sampled_vertices = unique_vertices[indices]
+    end
+    
+    max_dist = 0.0
+    n_used = length(sampled_vertices)
+    
+    # Calculate maximum pairwise distance between sampled vertices
+    for i in 1:n_used-1
+        for j in i+1:n_used
+            dist = norm(sampled_vertices[i] .- sampled_vertices[j])
+            if dist > max_dist
+                max_dist = dist
+            end
+        end
+    end
+    
+    return Float32(max_dist)
 end
 
