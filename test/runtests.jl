@@ -5,8 +5,8 @@ using Radiomics
 
 @testset "Radiomics test" begin
 
-    ct = niread("/home/p4ol0/work/Radiomics.jl/sample_data/CTChest.nii.gz")
-    mask = niread("/home/p4ol0/work/Radiomics.jl/sample_data/Lungs.nii.gz")
+    ct = niread("sample_data/CTChest.nii.gz")
+    mask = niread("sample_data/Lungs.nii.gz")
     spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
     radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = false)
@@ -116,16 +116,28 @@ using Radiomics
     @test isapprox(radiomic_features["ngtdm_Contrast"], 0.0483421505790213, rtol=1e-4)
     @test isapprox(radiomic_features["ngtdm_Strength"], 0.00114419088561417, rtol=1e-4)
 
+    #--- Shape3D ---
+    @test isapprox(radiomic_features["shape3d_surface_area"], 590308.1f0; rtol=0.02)
+    @test isapprox(radiomic_features["shape3d_mesh_volume"], 5.9246475e6; rtol=0.015)
+    @test isapprox(radiomic_features["shape3d_surface_volume_ratio"], 0.09963599f0; rtol=0.02)
+    @test isapprox(radiomic_features["shape3d_sphericity"], 0.26823393f0; rtol=0.02)
+    @test isapprox(radiomic_features["shape3d_major_axis_length"], 314.70545f0; atol=0.01)
+    @test isapprox(radiomic_features["shape3d_maximum_3d_diameter"], 348.74203; atol=0.04)
+    @test isapprox(radiomic_features["shape3d_minor_axis_length"], 240.64522f0; atol=0.01)
+    @test isapprox(radiomic_features["shape3d_least_axis_length"], 180.21617f0; atol=0.01)
+    @test isapprox(radiomic_features["shape3d_elongation"], 0.7646681f0; atol=0.01)
+    @test isapprox(radiomic_features["shape3d_flatness"], 0.5726503f0; atol=0.01)
+    @test isapprox(radiomic_features["shape3d_voxel_volume"], 5.886506e6; atol=0.01)
+
 end
 
 @testset "Radiomics test - Shape2D Features" begin
 
-    ct = niread("/home/p4ol0/work/Radiomics.jl/sample_data/CTChest.nii.gz")
-    mask = niread("/home/p4ol0/work/Radiomics.jl/sample_data/Lungs.nii.gz")
+    ct = niread("sample_data/CTChest.nii.gz")
+    mask = niread("sample_data/Lungs.nii.gz")
     spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
     # Extract a single slice for Shape2D features
-
     slice_idx = 51
     """
     Python equivalent using SimpleITK to reproduce the results:
@@ -135,7 +147,7 @@ end
     ct_slice = ct.raw[:, :, slice_idx]
     mask_slice = mask.raw[:, :, slice_idx]
 
-    radiomic_features = Radiomics.extract_radiomic_features(ct_slice, mask_slice, spacing; force_2d=true, force_2d_dimension=2, verbose = false)
+    radiomic_features = Radiomics.extract_radiomic_features(ct_slice, mask_slice, spacing[1:2]; verbose = false)
 
     @test isapprox(radiomic_features["shape2d_elongation"]                        , 0.6524707f0; atol=1e-4)
     @test isapprox(radiomic_features["shape2d_major_axis_length"]                 , 271.63801f0; atol=1e-4)
@@ -146,25 +158,4 @@ end
     @test isapprox(radiomic_features["shape2d_perimeter_surface_ratio"]           , 0.08065f0; atol=1e-4)
     @test isapprox(radiomic_features["shape2d_pixel_surface"]                     , 26556.75f0; atol=1e-4)
     @test isapprox(radiomic_features["shape2d_sphericity"]                        , 0.269386f0; atol=1e-4)
-end
-
-@testset "Radiomics test - Shape3D Features" begin
-    # Read NIfTI files
-
-    ct = niread("/home/p4ol0/work/Radiomics.jl/sample_data/CTChest.nii.gz")
-    mask = niread("/home/p4ol0/work/Radiomics.jl/sample_data/Lungs.nii.gz")
-    spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
-    
-    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=true)
-
-    @test isapprox(features["shape3d_surface_area"], 590308.1f0; rtol=0.02)
-    @test isapprox(features["shape3d_mesh_volume"], 5.9246475e6; rtol=0.015)
-    @test isapprox(features["shape3d_surface_volume_ratio"], 0.09963599f0; rtol=0.02)
-    @test isapprox(features["shape3d_sphericity"], 0.26823393f0; rtol=0.02)
-    @test isapprox(features["shape3d_major_axis_length"], 314.70545f0; atol=0.01)
-    @test isapprox(features["shape3d_minor_axis_length"], 240.64522f0; atol=0.01)
-    @test isapprox(features["shape3d_least_axis_length"], 180.21617f0; atol=0.01)
-    @test isapprox(features["shape3d_elongation"], 0.7646681f0; atol=0.01)
-    @test isapprox(features["shape3d_flatness"], 0.5726503f0; atol=0.01)
-    @test isapprox(features["shape3d_voxel_volume"], 5.886506e6; atol=0.01)
 end

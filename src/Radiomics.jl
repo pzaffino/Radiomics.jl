@@ -95,6 +95,15 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         end
 
     elseif ndims(mask) == 3
+        # 3D shape features
+        shape_3d_start_time = time()
+        shape_3d_features = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
+        merge!(radiomic_features, shape_3d_features)
+        if verbose
+            println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
+            print_features("3D Shape Features", shape_3d_features)
+        end
+
         # GLSZM features
         glszm_start_time = time()
         glszm_features = get_glszm_features(img, mask, voxel_spacing; 
@@ -142,15 +151,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             println("GLDM feature extraction time = $(time() - gldm_start_time) sec")
             print_features("GLDM Features", gldm_features)
         end
-
-       # 3D shape features
-        shape_3d_start_time = time()
-        shape_3d_features = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
-        merge!(radiomic_features, shape_3d_features)
-        if verbose
-            println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
-            print_features("3D Shape Features", shape_3d_features)
-        end
     end
 
     if verbose
@@ -160,68 +160,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     return radiomic_features
-end
-
-function print_features(title::String, features::Dict{String, Float32})
-    """
-    Helper function to print features in a formatted list.
-        # Parameters:
-        - `title`: The title to display before the features.
-        - `features`: A dictionary of features to print.
-        # Returns:
-        - Nothing. Prints the features to the console.
-    """
-    println("\n--- $title ---")
-    sorted_keys = sort(collect(keys(features)))
-    for (i, k) in enumerate(sorted_keys)
-        println("  $i. $(rpad(k, 35)) => $(features[k])")
-    end
-    println("Subtotal: $(length(features)) features")
-    println("---------------------\n")
-end
-
-function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
-    """
-    Prepares and validates the input image, mask, and voxel spacing.
-        # Parameters:
-        - `img_input`: The input image (Array).
-        - `mask_input`: The mask defining the region of interest (Array).
-        - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
-        - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
-        - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
-        # Returns:
-        - A tuple containing the prepared image, mask, and voxel spacing."""
-    img = Float32.(img_input)
-    mask = BitArray(mask_input .!= 0.0f0)
-    
-    voxel_spacing = Float32.(voxel_spacing_input)
-
-    if ndims(img) == 3 && ndims(mask) == 3 && force_2d
-        if force_2d_dimension < 1 || force_2d_dimension > 3
-            throw(ArgumentError("force_2d_dimension must be between 1 and 3"))
-        end
-        voxel_spacing = Float32.(voxel_spacing_input[setdiff(1:3, force_2d_dimension)])
-    end
-
-    return img, mask, voxel_spacing
-end
-
-function input_sanity_check(img, mask, verbose::Bool)
-    """
-    Performs sanity checks on the input image and mask.
-        # Parameters:
-        - `img`: The input image (Array).
-        - `mask`: The mask defining the region of interest (Array).
-        - `verbose`: If true, prints progress messages.
-        # Returns:
-        - Nothing. Throws an error if the inputs are invalid."""
-    if verbose
-        println("Running input sanity check...")
-    end
-
-    if size(img) != size(mask)
-        throw(ArgumentError("img and mask have different size!"))
-    end
 end
 
 """
