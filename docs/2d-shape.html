@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Radiomics 2D Shape Features</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            line-height: 1.6;
+            background-color: #f9f9f9;
+        }
+        h1, h2, h3 {
+            color: #2c3e50;
+        }
+        code {
+            background-color: #ecf0f1;
+            padding: 2px 4px;
+            border-radius: 4px;
+        }
+        pre {
+            background-color: #ecf0f1;
+            padding: 10px;
+            border-radius: 4px;
+            overflow-x: auto;
+        }
+        ul {
+            margin-bottom: 20px;
+        }
+        .feature {
+            margin-bottom: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Radiomics 2D Shape Features</h1>
+    <p>This page describes the 2D shape features extracted from a binary mask using the provided Julia code. These features quantify the geometry of a 2D object.</p>
+
+    <h2>Input</h2>
+    <ul>
+        <li><code>mask_array</code>: a 2D binary array (BitArray) representing the shape.</li>
+        <li><code>spacing</code>: a vector of <code>Float32</code> values indicating the pixel spacing in each dimension.</li>
+        <li><code>verbose</code>: a Boolean flag to print progress messages.</li>
+    </ul>
+
+    <h2>Output</h2>
+    <p>The function <code>get_shape2d_features</code> returns a dictionary with the following features:</p>
+
+    <div class="feature">
+        <h3>Perimeter</h3>
+        <p>The perimeter of the shape, calculated by tracing the boundary pixels and scaling with pixel spacing.</p>
+    </div>
+
+    <div class="feature">
+        <h3>Mesh Surface</h3>
+        <p>The area of the 2D shape estimated using a mesh of the contour points.</p>
+    </div>
+
+    <div class="feature">
+        <h3>Maximum 2D Diameter</h3>
+        <p>The largest distance between two points on the contour of the shape.</p>
+    </div>
+
+    <div class="feature">
+        <h3>Pixel Surface</h3>
+        <p>The area computed simply as the number of pixels in the mask multiplied by the pixel spacing in both dimensions.</p>
+    </div>
+
+    <div class="feature">
+        <h3>Perimeter to Surface Ratio</h3>
+        <p>Ratio of perimeter to surface area: <code>perimeter / surface</code>.</p>
+    </div>
+
+    <div class="feature">
+        <h3>Sphericity</h3>
+        <p>A measure of how circular the shape is: <code>(2 * sqrt(pi * surface)) / perimeter</code>.</p>
+    </div>
+
+    <div class="feature">
+        <h3>Major and Minor Axis Lengths</h3>
+        <p>Calculated from the eigenvalues of the covariance matrix of the pixel coordinates:</p>
+        <ul>
+            <li><code>Major Axis Length = 4 * sqrt(largest eigenvalue)</code></li>
+            <li><code>Minor Axis Length = 4 * sqrt(smallest eigenvalue)</code></li>
+        </ul>
+    </div>
+
+    <div class="feature">
+        <h3>Elongation</h3>
+        <p>Ratio of minor to major axis lengths, describing how elongated the shape is: <code>sqrt(smallest eigenvalue / largest eigenvalue)</code>.</p>
+    </div>
+
+    <h2>Methods Used</h2>
+    <ul>
+        <li>The perimeter, surface, and diameter are computed from the mask using a marching squares approach with vertex interpolation.</li>
+        <li>The covariance matrix of the pixel coordinates is used to compute eigenvalues for major/minor axes and elongation.</li>
+        <li>Pixel surface is a simple counting of mask pixels scaled by spacing.</li>
+    </ul>
+
+
+</body>
+</html>

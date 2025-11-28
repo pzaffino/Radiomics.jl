@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NGTDM Features - Radiomics.jl</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
+    body { display:flex; min-height:100vh; background-color:#ffffff; }
+    .sidebar { position:sticky; top:0; height:100vh; width:250px; background-color:#1e40af; color:white; padding:20px; display:flex; flex-direction:column; }
+    .sidebar h2 { text-align:center; margin-bottom:30px; font-size:1.5rem; }
+    .sidebar nav { display:flex; flex-direction:column; gap:10px; }
+    .sidebar a { color:white; text-decoration:none; padding:8px 12px; border-radius:5px; transition:background 0.3s; }
+    .sidebar a:hover, .sidebar a.active { background-color:rgba(255,255,255,0.2);}
+    .dropdown { display:flex; flex-direction:column; }
+    .dropdown-btn { background:none; border:none; color:white; text-align:left; padding:8px 12px; cursor:pointer; border-radius:5px; font-size:1rem; transition:background 0.3s; }
+    .dropdown-btn:hover { background-color:rgba(255,255,255,0.2);}
+    .dropdown-content { display:none; flex-direction:column; margin-left:10px; gap:5px; }
+    .dropdown-content a { font-size:0.9rem; padding:6px 12px; }
+    .dropdown.active .dropdown-content { display:flex; }
+    .main { flex:1; padding:40px; max-width:900px; margin:auto; }
+    .center { text-align:center; }
+    img.logo { width:280px; }
+    h2 { margin-top:50px; margin-bottom:15px; color:#1e40af; }
+    p, li { margin:10px 0; line-height:1.6; }
+    pre { background:#e5e7eb; padding:10px; border-radius:5px; overflow-x:auto; }
+    code { background:#e5e7eb; padding:2px 5px; border-radius:4px; }
+    @media(max-width:768px) { body{flex-direction:column;} .sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;padding:10px;justify-content:space-around;} .sidebar nav{flex-direction:row;gap:10px;} .dropdown-content{position:absolute;background-color:#1e40af;top:50px;left:0;padding:10px;border-radius:5px;z-index:100;} .main{padding:20px;} }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2>Radiomics.jl</h2>
+    <nav>
+      <a href="index.html">Home</a>
+      <div class="dropdown">
+        <button class="dropdown-btn">Features ▾</button>
+        <div class="dropdown-content">
+          <a href="first-order.html">First-order features</a>
+          <a href="2d-shape.html">2D shape features</a>
+          <a href="3d-shape.html">3D shape features</a>
+          <a href="glcm.html">GLCM features</a>
+          <a href="gldm.html">GLDM features</a>
+          <a href="glrlm.html">GLRLM features</a>
+          <a href="glszm.html">GLSZM features</a>
+          <a href="ngtdm.html" class="active">NGTDM features</a>
+        </div>
+      </div>
+      <a href="installation.html">Installation</a>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="center">
+      <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
+      <p><strong>Neighbouring Gray Tone Difference Matrix (NGTDM) feature extraction in Julia</strong></p>
+      <hr>
+    </div>
+
+    <section>
+      <h2>NGTDM Feature Extraction</h2>
+      <p>This page documents the main functions for computing NGTDM features, which quantify differences in gray levels between a voxel and its neighborhood.</p>
+
+      <h2>Key Features</h2>
+      <ul>
+        <li><strong>Coarseness</strong>: measures the spatial rate of change in intensity; higher values indicate coarser textures.</li>
+        <li><strong>Contrast</strong>: quantifies the intensity contrast between a voxel and its neighbors; higher values indicate larger differences.</li>
+        <li><strong>Busyness</strong>: measures rapid changes in intensity between neighboring voxels; higher values indicate more heterogeneous textures.</li>
+        <li><strong>Complexity</strong>: evaluates local intensity variations considering differences among all gray levels; higher values indicate more complex textures.</li>
+        <li><strong>Strength</strong>: measures the perceptual strength of the texture patterns; higher values indicate more prominent structures.</li>
+      </ul>
+
+      <h2>Usage</h2>
+      <pre><code># Using a fixed number of bins (bin_width calculated automatically)
+features = get_ngtdm_features(img, mask, spacing, n_bins=64)
+
+# Using a fixed bin width (number of bins calculated automatically)
+features = get_ngtdm_features(img, mask, spacing, bin_width=25.0f0)
+
+# Default (32 bins)
+features = get_ngtdm_features(img, mask, spacing)
+      </code></pre>
+
+      <h2>Calculation Steps</h2>
+      <ol>
+        <li>Discretize the image using <code>n_bins</code> or <code>bin_width</code>.</li>
+        <li>Compute the NGTDM matrix using <code>calculate_ngtdm_matrix</code>, which considers the neighborhood of each voxel.</li>
+        <li>Compute coefficients with <code>calculate_ngtdm_coefficients</code> (including probabilities <code>p_i</code> and differences <code>s_i</code>).</li>
+        <li>Calculate each feature using its specific formula, e.g., <code>coarseness</code>, <code>contrast</code>, <code>busyness</code>, <code>complexity</code>, <code>strength</code>.</li>
+      </ol>
+
+      <h2>Notes</h2>
+      <p>NGTDM features are particularly useful in medical imaging for capturing local texture patterns and assessing heterogeneity within a region of interest.</p>
+    </section>
+  </main>
+
+  <script>
+    const dropdownBtn = document.querySelector('.dropdown-btn');
+    dropdownBtn.addEventListener('click', () => {
+      dropdownBtn.parentElement.classList.toggle('active');
+    });
+  </script>
+
+</body>
+</html>
