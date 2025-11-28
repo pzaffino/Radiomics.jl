@@ -9,6 +9,7 @@ NIfTI = "a3a9e032-41b5-5fc4-967a-a6b7a19844d3"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Statistics = "10745b16-79ce-11e8-11f9-7d13ad32a3b2"
 StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
+Images = "916415d5-f1e6-5110-898d-aaa5f9f070e0"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
@@ -18,4 +19,5 @@ Random = "1"
 Statistics = "1.10.0"
 StatsBase = "0.34"
 Test = "1.10.0"
+Images = "0.26"
 julia = "1.10"
