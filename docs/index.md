@@ -9,12 +9,12 @@
 </p>
 
 <p align="center">
-  ⚠️ <em>Radiomics.jl is in an early stage and under active development</em> ⚠️
+   <em>Radiomics.jl is in an early stage and under active development</em> ⚠️
 </p>
 
 ---
 
-## ✨ Implemented Features
+## Implemented Features
 
 - **First-order features**
 - **2D shape features**
@@ -25,10 +25,9 @@
   - GLRLM
   - GLSZM
   - NGTDM
-
 ---
 
-## 🚀 Getting Started
+## Getting Started
 
 Install the package using Julia’s package manager:
 
