@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GLCM Features - Radiomics.jl</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;}
+    body { display:flex; min-height:100vh; background-color:#f5f5f5; }
+    .sidebar { position:sticky; top:0; height:100vh; width:250px; background-color:#1e40af; color:white; padding:20px; display:flex; flex-direction:column;}
+    .sidebar h2 { text-align:center; margin-bottom:30px; font-size:1.5rem; }
+    .sidebar nav { display:flex; flex-direction:column; gap:10px; }
+    .sidebar a { color:white; text-decoration:none; padding:8px 12px; border-radius:5px; transition:background 0.3s; }
+    .sidebar a:hover, .sidebar a.active { background-color:rgba(255,255,255,0.2);}
+    .dropdown { display:flex; flex-direction:column; }
+    .dropdown-btn { background:none; border:none; color:white; text-align:left; padding:8px 12px; cursor:pointer; border-radius:5px; font-size:1rem; transition:background 0.3s;}
+    .dropdown-btn:hover { background-color:rgba(255,255,255,0.2);}
+    .dropdown-content { display:none; flex-direction:column; margin-left:10px; gap:5px;}
+    .dropdown-content a { font-size:0.9rem; padding:6px 12px; }
+    .dropdown.active .dropdown-content { display:flex; }
+    .main { flex:1; padding:40px; max-width:900px; margin:auto; }
+    .center { text-align:center; }
+    img.logo { width:280px; }
+    h2 { margin-top:50px; margin-bottom:15px; color:#1e40af; }
+    p, li { margin:10px 0; line-height:1.6; }
+    pre { background:#e5e7eb; padding:10px; border-radius:5px; overflow-x:auto; }
+    @media(max-width:768px) { body{flex-direction:column;} .sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;padding:10px;justify-content:space-around;} .sidebar nav{flex-direction:row;gap:10px;} .dropdown-content{position:absolute;background-color:#1e40af;top:50px;left:0;padding:10px;border-radius:5px;z-index:100;} .main{padding:20px;} }
+  </style>
+</head>
+<body>
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <h2>Radiomics.jl</h2>
+    <nav>
+      <a href="index.html">Home</a>
+      <div class="dropdown">
+        <button class="dropdown-btn">Features ▾</button>
+        <div class="dropdown-content">
+          <a href="first-order.html">First-order features</a>
+          <a href="2d-shape.html">2D shape features</a>
+          <a href="3d-shape.html">3D shape features</a>
+          <a href="glcm.html" class="active">GLCM features</a>
+          <a href="gldm.html">GLDM features</a>
+          <a href="glrlm.html">GLRLM features</a>
+          <a href="glszm.html">GLSZM features</a>
+          <a href="ngtdm.html">NGTDM features</a>
+        </div>
+      </div>
+      <a href="installation.html">Installation</a>
+    </nav>
+  </aside>
+
+  <!-- Main content -->
+  <main class="main">
+    <div class="center">
+      <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
+      <p><strong>Gray Level Co-occurrence Matrix (GLCM) feature extraction in Julia</strong></p>
+      <hr>
+    </div>
+
+    <section>
+      <h2>GLCM Feature Extraction</h2>
+      <p>This page documents the main functions for computing 2D and 3D GLCM features.</p>
+
+      
+
+      <h2>Key Features</h2>
+      <ul>
+        <li><strong>Autocorrelation</strong>: measures correlation between intensities of neighboring voxels.</li>
+        <li><strong>Cluster Prominence</strong>: indicates sharpness of deviations from the mean; detects asymmetric patterns.</li>
+        <li><strong>Cluster Shade</strong>: measures asymmetry of cluster distributions.</li>
+        <li><strong>Cluster Tendency</strong>: degree of clustering of similar values.</li>
+        <li><strong>Contrast</strong>: measures local intensity contrast between neighboring voxels.</li>
+        <li><strong>Correlation</strong>: statistical correlation between intensities of neighboring voxels.</li>
+        <li><strong>Joint Energy</strong>: uniformity of the matrix; high values indicate homogeneity.</li>
+        <li><strong>Joint Entropy</strong>: measures the complexity or disorder of the GLCM.</li>
+        <li><strong>Inverse Difference Moment (IDM)</strong>: measures homogeneity; higher values indicate less local variation.</li>
+        <li><strong>Normalized IDM (IDMN)</strong>: normalized version of IDM.</li>
+        <li><strong>Inverse Difference (ID)</strong>: similar to IDM, measures proximity of values to central voxel.</li>
+        <li><strong>Normalized Inverse Difference (IDN)</strong>: normalized version of ID.</li>
+        <li><strong>Inverse Variance</strong>: measures dispersion of GLCM values.</li>
+        <li><strong>Maximum Probability</strong>: maximum co-occurrence probability between gray levels.</li>
+        <li><strong>Sum of Squares</strong>: measures total variation relative to the mean.</li>
+        <li><strong>Difference Average</strong>: mean of intensity differences between neighboring voxels.</li>
+        <li><strong>Difference Entropy</strong>: disorder of intensity differences.</li>
+        <li><strong>Difference Variance</strong>: variance of intensity differences between neighbors.</li>
+        <li><strong>Sum Average</strong>: mean of sums of GLCM value pairs.</li>
+        <li><strong>Sum Entropy</strong>: entropy of sums; measures complexity.</li>
+        <li><strong>Joint Average</strong>: global mean of GLCM values.</li>
+        <li><strong>IMC1 / IMC2</strong>: measures of informational correlation between marginal distributions.</li>
+        <li><strong>Maximal Correlation Coefficient (MCC)</strong>: measures maximum linear correlation between rows and columns of the GLCM.</li>
+      </ul>
+
+      <h2>Notes</h2>
+      <p>These functions are designed for advanced radiomics analysis on medical images. The 2D wrapper allows the 3D calculation to be applied to planar images by adding a singleton dimension.</p>
+    </section>
+  </main>
+
+  <script>
+    const dropdownBtn = document.querySelector('.dropdown-btn');
+    dropdownBtn.addEventListener('click', () => {
+      dropdownBtn.parentElement.classList.toggle('active');
+    });
+  </script>
+
+</body>
+</html>
