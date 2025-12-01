@@ -1,14 +1,7 @@
-###############################################################
-# GLDM Radiomics
-###############################################################
 
 using StatsBase
-function get_gldm_features(img, mask, voxel_spacing; 
-                          n_bins::Union{Int,Nothing}=nothing,
-                          bin_width::Union{Float32,Nothing}=nothing,
-                          gldm_a=0, 
-                          verbose=false)
-    """
+
+"""
     get_gldm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, gldm_a=0, verbose=false)
 
     Calculates and returns a dictionary of GLDM (Gray Level Dependence Matrix) features.
@@ -39,7 +32,12 @@ function get_gldm_features(img, mask, voxel_spacing;
         
         # Default (32 bins)
         features = get_gldm_features(img, mask, spacing)
-    """
+"""
+function get_gldm_features(img, mask, voxel_spacing; 
+                          n_bins::Union{Int,Nothing}=nothing,
+                          bin_width::Union{Float32,Nothing}=nothing,
+                          gldm_a=0, 
+                          verbose=false)
     if verbose
         if !isnothing(n_bins)
             println("Calcolo GLDM con $(n_bins) bins...")
@@ -86,8 +84,7 @@ function get_gldm_features(img, mask, voxel_spacing;
     return gldm_features
 end
 
-function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
-    """
+"""
     calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
 
     Calculates the Gray Level Dependence Matrix (GLDM).
@@ -100,7 +97,8 @@ function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
 
     # Returns
     - A tuple containing the GLDM matrix and the gray levels present in the ROI.
-    """
+"""
+function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
     if verbose
         println("Calculating GLDM matrix...")
     end
@@ -142,8 +140,7 @@ function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
     return P_gldm, gray_levels
 end
 
-function calculate_gldm_coefficients(P_gldm, gray_levels)
-    """
+"""
     calculate_gldm_coefficients(P_gldm, gray_levels)
 
     Calculates the coefficients used in the GLDM feature calculations.
@@ -154,7 +151,8 @@ function calculate_gldm_coefficients(P_gldm, gray_levels)
 
     # Returns
     - A tuple containing the number of zones, sum over sizes, sum over gray levels, gray level vector, and size vector.
-    """
+"""
+function calculate_gldm_coefficients(P_gldm, gray_levels)
     pd = sum(P_gldm, dims=1)
     pg = sum(P_gldm, dims=2)
     ivector = Float32.(gray_levels)
@@ -173,8 +171,7 @@ gldm_gray_level_non_uniformity(pg, Nz) = sum(pg .^ 2) / Nz
 gldm_dependence_non_uniformity(pd, Nz) = sum(pd .^ 2) / Nz
 gldm_dependence_non_uniformity_normalized(pd, Nz) = sum(pd .^ 2) / (Nz ^ 2)
 
-function gldm_gray_level_variance(pg, ivector, Nz)
-    """
+"""
     gldm_gray_level_variance(pg, ivector, Nz)
     Calculates the Gray Level Variance feature.
     # Arguments
@@ -183,14 +180,14 @@ function gldm_gray_level_variance(pg, ivector, Nz)
     - `Nz`: The number of zones.
     # Returns
     - The calculated Gray Level Variance feature value.
-    """
+"""
+function gldm_gray_level_variance(pg, ivector, Nz)
     p_g = pg ./ Nz
     u_i = sum(p_g .* ivector)
     sum(p_g .* (ivector .- u_i) .^ 2)
 end
 
-function gldm_dependence_variance(pd, jvector, Nz)
-    """
+"""
     gldm_dependence_variance(pd, jvector, Nz)
     Calculates the Dependence Variance feature.
     # Arguments
@@ -199,13 +196,13 @@ function gldm_dependence_variance(pd, jvector, Nz)
     - `Nz`: The number of zones.
     # Returns
     - The calculated Dependence Variance feature value."""
+function gldm_dependence_variance(pd, jvector, Nz)
     p_d = pd ./ Nz
     u_j = sum(p_d .* jvector')
     sum(p_d .* (jvector' .- u_j) .^ 2)
 end
 
-function gldm_dependence_entropy(P_gldm, Nz)
-    """
+"""
     gldm_dependence_entropy(P_gldm, Nz)
     Calculates the Dependence Entropy feature.
     # Arguments
@@ -214,6 +211,7 @@ function gldm_dependence_entropy(P_gldm, Nz)
     # Returns
     - The calculated Dependence Entropy feature value.
     """
+function gldm_dependence_entropy(P_gldm, Nz)
     p_gldm = P_gldm ./ Nz
     -sum(p_gldm .* log2.(p_gldm .+ 1.0f-16))
 end
@@ -221,8 +219,7 @@ end
 gldm_low_gray_level_emphasis(pg, ivector, Nz) = sum(pg ./ (ivector .^ 2)) / Nz
 gldm_high_gray_level_emphasis(pg, ivector, Nz) = sum(pg .* (ivector .^ 2)) / Nz
 
-function gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    """
+"""
     gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector
     , jvector, Nz)
     Calculates the Small Dependence Low Gray Level Emphasis feature.
@@ -233,13 +230,13 @@ function gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector,
     - `Nz`: The number of zones.
     # Returns
     - The calculated Small Dependence Low Gray Level Emphasis feature value."""
+function gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_gldm ./ ((i_mat .^ 2) .* (j_mat .^ 2))) / Nz
 end
 
-function gldm_small_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    """
+"""
     gldm_small_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
     Calculates the Small Dependence High Gray Level Emphasis feature.
     # Arguments
@@ -249,12 +246,13 @@ function gldm_small_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector
     - `Nz`: The number of zones.
     # Returns
     - The calculated Small Dependence High Gray Level Emphasis feature value."""
+function gldm_small_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_gldm .* (i_mat .^ 2) ./ (j_mat .^ 2)) / Nz
 end
-function gldm_large_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    """
+
+"""
     gldm_large_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
     Calculates the Large Dependence Low Gray Level Emphasis feature.
     # Arguments
@@ -265,13 +263,13 @@ function gldm_large_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector,
     # Returns
     - The calculated Large Dependence Low Gray Level Emphasis feature value.   
     """
+function gldm_large_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_gldm .* (j_mat .^ 2) ./ (i_mat .^ 2)) / Nz
 end
 
-function gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    """
+"""
     gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
     Calculates the Large Dependence High Gray Level Emphasis feature.
     # Arguments
@@ -281,6 +279,7 @@ function gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector
     - `Nz`: The number of zones.
     # Returns
     - The calculated Large Dependence High Gray Level Emphasis feature value."""
+function gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_gldm .* (i_mat .^ 2) .* (j_mat .^ 2)) / Nz

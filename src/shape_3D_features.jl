@@ -1,11 +1,6 @@
 using LinearAlgebra, Random
 
-function get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; 
-                               verbose=false, 
-                               keep_largest_only=true,
-                               pad_width=1,
-                               threshold=0)
-    """
+"""
     get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
     
     Extracts 3D shape features from the given mask.
@@ -27,6 +22,12 @@ function get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Fl
         - By default, only the largest connected component is kept to ensure meaningful shape features.
         
     """
+function get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; 
+                               verbose=false, 
+                               keep_largest_only=true,
+                               pad_width=1,
+                               threshold=0)
+
     if verbose
         println("Extracting 3D shape features...")
         println("Input mask size: $(size(mask))")
@@ -425,11 +426,11 @@ const triTable = [(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -
 (-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1)
 ]
 
-function vertex_interp(p1, p2, valp1, valp2, isolevel)
-    """ 
+""" 
     Linearly interpolate the position where an isosurface cuts
     an edge between two vertices, each with their own scalar value.
     """
+function vertex_interp(p1, p2, valp1, valp2, isolevel)
     if abs(valp2 - valp1) < 1e-8
         return p1
     end
@@ -437,11 +438,11 @@ function vertex_interp(p1, p2, valp1, valp2, isolevel)
     return p1 .+ mu .* (p2 .- p1)
 end
 
-function marching_cubes_surface(mask::BitArray{3}, spacing::Vector{Float32})
-    """
+"""
     Extract the surface mesh from a 3D binary mask using the Marching Cubes algorithm
     Returns a list of triangles, each represented as a tuple of three 3D points.
     """
+function marching_cubes_surface(mask::BitArray{3}, spacing::Vector{Float32})
     nx, ny, nz = size(mask)
     triangles = Vector{NTuple{3,Vector{Float64}}}()
     corner_offsets = [(0,0,0), (1,0,0), (1,1,0), (0,1,0), (0,0,1), (1,0,1), (1,1,1), (0,1,1)]
@@ -479,8 +480,7 @@ function marching_cubes_surface(mask::BitArray{3}, spacing::Vector{Float32})
     return triangles
 end
 
-function surface_and_volume(triangles)
-    """
+"""
     Calculate surface area and volume from a list of triangles.
     Each triangle is represented as a tuple of three 3D points.
     #Arguments
@@ -488,6 +488,7 @@ function surface_and_volume(triangles)
     #Returns
     - area: Surface area of the shape.
     - volume: Volume of the shape."""
+function surface_and_volume(triangles)
     area = 0.0
     volume = 0.0
     for (a, b, c) in triangles
@@ -499,8 +500,7 @@ function surface_and_volume(triangles)
     return Float32(area), Float32(abs(volume))
 end
 
-function sphericity(volume, area)
-    """Calculate the sphericity given volume and surface area.
+"""Calculate the sphericity given volume and surface area.
     Sphericity = (36π * V²)^(1/3) / A
     # Arguments
     - volume: Volume of the shape.
@@ -508,11 +508,11 @@ function sphericity(volume, area)
     # Returns
     - sphericity: The sphericity value.
     """
+function sphericity(volume, area)
     return (36 * pi * volume^2)^(1/3) / area
 end
 
-function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
-    """
+"""
     Get the 3D coordinates of all voxels set to true in the binary mask.
     # Returns a vector of 3D points.
     #Arguments
@@ -520,6 +520,7 @@ function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
     - spacing: Vector of Float32 representing the voxel spacing in each dimension.
     #Returns
     - coords: Vector of 3D points (each point is a Vector{Float64"""
+function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
     coords = Vector{Vector{Float64}}()
     for I in CartesianIndices(mask)
         if mask[I]
@@ -530,8 +531,7 @@ function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
     coords
 end
 
-function principal_axes_features(coords)
-    """
+"""
     Calculate the principal axes lengths, elongation, and flatness from a set of 3D coordinates.
     # Arguments
     - coords: Vector of 3D points (each point is a Vector{Float64}).
@@ -539,6 +539,7 @@ function principal_axes_features(coords)
     - axes_lengths: Vector of Float32 containing the lengths of the principal axes.
     - elongation: Float32 representing the elongation (sqrt(lambda2/lambda3)).
     - flatness: Float32 representing the flatness (sqrt(lambda1/lambda3))."""
+function principal_axes_features(coords)
     n = length(coords)
     if n == 0 return zeros(Float32,3), NaN32, NaN32 end
     M = reduce(hcat, coords)
@@ -553,21 +554,18 @@ function principal_axes_features(coords)
     return axes_lengths, Float32(elongation), Float32(flatness)
 end
 
-function voxel_volume(mask, spacing)
-    """Calculate the volume of the shape represented by the binary mask.
+"""Calculate the volume of the shape represented by the binary mask.
     # Arguments
     - mask: 3D BitArray representing the binary mask.
     - spacing: Vector of Float32 representing the voxel spacing in each dimension.
     # Returns
     - volume: Float32 representing the volume of the shape.
     """
+function voxel_volume(mask, spacing)
     return Float32(count(mask) * spacing[1] * spacing[2] * spacing[3])
 end
 
-function maximum_3d_diameter(triangles::Vector{NTuple{3,Vector{Float64}}}; 
-                            sample_rate::Float64=1.0,
-                            min_samples::Int=100)
-    """
+"""
     Calculate the maximum 3D diameter from surface mesh vertices.
     Maximum 3D diameter is defined as the largest pairwise Euclidean distance 
     between tumor surface mesh vertices (also known as Feret Diameter).
@@ -585,6 +583,9 @@ function maximum_3d_diameter(triangles::Vector{NTuple{3,Vector{Float64}}};
     - sample_rate = 0.1-0.3: good approximation with significant speedup, default 0.3
     - sample_rate = 0.05: fast approximation, may underestimate slightly
     """
+function maximum_3d_diameter(triangles::Vector{NTuple{3,Vector{Float64}}}; 
+                            sample_rate::Float64=0.3,
+                            min_samples::Int=100)
     if isempty(triangles)
         return Float32(0.0)
     end

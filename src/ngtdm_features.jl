@@ -1,16 +1,6 @@
-###############################################################
-# NGTDM Radiomics - Using Shared Discretization Module
-###############################################################
-
 using StatsBase
 
-# La funzione discretize_image è in utils.jl che viene incluso da Radiomics.jl
-
-function get_ngtdm_features(img, mask, voxel_spacing; 
-                           n_bins::Union{Int,Nothing}=nothing,
-                           bin_width::Union{Float32,Nothing}=nothing,
-                           verbose=false)
-    """
+"""
     get_ngtdm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false)
 
     Calculates and returns a dictionary of NGTDM (Neighbouring Gray Tone Difference Matrix) features.
@@ -41,6 +31,10 @@ function get_ngtdm_features(img, mask, voxel_spacing;
         # Default (32 bins)
         features = get_ngtdm_features(img, mask, spacing)
     """
+function get_ngtdm_features(img, mask, voxel_spacing; 
+                           n_bins::Union{Int,Nothing}=nothing,
+                           bin_width::Union{Float32,Nothing}=nothing,
+                           verbose=false)
     if verbose
         if !isnothing(n_bins)
             println("Calcolo NGTDM con $(n_bins) bins...")
@@ -82,8 +76,7 @@ function get_ngtdm_features(img, mask, voxel_spacing;
     return ngtdm_features
 end
 
-function calculate_ngtdm_matrix(discretized_img, mask, verbose)
-    """
+"""
     calculate_ngtdm_matrix(discretized_img, mask, verbose)
 
     Calculates the Neighbouring Gray Tone Difference Matrix (NGTDM).
@@ -96,6 +89,7 @@ function calculate_ngtdm_matrix(discretized_img, mask, verbose)
     # Returns
     - A tuple containing the NGTDM matrix and the gray levels present in the ROI.
     """
+function calculate_ngtdm_matrix(discretized_img, mask, verbose)
     if verbose
         println("Calculating NGTDM matrix...")
     end
@@ -134,8 +128,7 @@ function calculate_ngtdm_matrix(discretized_img, mask, verbose)
     return P_ngtdm, gray_levels
 end
 
-function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
-    """
+"""
     calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
 
     Calculates the coefficients used in the NGTDM feature calculations.
@@ -147,6 +140,7 @@ function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
     # Returns
     - A tuple containing the number of voxels with a valid region, the gray level probability vector, the sum of absolute differences vector, the gray level vector, and the number of gray levels for which `p_i` > 0.
     """
+function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
     Nvp = sum(P_ngtdm[:, 1])
     p_i = P_ngtdm[:, 1] ./ Nvp
     s_i = P_ngtdm[:, 2]
@@ -156,21 +150,20 @@ function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
     return Nvp, p_i, s_i, ivector, Ngp
 end
 
-# Feature implementations
-function coarseness(p_i, s_i)
-    """
+"""
     coarseness(p_i, s_i)
     Calculates the Coarseness feature.
     """
+function coarseness(p_i, s_i)
     sum_coarse = sum(p_i .* s_i)
     return sum_coarse == 0 ? 1e6 : 1 / sum_coarse
 end
 
-function contrast(p_i, s_i, i, Ngp, Nvp)
-    """
+"""
     contrast(p_i, s_i, i, Ngp, Nvp)
     Calculates the Contrast feature.
     """
+function contrast(p_i, s_i, i, Ngp, Nvp)
     if Ngp <= 1
         return 0.0
     end
@@ -182,11 +175,11 @@ function contrast(p_i, s_i, i, Ngp, Nvp)
     return contrast_val / div
 end
 
-function busyness(p_i, s_i, i)
-    """
+"""
     busyness(p_i, s_i, i)
     Calculates the Busyness feature.
     """
+function busyness(p_i, s_i, i)
     p_zero_mask = p_i .== 0
     i_pi = i .* p_i
 
@@ -203,11 +196,11 @@ function busyness(p_i, s_i, i)
     return sum(p_i .* s_i) / sum_abs_diff
 end
 
-function complexity(p_i, s_i, i, Nvp)
-    """
+"""
     complexity(p_i, s_i, i, Nvp)
     Calculates the Complexity feature.
     """
+function complexity(p_i, s_i, i, Nvp)
     p_zero_mask = p_i .== 0
     pi_si = p_i .* s_i
 
@@ -222,11 +215,11 @@ function complexity(p_i, s_i, i, Nvp)
     return complexity_val
 end
 
-function strength(p_i, s_i, i)
-    """
+"""
     strength(p_i, s_i, i)
     Calculates the Strength feature.
     """
+function strength(p_i, s_i, i)
     sum_s_i = sum(s_i)
     if sum_s_i == 0
         return 0.0

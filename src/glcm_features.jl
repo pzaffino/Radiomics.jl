@@ -1,16 +1,7 @@
 using LinearAlgebra
 using Statistics
 
-###############################################################
-# 1) GLCM 3D
-###############################################################
-function calculate_glcm_3d(img::Array{Float32,3},
-                           mask::BitArray{3},
-                           spacing::Vector{Float32};
-                           n_bins::Union{Int,Nothing}=nothing,
-                           bin_width::Union{Float32,Nothing}=nothing,
-                           verbose::Bool=false)
-    """ 
+""" 
     function calculate_glcm_3d(img::Array{Float32,3}, mask::BitArray{3}, spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float32,Nothing}=nothing, verbose::Bool=false)
 
     Calculates the Gray Level Co-occurrence Matrix (GLCM) for a 3D image within a specified mask.
@@ -29,6 +20,12 @@ function calculate_glcm_3d(img::Array{Float32,3},
         - `gray_levels`: A vector of unique gray levels present in the ROI.
         - `bin_width_used`: The bin width used for discretization.
     """
+function calculate_glcm_3d(img::Array{Float32,3},
+                           mask::BitArray{3},
+                           spacing::Vector{Float32};
+                           n_bins::Union{Int,Nothing}=nothing,
+                           bin_width::Union{Float32,Nothing}=nothing,
+                           verbose::Bool=false)
 
     disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
     
@@ -83,12 +80,7 @@ function calculate_glcm_3d(img::Array{Float32,3},
     return glcm_matrices, gray_levels, bin_width_used
 end
 
-###############################################################
-# 2) Maximal Correlation Coefficient
-###############################################################
-function calculate_mcc(glcm::Matrix{Float32}, px, py)
-
-    """
+"""
     function calculate_mcc(glcm::Matrix{Float32}, px, py)
     Calculates the Maximal Correlation Coefficient (MCC) from a given Gray Level Co-occurrence Matrix (GLCM) and its marginal probabilities. 
     The @inbounds macro is used for performance optimization.
@@ -101,6 +93,8 @@ function calculate_mcc(glcm::Matrix{Float32}, px, py)
     # Returns:
         - The Maximal Correlation Coefficient as a Float32 value.
     """
+function calculate_mcc(glcm::Matrix{Float32}, px, py)
+
     Ng = length(px)
     eps = 2.2f-16
     Ng < 2 && return 1.0f0
@@ -127,11 +121,7 @@ function calculate_mcc(glcm::Matrix{Float32}, px, py)
     end
 end
 
-###############################################################
-# 3) Feature extraction
-###############################################################
-function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector{Int})
-    """
+"""
     function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector{Int})
 
     Extracts a set of Gray Level Co-occurrence Matrix (GLCM) features from a single GLCM matrix and its corresponding gray levels. 
@@ -144,6 +134,7 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     # Returns:
         - A dictionary (Dict{String, Float32}) containing the extracted GLCM features as key-value pairs.
     """
+function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     features = Dict{String, Float32}()
     n_levels = length(gray_levels)
     eps = Float32(2.2e-16)
@@ -276,50 +267,47 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     return features
 end
 
-###############################################################
-# 4) Principal Function
-###############################################################
+"""
+function get_glcm_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32};
+                            n_bins::Union{Int,Nothing}=nothing,
+                            bin_width::Union{Float32,Nothing}=nothing,
+                            verbose::Bool=false)
+
+The function calculates GLCM matrices in 3D, extracts texture features from each matrix, 
+and returns the mean values of all features across directions.
+    
+You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
+- If n_bins is specified, bin_width is calculated automatically from the intensity range
+- If bin_width is specified, the number of bins depends on the intensity range
+- If neither is specified, defaults to n_bins=32
+
+# Arguments
+    - `img`: The input 3D image as a Float32 array.
+    - `mask`: A BitArray defining the region of interest within the image.
+    - `voxel_spacing`: A vector specifying the voxel spacing in each dimension.
+    - `n_bins`: The number of bins for discretizing intensity values (optional).
+    - `bin_width`: The width of each bin (optional).
+    - `verbose`: If true, enables verbose output for debugging or detailed processing information.
+    
+# Returns:
+    - `feats`: A dictionary containing the mean GLCM features across all directions.
+    
+# Examples:
+    # Using fixed number of bins (bin_width calculated automatically)
+    features = get_glcm_features(img, mask, spacing, n_bins=64)
+        
+    # Using fixed bin width (number of bins calculated automatically)
+    features = get_glcm_features(img, mask, spacing, bin_width=25.0f0)
+        
+    # Default (32 bins)
+    features = get_glcm_features(img, mask, spacing)
+"""
 function get_glcm_features(img::Array{Float32,3},
                            mask::BitArray{3},
                            voxel_spacing::Vector{Float32};
                            n_bins::Union{Int,Nothing}=nothing,
                            bin_width::Union{Float32,Nothing}=nothing,
                            verbose::Bool=false)
-    """
-    function get_glcm_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32};
-                            n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float32,Nothing}=nothing,
-                            verbose::Bool=false)
-
-    The function calculates GLCM matrices in 3D, extracts texture features from each matrix, 
-    and returns the mean values of all features across directions.
-    
-    You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
-    - If n_bins is specified, bin_width is calculated automatically from the intensity range
-    - If bin_width is specified, the number of bins depends on the intensity range
-    - If neither is specified, defaults to n_bins=32
-
-    # Arguments
-        - `img`: The input 3D image as a Float32 array.
-        - `mask`: A BitArray defining the region of interest within the image.
-        - `voxel_spacing`: A vector specifying the voxel spacing in each dimension.
-        - `n_bins`: The number of bins for discretizing intensity values (optional).
-        - `bin_width`: The width of each bin (optional).
-        - `verbose`: If true, enables verbose output for debugging or detailed processing information.
-    
-    # Returns:
-        - `feats`: A dictionary containing the mean GLCM features across all directions.
-    
-    # Examples:
-        # Using fixed number of bins (bin_width calculated automatically)
-        features = get_glcm_features(img, mask, spacing, n_bins=64)
-        
-        # Using fixed bin width (number of bins calculated automatically)
-        features = get_glcm_features(img, mask, spacing, bin_width=25.0f0)
-        
-        # Default (32 bins)
-        features = get_glcm_features(img, mask, spacing)
-    """
 
     if verbose
         if !isnothing(n_bins)
@@ -355,16 +343,7 @@ function get_glcm_features(img::Array{Float32,3},
     return feats
 end
 
-###############################################################
-# 5) Principal Function 2D Wrapper
-###############################################################
-function get_glcm_features(img::Matrix{Float32},
-                           mask::BitMatrix,
-                           voxel_spacing::Vector{Float32};
-                           n_bins::Union{Int,Nothing}=nothing,
-                           bin_width::Union{Float32,Nothing}=nothing,
-                           verbose::Bool=false)
-    """
+"""
     function get_glcm_features(img::Matrix{Float32}, mask::BitMatrix, voxel_spacing::Vector{Float32};
                             n_bins::Union{Int,Nothing}=nothing,
                             bin_width::Union{Float32,Nothing}=nothing,
@@ -381,7 +360,14 @@ function get_glcm_features(img::Matrix{Float32},
         - `verbose`: If true, enables verbose output for debugging or detailed processing information.
     # Returns:
         - `feats`: A dictionary containing the mean GLCM features across all directions.
-    """
+"""
+function get_glcm_features(img::Matrix{Float32},
+                           mask::BitMatrix,
+                           voxel_spacing::Vector{Float32};
+                           n_bins::Union{Int,Nothing}=nothing,
+                           bin_width::Union{Float32,Nothing}=nothing,
+                           verbose::Bool=false)
+
 
     # Converti 3d image e mask 
     img3d  = reshape(img, size(img)..., 1)

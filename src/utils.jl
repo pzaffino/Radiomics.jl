@@ -1,10 +1,6 @@
 using Images
 
-function discretize_image(img::Array{Float32,3},
-                         mask::BitArray{3};
-                         n_bins::Union{Int,Nothing}=nothing,
-                         bin_width::Union{Float32,Nothing}=nothing)
-    """
+"""
     discretize_image(img::Array{Float32,3}, mask::BitArray{3}; 
                         n_bins::Union{Int,Nothing}=nothing,
                         bin_width::Union{Float32,Nothing}=nothing)
@@ -41,6 +37,11 @@ function discretize_image(img::Array{Float32,3},
         # Default (bin_width=25.0f0)
         disc, n_bins, levels, bw = discretize_image(img, mask)
     """
+function discretize_image(img::Array{Float32,3},
+                         mask::BitArray{3};
+                         n_bins::Union{Int,Nothing}=nothing,
+                         bin_width::Union{Float32,Nothing}=nothing)
+    
     masked_indices = findall(mask)
     if isempty(masked_indices)
         return zeros(Int, size(img)), 0, Int[], 0.0f0
@@ -87,8 +88,7 @@ function discretize_image(img::Array{Float32,3},
     return disc, n_bins_actual, gray_levels, bin_width_used
 end
 
-function get_neighbors(idx, dims)
-    """
+"""
     get_neighbors(idx, dims)
 
     Gets the 26-connected neighbors of a voxel in a 3D image.
@@ -100,6 +100,7 @@ function get_neighbors(idx, dims)
     # Returns
     - A vector of linear indices of the neighbors.
     """
+function get_neighbors(idx, dims)
     neighbors = []
     cartesian_idx = CartesianIndices(dims)[idx]
 
@@ -118,8 +119,7 @@ function get_neighbors(idx, dims)
     return neighbors
 end
 
-function keep_largest_component(mask::AbstractArray{Bool})
-    """
+"""
     keep_largest_component(mask::AbstractArray{Bool})
 
     Keeps only the largest connected component in the binary mask. All other components are removed. 
@@ -131,6 +131,7 @@ function keep_largest_component(mask::AbstractArray{Bool})
     # Returns:
         - The mask containing only the largest connected component (Array).
     """
+function keep_largest_component(mask::AbstractArray{Bool})
     if sum(mask) == 0
         return mask
     end
@@ -172,8 +173,7 @@ function keep_largest_component(mask::AbstractArray{Bool})
     return largest_component_mask
 end
 
-function pad_mask(mask::AbstractArray, pad::Int)
-    """
+"""
     pad_mask(mask::AbstractArray, pad::Int)
     
     Pads the input mask with a specified number of layers of false values.
@@ -185,6 +185,7 @@ function pad_mask(mask::AbstractArray, pad::Int)
     # Returns:
         - The padded mask (Array).
     """
+function pad_mask(mask::AbstractArray, pad::Int)
     sz = size(mask)
     new_shape = ntuple(i -> sz[i] + 2*pad, ndims(mask))
     new_mask = falses(new_shape)
@@ -193,8 +194,7 @@ function pad_mask(mask::AbstractArray, pad::Int)
     return new_mask
 end
 
-function input_sanity_check(img, mask, verbose::Bool)
-    """
+"""
     Performs sanity checks on the input image and mask.
         # Parameters:
         - `img`: The input image (Array).
@@ -202,6 +202,7 @@ function input_sanity_check(img, mask, verbose::Bool)
         - `verbose`: If true, prints progress messages.
         # Returns:
         - Nothing. Throws an error if the inputs are invalid."""
+function input_sanity_check(img, mask, verbose::Bool)
     if verbose
         println("Running input sanity check...")
     end
@@ -211,8 +212,7 @@ function input_sanity_check(img, mask, verbose::Bool)
     end
 end
 
-function print_features(title::String, features::Dict{String, Float32})
-    """
+"""
     Helper function to print features in a formatted list.
         # Parameters:
         - `title`: The title to display before the features.
@@ -220,6 +220,7 @@ function print_features(title::String, features::Dict{String, Float32})
         # Returns:
         - Nothing. Prints the features to the console.
     """
+function print_features(title::String, features::Dict{String, Float32})
     println("\n--- $title ---")
     sorted_keys = sort(collect(keys(features)))
     for (i, k) in enumerate(sorted_keys)
@@ -229,8 +230,7 @@ function print_features(title::String, features::Dict{String, Float32})
     println("---------------------\n")
 end
 
-function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
-    """
+"""
     Prepares and validates the input image, mask, and voxel spacing.
         # Parameters:
         - `img_input`: The input image (Array).
@@ -240,6 +240,7 @@ function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, fo
         - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
         # Returns:
         - A tuple containing the prepared image, mask, and voxel spacing."""
+function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
     img = Float32.(img_input)
     mask = BitArray(mask_input .!= 0.0f0)
     
