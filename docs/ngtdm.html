@@ -22,6 +22,17 @@
       --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
     }
 
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     * {
       margin: 0;
       padding: 0;
@@ -477,29 +488,50 @@
           <div class="feature-item">
             <strong>Coarseness</strong>
             <p>Measures the spatial rate of change in intensity; higher values indicate coarser textures with larger homogeneous regions.</p>
+            <div class="formula">Coarseness = 1 / Σ<sub>i</sub> p<sub>i</sub> · s<sub>i</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Contrast</strong>
             <p>Quantifies the intensity contrast between a voxel and its neighbors; higher values indicate larger differences and more heterogeneous patterns.</p>
+            <div class="formula">Contrast = (1 / (N<sub>g</sub>(N<sub>g</sub> - 1))) · Σ<sub>i,j</sub> p<sub>i</sub> · p<sub>j</sub> · (i - j)²</div>
           </div>
 
           <div class="feature-item">
             <strong>Busyness</strong>
             <p>Measures rapid changes in intensity between neighboring voxels; higher values indicate more heterogeneous and busy textures.</p>
+            <div class="formula">Busyness = Σ<sub>i</sub> p<sub>i</sub> · s<sub>i</sub> / Σ<sub>i,j</sub> |i - j| · p<sub>i</sub> · p<sub>j</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Complexity</strong>
             <p>Evaluates local intensity variations considering differences among all gray levels; higher values indicate more complex and intricate texture patterns.</p>
+            <div class="formula">Complexity = Σ<sub>i,j</sub> |i - j| / N<sub>v</sub> · (p<sub>i</sub> · s<sub>i</sub> + p<sub>j</sub> · s<sub>j</sub>)</div>
           </div>
 
           <div class="feature-item">
             <strong>Strength</strong>
             <p>Measures the perceptual strength of the texture patterns; higher values indicate more prominent and well-defined structures within the region.</p>
+            <div class="formula">Strength = Σ<sub>i,j</sub> (p<sub>i</sub> + p<sub>j</sub>) · (i - j)² / Σ<sub>i</sub> s<sub>i</sub></div>
           </div>
         </div>
       </div>
+
+      <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>G</strong> : Number of gray levels in the quantized image.</li>
+          <li><strong>i, j</strong> : Gray level indices, ranging from 1 to <strong>G</strong>.</li>
+          <li><strong>p_i</strong> : Probability of gray level <strong>i</strong> in the region of interest (ROI).</li>
+          <li><strong>s_i</strong> : Sum of absolute differences between gray level <strong>i</strong> and the average of its neighbors.</li>
+          <li><strong>N_g</strong> : Total number of gray levels (same as <strong>G</strong>).</li>
+          <li><strong>N</strong> : Number of voxels (or pixels) in the ROI.</li>
+          <li><strong>f(i,j)</strong> : Frequency or probability of occurrence of gray level pair (<strong>i,j</strong>).</li>
+          <li><strong>Δ(i)</strong> : Difference between gray level <strong>i</strong> and the average of its neighboring voxels.</li>
+        </ul>
+      </div>
+
 
       <div class="section">
         <h2>Calculation Methodology</h2>
@@ -523,7 +555,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 

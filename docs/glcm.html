@@ -277,6 +277,22 @@
       margin-bottom: 16px;
     }
 
+    ul {
+      margin-left: 24px;
+      margin-bottom: 20px;
+    }
+
+    li {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+
+    li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
     /* Info Box */
     .info-box {
       background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
@@ -322,6 +338,17 @@
       margin: 4px 0 0 0;
       font-size: 0.95rem;
       color: var(--text-secondary);
+    }
+
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
     }
 
     /* Footer */
@@ -427,118 +454,158 @@
           <div class="feature-item">
             <strong>Autocorrelation</strong>
             <p>Measures correlation between intensities of neighboring voxels, quantifying spatial intensity dependencies.</p>
+            <div class="formula">AC = Σᵢⱼ i·j·P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Cluster Prominence</strong>
             <p>Indicates sharpness of deviations from the mean; detects asymmetric patterns in texture.</p>
+            <div class="formula">CP = Σᵢⱼ (i+j-μₓ-μᵧ)⁴·P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Cluster Shade</strong>
             <p>Measures asymmetry of cluster distributions, capturing skewness in spatial intensity patterns.</p>
+            <div class="formula">CS = Σᵢⱼ (i+j-μₓ-μᵧ)³·P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Cluster Tendency</strong>
             <p>Quantifies the degree of clustering of similar intensity values in the image.</p>
+            <div class="formula">CT = Σᵢⱼ (i+j-μₓ-μᵧ)²·P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Contrast</strong>
             <p>Measures local intensity contrast between neighboring voxels, indicating texture variation.</p>
+            <div class="formula">C = Σᵢⱼ (i-j)²·P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Correlation</strong>
             <p>Statistical correlation between intensities of neighboring voxels, reflecting linear dependencies.</p>
+            <div class="formula">ρ = Σᵢⱼ [(i-μₓ)(j-μᵧ)·P(i,j)]/(σₓσᵧ)</div>
           </div>
 
           <div class="feature-item">
             <strong>Joint Energy</strong>
             <p>Uniformity of the GLCM; high values indicate homogeneous texture patterns.</p>
+            <div class="formula">E = Σᵢⱼ P(i,j)²</div>
           </div>
 
           <div class="feature-item">
             <strong>Joint Entropy</strong>
             <p>Measures the complexity or disorder of the GLCM, quantifying texture randomness.</p>
+            <div class="formula">H = -Σᵢⱼ P(i,j)·log₂(P(i,j))</div>
           </div>
 
           <div class="feature-item">
             <strong>Inverse Difference Moment (IDM)</strong>
             <p>Measures homogeneity; higher values indicate less local variation and smoother textures.</p>
+            <div class="formula">IDM = Σᵢⱼ P(i,j)/(1+(i-j)²)</div>
           </div>
 
           <div class="feature-item">
             <strong>Normalized IDM (IDMN)</strong>
             <p>Normalized version of IDM, providing scale-invariant homogeneity measurement.</p>
+            <div class="formula">IDMN = Σᵢⱼ P(i,j)/(1+(i-j)²/N²)</div>
           </div>
 
           <div class="feature-item">
             <strong>Inverse Difference (ID)</strong>
             <p>Similar to IDM, measures proximity of intensity values to the central voxel.</p>
+            <div class="formula">ID = Σᵢⱼ P(i,j)/(1+|i-j|)</div>
           </div>
 
           <div class="feature-item">
             <strong>Normalized Inverse Difference (IDN)</strong>
             <p>Normalized version of ID for consistent comparison across different images.</p>
+            <div class="formula">IDN = Σᵢⱼ P(i,j)/(1+|i-j|/N)</div>
           </div>
 
           <div class="feature-item">
             <strong>Inverse Variance</strong>
             <p>Measures dispersion of GLCM values, indicating texture heterogeneity.</p>
+            <div class="formula">IV = Σᵢⱼ P(i,j)/(i-j)² (i≠j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Maximum Probability</strong>
             <p>Maximum co-occurrence probability between gray levels, identifying dominant texture patterns.</p>
+            <div class="formula">MP = maxᵢⱼ P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Sum of Squares</strong>
             <p>Measures total variation relative to the mean intensity in the GLCM.</p>
+            <div class="formula">SS = Σᵢⱼ (i-μ)²·P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Difference Average</strong>
             <p>Mean of intensity differences between neighboring voxels across the GLCM.</p>
+            <div class="formula">DA = Σₖ k·Pₓ₋ᵧ(k)</div>
           </div>
 
           <div class="feature-item">
             <strong>Difference Entropy</strong>
             <p>Disorder of intensity differences, quantifying complexity of local variations.</p>
+            <div class="formula">DE = -Σₖ Pₓ₋ᵧ(k)·log₂(Pₓ₋ᵧ(k))</div>
           </div>
 
           <div class="feature-item">
             <strong>Difference Variance</strong>
             <p>Variance of intensity differences between neighbors, measuring spread of local contrasts.</p>
+            <div class="formula">DV = Σₖ (k-DA)²·Pₓ₋ᵧ(k)</div>
           </div>
 
           <div class="feature-item">
             <strong>Sum Average</strong>
             <p>Mean of sums of GLCM value pairs, representing average combined intensities.</p>
+            <div class="formula">SA = Σₖ k·Pₓ₊ᵧ(k)</div>
           </div>
 
           <div class="feature-item">
             <strong>Sum Entropy</strong>
             <p>Entropy of sums; measures complexity of combined intensity distributions.</p>
+            <div class="formula">SE = -Σₖ Pₓ₊ᵧ(k)·log₂(Pₓ₊ᵧ(k))</div>
           </div>
 
           <div class="feature-item">
             <strong>Joint Average</strong>
             <p>Global mean of GLCM values, providing an average co-occurrence measure.</p>
+            <div class="formula">JA = Σᵢⱼ i·P(i,j) = μₓ</div>
           </div>
 
           <div class="feature-item">
             <strong>IMC1 / IMC2</strong>
             <p>Informational measures of correlation between marginal distributions, capturing mutual information.</p>
+            <div class="formula">IMC1 = (H-HXY1)/(max(Hₓ,Hᵧ))</div>
           </div>
 
           <div class="feature-item">
             <strong>Maximal Correlation Coefficient (MCC)</strong>
             <p>Measures maximum linear correlation between rows and columns of the GLCM matrix.</p>
+            <div class="formula">MCC = √(second largest eigenvalue of Q)</div>
           </div>
         </div>
+      </div>
+
+      <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>P(i,j)</strong> = normalized co-occurrence probability at gray levels i and j</li>
+          <li><strong>N</strong> = number of gray levels in the image</li>
+          <li><strong>μₓ, μᵧ</strong> = mean values along x and y dimensions of the GLCM</li>
+          <li><strong>σₓ, σᵧ</strong> = standard deviations along x and y dimensions</li>
+          <li><strong>Pₓ₊ᵧ(k)</strong> = probability of sum of gray levels (i+j=k)</li>
+          <li><strong>Pₓ₋ᵧ(k)</strong> = probability of difference of gray levels (|i-j|=k)</li>
+          <li><strong>Hₓ, Hᵧ</strong> = marginal entropies</li>
+          <li><strong>HXY1, HXY2</strong> = conditional entropies</li>
+          <li><strong>Σᵢⱼ</strong> = summation over all i,j pairs in the GLCM</li>
+          <li><strong>Σₖ</strong> = summation over all k values</li>
+        </ul>
       </div>
 
       <div class="section">
@@ -551,7 +618,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 

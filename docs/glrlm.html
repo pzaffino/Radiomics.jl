@@ -163,6 +163,17 @@
       transform: rotate(180deg);
     }
 
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     .dropdown-btn:hover {
       background-color: rgba(255, 255, 255, 0.08);
       color: white;
@@ -427,84 +438,117 @@
           <div class="feature-item">
             <strong>Short Run Emphasis (SRE)</strong>
             <p>Measures the distribution of short runs; higher values indicate more short runs and finer textures.</p>
+            <div class="formula">SRE = Σ<sub>i,j</sub> P(i,j) / j<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Long Run Emphasis (LRE)</strong>
             <p>Measures the distribution of long runs; higher values indicate coarser, more homogeneous textures.</p>
+            <div class="formula">LRE = Σ<sub>i,j</sub> j<sup>2</sup> · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Non-Uniformity (GLN)</strong>
             <p>Measures similarity of gray level values; lower values indicate more uniform gray level distribution.</p>
+            <div class="formula">GLN = Σ<sub>i</sub> ( Σ<sub>j</sub> P(i,j) )<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Non-Uniformity Normalized (GLNN)</strong>
             <p>Normalized version of GLN, providing scale-invariant gray level uniformity measurement.</p>
+            <div class="formula">GLNN = GLN / N<sub>r</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Run Length Non-Uniformity (RLN)</strong>
             <p>Measures similarity of run lengths; lower values indicate more uniform run length distribution.</p>
+            <div class="formula">RLN = Σ<sub>j</sub> ( Σ<sub>i</sub> P(i,j) )<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Run Length Non-Uniformity Normalized (RLNN)</strong>
             <p>Normalized version of RLN for consistent comparison across different ROI sizes.</p>
+            <div class="formula">RLNN = RLN / N<sub>r</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Run Percentage (RP)</strong>
             <p>Measures the distribution of runs relative to the total number of voxels; indicates texture density and homogeneity.</p>
+            <div class="formula">RP = N<sub>r</sub> / N<sub>p</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Variance (GLV)</strong>
             <p>Measures variance in gray level intensities across runs, quantifying intensity dispersion.</p>
+            <div class="formula">GLV = Σ<sub>i,j</sub> P(i,j) · (i − μ<sub>i</sub>)<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Run Variance (RV)</strong>
             <p>Measures variance in run lengths, quantifying the heterogeneity of texture patterns.</p>
+            <div class="formula">RV = Σ<sub>i,j</sub> P(i,j) · (j − μ<sub>j</sub>)<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Run Entropy (RE)</strong>
             <p>Measures disorder or randomness in run lengths and gray levels, indicating texture complexity.</p>
+            <div class="formula">RE = −Σ<sub>i,j</sub> P(i,j) · log₂(P(i,j))</div>
           </div>
 
           <div class="feature-item">
             <strong>Low Gray Level Run Emphasis (LGLRE)</strong>
             <p>Emphasizes runs with low gray level values, highlighting darker regions in the image.</p>
+            <div class="formula">LGLRE = Σ<sub>i,j</sub> P(i,j) / i<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>High Gray Level Run Emphasis (HGLRE)</strong>
             <p>Emphasizes runs with high gray level values, highlighting brighter regions in the image.</p>
+            <div class="formula">HGLRE = Σ<sub>i,j</sub> i<sup>2</sup> · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Short Run Low Gray Level Emphasis (SRLGLE)</strong>
             <p>Joint measure emphasizing short runs with low gray level values, capturing fine dark textures.</p>
+            <div class="formula">SRLGLE = Σ<sub>i,j</sub> P(i,j) / (i<sup>2</sup> · j<sup>2</sup>)</div>
           </div>
 
           <div class="feature-item">
             <strong>Short Run High Gray Level Emphasis (SRHGLE)</strong>
             <p>Joint measure emphasizing short runs with high gray level values, capturing fine bright textures.</p>
+            <div class="formula">SRHGLE = Σ<sub>i,j</sub> (i<sup>2</sup> · P(i,j)) / j<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Long Run Low Gray Level Emphasis (LRLGLE)</strong>
             <p>Joint measure emphasizing long runs with low gray level values, capturing coarse dark textures.</p>
+            <div class="formula">LRLGLE = Σ<sub>i,j</sub> (j<sup>2</sup> · P(i,j)) / i<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Long Run High Gray Level Emphasis (LRHGLE)</strong>
             <p>Joint measure emphasizing long runs with high gray level values, capturing coarse bright textures.</p>
+            <div class="formula">LRHGLE = Σ<sub>i,j</sub> i<sup>2</sup> · j<sup>2</sup> · P(i,j)</div>
           </div>
         </div>
       </div>
+
+      <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the GLRLM formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>P(i,j)</strong> = normalized probability of a run of length j at gray level i</li>
+          <li><strong>i</strong> = gray level intensity value</li>
+          <li><strong>j</strong> = run length (number of consecutive voxels/pixels with the same gray level)</li>
+          <li><strong>N<sub>r</sub></strong> = total number of runs in the region of interest (ROI)</li>
+          <li><strong>N<sub>p</sub></strong> = total number of pixels or voxels in the ROI</li>
+          <li><strong>μ<sub>i</sub></strong> = mean gray level across the GLRLM</li>
+          <li><strong>μ<sub>j</sub></strong> = mean run length across the GLRLM</li>
+          <li><strong>Σ<sub>i,j</sub></strong> = summation over all gray levels i and run lengths j</li>
+          <li><strong>log₂</strong> = base-2 logarithm</li>
+        </ul>
+      </div>
+
 
       <div class="section">
         <h2>Clinical Applications</h2>
@@ -516,7 +560,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 

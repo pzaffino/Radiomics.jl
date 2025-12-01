@@ -238,17 +238,6 @@
       color: white
     }
 
-    .formula {
-      margin-top: 8px;
-      font-family: 'Courier New', monospace;
-      background: white;
-      padding: 8px;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      color: var(--primary-dark);
-      border: 1px solid var(--border);
-    }
-
     /* Content Section */
     .content {
       padding: 60px;
@@ -372,6 +361,17 @@
       font-size: 0.95rem;
     }
 
+    .formula {
+      margin-top: 12px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 10px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     /* Footer */
     .footer {
       background: var(--secondary);
@@ -472,7 +472,6 @@
         <h2>Extracted Features</h2>
         
         <div class="feature-grid">
-          
           <div class="feature-card">
             <h3>Surface Area</h3>
             <p>Total area of the 3D object's surface mesh, calculated using triangular mesh elements from the Marching Cubes reconstruction.</p>
@@ -530,6 +529,25 @@
       </div>
 
       <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>A</strong> = total surface area</li>
+          <li><strong>A_triangle</strong> = area of individual triangular mesh element</li>
+          <li><strong>V_mesh</strong> = volume from mesh representation</li>
+          <li><strong>V_voxel</strong> = volume from voxel counting</li>
+          <li><strong>N</strong> = number of foreground voxels</li>
+          <li><strong>Δx, Δy, Δz</strong> = voxel spacing in x, y, z directions</li>
+          <li><strong>p₁, p₂, p₃</strong> = vertices of a triangular face</li>
+          <li><strong>p_i, p_j</strong> = points on the object surface</li>
+          <li><strong>λ₁, λ₂, λ₃</strong> = eigenvalues (largest to smallest)</li>
+          <li><strong>Σ</strong> = covariance matrix of voxel coordinates</li>
+          <li><strong>||·||</strong> = Euclidean distance</li>
+          <li><strong>×</strong> = cross product, <strong>·</strong> = dot product</li>
+        </ul>
+      </div>
+
+      <div class="section">
         <h2>Computational Methodology</h2>
         <p>The extraction of 3D shape features relies on advanced computational geometry techniques:</p>
         
@@ -549,7 +567,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2025 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 

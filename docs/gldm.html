@@ -328,6 +328,17 @@
       font-size: 1.05rem;
     }
 
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     .feature-item p {
       margin: 4px 0 0 0;
       font-size: 0.95rem;
@@ -477,73 +488,102 @@
           <div class="feature-item">
             <strong>Small Dependence Emphasis (SDE)</strong>
             <p>Highlights fine textures by emphasizing small dependence regions with few connected neighbors.</p>
+            <div class="formula">SDE = Σ<sub>i,j</sub> P(i,j) / j<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Large Dependence Emphasis (LDE)</strong>
             <p>Emphasizes coarse textures by highlighting large dependence regions with many connected neighbors.</p>
+            <div class="formula">LDE = Σ<sub>i,j</sub> j<sup>2</sup> · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Non-Uniformity (GLNU)</strong>
             <p>Measures variability of gray level distributions across dependence regions.</p>
+            <div class="formula">GLNU = Σ<sub>i</sub> ( Σ<sub>j</sub> P(i,j) )<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Dependence Non-Uniformity (DNU)</strong>
             <p>Quantifies variability in the size distribution of dependence regions.</p>
+            <div class="formula">DNU = Σ<sub>j</sub> ( Σ<sub>i</sub> P(i,j) )<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Dependence Non-Uniformity Normalized (DNUN)</strong>
             <p>Normalized version of DNU, providing scale-invariant dependence size variability.</p>
+            <div class="formula">DNUN = Σ<sub>j</sub> ( Σ<sub>i</sub> P(i,j) )<sup>2</sup> / N<sub>z</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Variance (GLV)</strong>
             <p>Variance of gray level values across the GLDM, measuring intensity dispersion.</p>
+            <div class="formula">GLV = Σ<sub>i,j</sub> (i - μ)<sup>2</sup> · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Dependence Variance (DV)</strong>
             <p>Variance of dependence sizes, quantifying the spread of connected region sizes.</p>
+            <div class="formula">DV = Σ<sub>i,j</sub> (j - μ<sub>d</sub>)<sup>2</sup> · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Dependence Entropy (DE)</strong>
             <p>Measures randomness of voxel dependencies, quantifying texture complexity.</p>
+            <div class="formula">DE = - Σ<sub>i,j</sub> P(i,j) · log<sub>2</sub>(P(i,j))</div>
           </div>
 
           <div class="feature-item">
             <strong>Low Gray Level Emphasis (LGLE)</strong>
             <p>Emphasizes regions with low intensity values in the dependence matrix.</p>
+            <div class="formula">LGLE = Σ<sub>i,j</sub> P(i,j) / i<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>High Gray Level Emphasis (HGLE)</strong>
             <p>Emphasizes regions with high intensity values in the dependence matrix.</p>
+            <div class="formula">HGLE = Σ<sub>i,j</sub> i<sup>2</sup> · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Small Dependence Low Gray Level Emphasis (SDLGLE)</strong>
             <p>Joint measure emphasizing small dependence regions with low intensity values.</p>
+            <div class="formula">SDLGLE = Σ<sub>i,j</sub> P(i,j) / (i<sup>2</sup> · j<sup>2</sup>)</div>
           </div>
 
           <div class="feature-item">
             <strong>Small Dependence High Gray Level Emphasis (SDHGLE)</strong>
             <p>Joint measure emphasizing small dependence regions with high intensity values.</p>
+            <div class="formula">SDHGLE = Σ<sub>i,j</sub> (i<sup>2</sup> · P(i,j)) / j<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Large Dependence Low Gray Level Emphasis (LDLGLE)</strong>
             <p>Joint measure emphasizing large dependence regions with low intensity values.</p>
+            <div class="formula">LDLGLE = Σ<sub>i,j</sub> (j<sup>2</sup> · P(i,j)) / i<sup>2</sup></div>
           </div>
 
           <div class="feature-item">
             <strong>Large Dependence High Gray Level Emphasis (LDHGLE)</strong>
             <p>Joint measure emphasizing large dependence regions with high intensity values.</p>
+            <div class="formula">LDHGLE = Σ<sub>i,j</sub> i<sup>2</sup> · j<sup>2</sup> · P(i,j)</div>
           </div>
         </div>
+      </div>
+
+      <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the GLDM formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>P(i,j)</strong> = normalized probability of dependence of size j at gray level i</li>
+          <li><strong>Nz</strong> = total number of dependence zones in the image</li>
+          <li><strong>i</strong> = gray level intensity value</li>
+          <li><strong>j</strong> = dependence size (number of connected neighboring voxels with the same gray level)</li>
+          <li><strong>μi</strong> = mean gray level in the GLDM</li>
+          <li><strong>μj</strong> = mean dependence size in the GLDM</li>
+          <li><strong>Σ<sub>i,j</sub></strong> = summation over all i (gray levels) and j (dependence sizes)</li>
+          <li><strong>log₂</strong> = base-2 logarithm</li>
+        </ul>
       </div>
 
       <div class="section">
@@ -568,7 +608,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 

@@ -383,6 +383,17 @@
       font-size: 0.9rem;
     }
 
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     .footer a {
       color: var(--primary-light);
       text-decoration: none;
@@ -477,84 +488,116 @@
           <div class="feature-item">
             <strong>Small Area Emphasis (SAE)</strong>
             <p>Measures the distribution of small homogeneous zones; higher values indicate finer, more heterogeneous textures.</p>
+            <div class="formula">SAE = Σ<sub>i,j</sub> P(i,j) / j²</div>
           </div>
 
           <div class="feature-item">
             <strong>Large Area Emphasis (LAE)</strong>
             <p>Measures the distribution of large homogeneous zones; higher values indicate coarser, more homogeneous textures.</p>
+            <div class="formula">LAE = Σ<sub>i,j</sub> j² · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Non-Uniformity (GLN)</strong>
             <p>Measures the variability of gray levels across zones; lower values indicate more uniform gray level distribution.</p>
+            <div class="formula">GLN = Σ<sub>i</sub> [Σ<sub>j</sub> P(i,j)]²</div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Non-Uniformity Normalized (GLNN)</strong>
             <p>Normalized version of GLN, providing scale-invariant gray level variability measurement.</p>
+            <div class="formula">GLNN = GLN / N_zones</div>
           </div>
 
           <div class="feature-item">
             <strong>Size Zone Non-Uniformity (SZN)</strong>
             <p>Measures variability of zone sizes; lower values indicate more uniform zone size distribution.</p>
+            <div class="formula">SZN = Σ<sub>j</sub> [Σ<sub>i</sub> P(i,j)]²</div>
           </div>
 
           <div class="feature-item">
             <strong>Size Zone Non-Uniformity Normalized (SZNN)</strong>
             <p>Normalized version of SZN for consistent comparison across different ROI sizes.</p>
+            <div class="formula">SZNN = SZN / N_zones</div>
           </div>
 
           <div class="feature-item">
             <strong>Zone Percentage (ZP)</strong>
             <p>Ratio of number of zones to total number of voxels; indicates texture density and homogeneity.</p>
+            <div class="formula">ZP = N_zones / N_voxels</div>
           </div>
 
           <div class="feature-item">
             <strong>Gray Level Variance (GLV)</strong>
             <p>Variance of gray level intensities across zones, quantifying intensity dispersion.</p>
+            <div class="formula">GLV = Σ<sub>i,j</sub> (i - μ_g)² · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Zone Variance (ZV)</strong>
             <p>Variance of zone sizes, measuring the heterogeneity of homogeneous region distribution.</p>
+            <div class="formula">ZV = Σ<sub>i,j</sub> (j - μ_s)² · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Zone Entropy (ZE)</strong>
             <p>Measures randomness in zone distribution, quantifying texture complexity and disorder.</p>
+            <div class="formula">ZE = - Σ<sub>i,j</sub> P(i,j) · log₂(P(i,j))</div>
           </div>
 
           <div class="feature-item">
             <strong>Low Gray Level Zone Emphasis (LGLZE)</strong>
             <p>Emphasizes zones with low gray level values, highlighting darker homogeneous regions.</p>
+            <div class="formula">LGLZE = Σ<sub>i,j</sub> P(i,j) / i²</div>
           </div>
 
           <div class="feature-item">
             <strong>High Gray Level Zone Emphasis (HGLZE)</strong>
             <p>Emphasizes zones with high gray level values, highlighting brighter homogeneous regions.</p>
+            <div class="formula">HGLZE = Σ<sub>i,j</sub> i² · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Small Area Low Gray Level Emphasis (SALGLE)</strong>
             <p>Joint measure emphasizing small zones with low gray levels, capturing fine dark textures.</p>
+            <div class="formula">SALGLE = Σ<sub>i,j</sub> P(i,j) / (i² · j²)</div>
           </div>
 
           <div class="feature-item">
             <strong>Small Area High Gray Level Emphasis (SAHGLE)</strong>
             <p>Joint measure emphasizing small zones with high gray levels, capturing fine bright textures.</p>
+            <div class="formula">SAHGLE = Σ<sub>i,j</sub> (i² / j²) · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Large Area Low Gray Level Emphasis (LALGLE)</strong>
             <p>Joint measure emphasizing large zones with low gray levels, capturing coarse dark textures.</p>
+            <div class="formula">LALGLE = Σ<sub>i,j</sub> (j² / i²) · P(i,j)</div>
           </div>
 
           <div class="feature-item">
             <strong>Large Area High Gray Level Emphasis (LAHGLE)</strong>
             <p>Joint measure emphasizing large zones with high gray levels, capturing coarse bright textures.</p>
+            <div class="formula">LAHGLE = Σ<sub>i,j</sub> (i² · j²) · P(i,j)</div>
           </div>
         </div>
       </div>
+
+      <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>P(i,j)</strong> = normalized GLSZM probability for gray level i and zone size j</li>
+          <li><strong>i</strong> = gray level value</li>
+          <li><strong>j</strong> = zone size</li>
+          <li><strong>N_zones</strong> = total number of zones in the ROI</li>
+          <li><strong>N_voxels</strong> = total number of voxels in the ROI</li>
+          <li><strong>μ_g</strong> = mean gray level over all zones</li>
+          <li><strong>μ_s</strong> = mean zone size over all zones</li>
+          <li><strong>Σ<sub>i,j</sub></strong> = summation over all gray levels i and zone sizes j</li>
+        </ul>
+      </div>
+
 
       <div class="section">
         <h2>Calculation Methodology</h2>
@@ -578,7 +621,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 
