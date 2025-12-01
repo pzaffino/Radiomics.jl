@@ -351,6 +351,17 @@
       text-decoration: underline;
     }
 
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     /* Responsive */
     @media (max-width: 768px) {
       body {
@@ -436,6 +447,7 @@
           <div class="feature-item">
             <strong>Energy</strong>
             <p>Sum of squared voxel intensities, measuring the magnitude of voxel values in the ROI.</p>
+            <div class="formula">E = Σ X(i)²</div>
           </div>
 
           <div class="feature-item">
