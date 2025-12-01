@@ -4,39 +4,461 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Installation - Radiomics.jl</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; font-family:"Segoe UI", Tahoma, Geneva, Verdana, sans-serif; }
-    body { display:flex; min-height:100vh; background-color:#ffffff; }
-    .sidebar { position:sticky; top:0; height:100vh; width:250px; background-color:#1e40af; color:white; padding:20px; display:flex; flex-direction:column; }
-    .sidebar h2 { text-align:center; margin-bottom:30px; font-size:1.5rem; }
-    .sidebar nav { display:flex; flex-direction:column; gap:10px; }
-    .sidebar a { color:white; text-decoration:none; padding:8px 12px; border-radius:5px; transition:background 0.3s; }
-    .sidebar a:hover, .sidebar a.active { background-color:rgba(255,255,255,0.2);}
-    .dropdown { display:flex; flex-direction:column; }
-    .dropdown-btn { background:none; border:none; color:white; text-align:left; padding:8px 12px; cursor:pointer; border-radius:5px; font-size:1rem; transition:background 0.3s; }
-    .dropdown-btn:hover { background-color:rgba(255,255,255,0.2);}
-    .dropdown-content { display:none; flex-direction:column; margin-left:10px; gap:5px; }
-    .dropdown-content a { font-size:0.9rem; padding:6px 12px; }
-    .dropdown.active .dropdown-content { display:flex; }
-    .main { flex:1; padding:40px; max-width:900px; margin:auto; }
-    .center { text-align:center; }
-    img.logo { width:280px; }
-    h2 { margin-top:50px; margin-bottom:15px; color:#1e40af; }
-    p, li { margin:10px 0; line-height:1.6; }
-    pre { background:#e5e7eb; padding:10px; border-radius:5px; overflow-x:auto; }
-    code { background:#e5e7eb; padding:2px 5px; border-radius:4px; }
-    @media(max-width:768px) { body{flex-direction:column;} .sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;padding:10px;justify-content:space-around;} .sidebar nav{flex-direction:row;gap:10px;} .dropdown-content{position:absolute;background-color:#1e40af;top:50px;left:0;padding:10px;border-radius:5px;z-index:100;} .main{padding:20px;} }
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #0f172a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      min-height: 100vh;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
+      line-height: 1.6;
+      margin-left: 300px;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 300px;
+      background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 40px 30px 30px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar nav {
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      padding: 14px 30px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-left: 3px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar a::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      transition: all 0.25s;
+    }
+
+    .sidebar a:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a:hover::before {
+      background: var(--primary-light);
+      transform: scale(1.3);
+    }
+    
+    .sidebar a.active {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: white;
+      font-weight: 600;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a.active::before {
+      background: var(--primary-light);
+    }
+
+    .dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.85);
+      text-align: left;
+      padding: 14px 30px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid transparent;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .dropdown-btn::after {
+      content: '▾';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      opacity: 0.7;
+    }
+
+    .dropdown.active .dropdown-btn::after {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .dropdown-content {
+      display: none;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px 0;
+    }
+
+    .dropdown-content a {
+      font-size: 0.88rem;
+      padding: 10px 30px 10px 50px;
+      font-weight: 400;
+      border-left: 3px solid transparent;
+    }
+
+    .dropdown-content a::before {
+      width: 4px;
+      height: 4px;
+    }
+
+    .dropdown.active .dropdown-content {
+      display: flex;
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      padding: 0;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 60px 60px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .page-header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .page-header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      font-weight: 400;
+    }
+
+    /* Content Section */
+    .content {
+      padding: 60px;
+      background: white;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      position: relative;
+      padding-bottom: 12px;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 2px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    code {
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+    }
+
+    /* Code Block */
+    .code-container {
+      position: relative;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+
+    .code-header {
+      background: #1e293b;
+      padding: 12px 20px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .code-dot:nth-child(1) { background: #ef4444; }
+    .code-dot:nth-child(2) { background: #f59e0b; }
+    .code-dot:nth-child(3) { background: #10b981; }
+
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 30px;
+      border-radius: 0 0 12px 12px;
+      overflow-x: auto;
+      margin: 0;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid #1e293b;
+      border-top: none;
+    }
+
+    pre code {
+      background: transparent;
+      color: #e2e8f0;
+      padding: 0;
+      border: none;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-left: 4px solid var(--primary);
+      padding: 24px;
+      border-radius: 8px;
+      margin: 30px 0;
+    }
+
+    .info-box h3 {
+      color: var(--primary-dark);
+      margin-top: 0;
+      margin-bottom: 12px;
+      font-size: 1.15rem;
+    }
+
+    .info-box ul {
+      margin-left: 24px;
+      margin-bottom: 0;
+    }
+
+    .info-box li {
+      color: var(--text-secondary);
+      margin-bottom: 8px;
+    }
+
+    /* Platform Cards */
+    .platform-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 24px;
+      margin: 30px 0;
+    }
+
+    .platform-card {
+      background: var(--bg-light);
+      border: 2px solid var(--border);
+      border-radius: 12px;
+      padding: 30px;
+      text-align: center;
+      transition: all 0.3s;
+    }
+
+    .platform-card:hover {
+      border-color: var(--primary-light);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-4px);
+    }
+
+    .platform-card h3 {
+      color: var(--primary-dark);
+      font-size: 1.3rem;
+      margin-bottom: 12px;
+    }
+
+    .platform-card p {
+      margin-bottom: 0;
+      font-size: 0.95rem;
+    }
+
+    .platform-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--secondary);
+      color: rgba(255, 255, 255, 0.7);
+      padding: 40px 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        margin-left: 0;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .page-header, .content, .footer {
+        padding: 40px 30px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .platform-grid {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Sidebar -->
   <aside class="sidebar">
-    <h2>Radiomics.jl</h2>
+    <div class="sidebar-header">
+      <h2>Radiomics.jl</h2>
+      <div class="sidebar-subtitle">Medical Imaging Library</div>
+    </div>
     <nav>
       <a href="index.html">Home</a>
       <div class="dropdown">
-        <button class="dropdown-btn">Features ▾</button>
+        <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
           <a href="first-order.html">First-order features</a>
           <a href="2d-shape.html">2D shape features</a>
@@ -52,29 +474,111 @@
     </nav>
   </aside>
 
-  <!-- Main content -->
   <main class="main">
-    <div class="center">
-      <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
-      <p><strong>Installation Guide for Radiomics.jl</strong></p>
-      <hr>
+    <!-- Page Header -->
+    <section class="page-header">
+      <div class="page-header-content">
+        <h1>Installation Guide</h1>
+        <p>Get started with Radiomics.jl in minutes</p>
+      </div>
+    </section>
+
+    <!-- Content Section -->
+    <div class="content">
+      <div class="section">
+        <h2>Quick Installation</h2>
+        <p>Installing Radiomics.jl is straightforward and can be done directly from the Julia package manager. Simply run the following commands in your Julia REPL:</p>
+        
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code>import Pkg
+Pkg.add("Radiomics")</code></pre>
+        </div>
+
+        <p>Alternatively, you can use the Julia package mode by pressing <code>]</code> in the REPL:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code>] add Radiomics</code></pre>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Supported Platforms</h2>
+        <p>Radiomics.jl can be installed and used on multiple platforms:</p>
+
+        <div class="platform-grid">
+          <div class="platform-card">
+            <div class="platform-icon">💻</div>
+            <h3>Local Machine</h3>
+            <p>Install on your desktop or laptop running Windows, macOS, or Linux</p>
+          </div>
+
+          <div class="platform-card">
+            <div class="platform-icon">☁️</div>
+            <h3>Cloud Environments</h3>
+            <p>Deploy on Google Colab, JuliaHub, or other cloud-based Julia kernels</p>
+          </div>
+
+          <div class="platform-card">
+            <div class="platform-icon">🖥️</div>
+            <h3>HPC Clusters</h3>
+            <p>Scale your radiomics analysis on high-performance computing systems</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Getting Started</h2>
+        <div class="info-box">
+          <h3>Available Functions</h3>
+          <p>Once installed, you can immediately start using Radiomics.jl's comprehensive feature extraction functions:</p>
+          <ul>
+            <li><code>extract_radiomic_features()</code> - Extract all features at once</li>
+            <li><code>get_first_order_features()</code> - First-order statistical features</li>
+            <li><code>get_shape2d_features()</code> - 2D shape descriptors</li>
+            <li><code>get_shape3d_features()</code> - 3D shape descriptors</li>
+            <li><code>get_glcm_features()</code> - Gray Level Co-occurrence Matrix features</li>
+            <li><code>get_gldm_features()</code> - Gray Level Dependence Matrix features</li>
+            <li><code>get_glrlm_features()</code> - Gray Level Run Length Matrix features</li>
+            <li><code>get_glszm_features()</code> - Gray Level Size Zone Matrix features</li>
+            <li><code>get_ngtdm_features()</code> - Neighboring Gray Tone Difference Matrix features</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Requirements</h2>
+        <div class="info-box">
+          <h3>System Requirements</h3>
+          <ul>
+            <li>Julia 1.6 or higher (latest stable version recommended)</li>
+            <li>Sufficient RAM for processing medical imaging data (minimum 4GB, 8GB+ recommended)</li>
+            <li>Compatible with Windows, macOS, and Linux operating systems</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Next Steps</h2>
+        <p>After installation, explore the documentation to learn about the different feature extraction methods available. Start with the <a href="index.html" style="color: var(--primary); text-decoration: none; font-weight: 600;">Quick Start Example</a> on the home page to see Radiomics.jl in action.</p>
+        
+        <p>For detailed information about specific feature types, navigate to the corresponding pages using the sidebar menu. Each feature page provides comprehensive descriptions, mathematical formulas, and usage examples.</p>
+      </div>
     </div>
 
-    <section>
-      <h2>Installation</h2>
-      <p>To install <strong>Radiomics.jl</strong>, simply run the following in Julia:</p>
-      <pre><code>import Pkg
-Pkg.add("Radiomics")</code></pre>
-
-      <p>You can install Radiomics.jl on:</p>
-      <ul>
-        <li>Your local machine (desktop/laptop).</li>
-        <li>Google Colab (with Julia kernel).</li>
-      </ul>
-
-      <h2>Notes</h2>
-      <p>Once installed, you can start using Radiomics.jl functions such as <code>get_gldm_features</code>, <code>get_ngtdm_features</code>, and other radiomics feature extraction tools directly in Julia.</p>
-    </section>
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+    </footer>
   </main>
 
   <script>

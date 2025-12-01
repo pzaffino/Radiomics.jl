@@ -4,38 +4,385 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GLCM Features - Radiomics.jl</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;}
-    body { display:flex; min-height:100vh; background-color:#ffffff; }
-    .sidebar { position:sticky; top:0; height:100vh; width:250px; background-color:#1e40af; color:white; padding:20px; display:flex; flex-direction:column;}
-    .sidebar h2 { text-align:center; margin-bottom:30px; font-size:1.5rem; }
-    .sidebar nav { display:flex; flex-direction:column; gap:10px; }
-    .sidebar a { color:white; text-decoration:none; padding:8px 12px; border-radius:5px; transition:background 0.3s; }
-    .sidebar a:hover, .sidebar a.active { background-color:rgba(255,255,255,0.2);}
-    .dropdown { display:flex; flex-direction:column; }
-    .dropdown-btn { background:none; border:none; color:white; text-align:left; padding:8px 12px; cursor:pointer; border-radius:5px; font-size:1rem; transition:background 0.3s;}
-    .dropdown-btn:hover { background-color:rgba(255,255,255,0.2);}
-    .dropdown-content { display:none; flex-direction:column; margin-left:10px; gap:5px;}
-    .dropdown-content a { font-size:0.9rem; padding:6px 12px; }
-    .dropdown.active .dropdown-content { display:flex; }
-    .main { flex:1; padding:40px; max-width:900px; margin:auto; }
-    .center { text-align:center; }
-    img.logo { width:280px; }
-    h2 { margin-top:50px; margin-bottom:15px; color:#1e40af; }
-    p, li { margin:10px 0; line-height:1.6; }
-    pre { background:#e5e7eb; padding:10px; border-radius:5px; overflow-x:auto; }
-    @media(max-width:768px) { body{flex-direction:column;} .sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;padding:10px;justify-content:space-around;} .sidebar nav{flex-direction:row;gap:10px;} .dropdown-content{position:absolute;background-color:#1e40af;top:50px;left:0;padding:10px;border-radius:5px;z-index:100;} .main{padding:20px;} }
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #0f172a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      min-height: 100vh;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
+      line-height: 1.6;
+      margin-left: 300px;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 300px;
+      background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 40px 30px 30px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar nav {
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      padding: 14px 30px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-left: 3px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar a::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      transition: all 0.25s;
+    }
+
+    .sidebar a:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a:hover::before {
+      background: var(--primary-light);
+      transform: scale(1.3);
+    }
+    
+    .sidebar a.active {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: white;
+      font-weight: 600;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a.active::before {
+      background: var(--primary-light);
+    }
+
+    .dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.85);
+      text-align: left;
+      padding: 14px 30px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid transparent;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .dropdown-btn::after {
+      content: '▾';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      opacity: 0.7;
+    }
+
+    .dropdown.active .dropdown-btn::after {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .dropdown-content {
+      display: none;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px 0;
+    }
+
+    .dropdown-content a {
+      font-size: 0.88rem;
+      padding: 10px 30px 10px 50px;
+      font-weight: 400;
+      border-left: 3px solid transparent;
+    }
+
+    .dropdown-content a::before {
+      width: 4px;
+      height: 4px;
+    }
+
+    .dropdown.active .dropdown-content {
+      display: flex;
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      padding: 0;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 60px 60px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .page-header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .page-header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      font-weight: 400;
+    }
+
+    /* Content Section */
+    .content {
+      padding: 60px;
+      background: white;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      position: relative;
+      padding-bottom: 12px;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 2px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-left: 4px solid var(--primary);
+      padding: 24px;
+      border-radius: 8px;
+      margin: 30px 0;
+    }
+
+    .info-box p {
+      margin-bottom: 0;
+    }
+
+    /* Feature List */
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin: 30px 0;
+    }
+
+    .feature-item {
+      background: var(--bg-light);
+      border-left: 3px solid var(--primary-light);
+      padding: 16px 20px;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+
+    .feature-item:hover {
+      background: white;
+      box-shadow: var(--shadow-md);
+      transform: translateX(4px);
+    }
+
+    .feature-item strong {
+      color: var(--primary-dark);
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    .feature-item p {
+      margin: 4px 0 0 0;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--secondary);
+      color: rgba(255, 255, 255, 0.7);
+      padding: 40px 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        margin-left: 0;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .page-header, .content, .footer {
+        padding: 40px 30px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Sidebar -->
   <aside class="sidebar">
-    <h2>Radiomics.jl</h2>
+    <div class="sidebar-header">
+      <h2>Radiomics.jl</h2>
+      <div class="sidebar-subtitle">Medical Imaging Library</div>
+    </div>
     <nav>
       <a href="index.html">Home</a>
-      <div class="dropdown">
-        <button class="dropdown-btn">Features ▾</button>
+      <div class="dropdown active">
+        <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
           <a href="first-order.html">First-order features</a>
           <a href="2d-shape.html">2D shape features</a>
@@ -51,50 +398,160 @@
     </nav>
   </aside>
 
-  <!-- Main content -->
   <main class="main">
-    <div class="center">
-      <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
-      <p><strong>Gray Level Co-occurrence Matrix (GLCM) feature extraction in Julia</strong></p>
-      <hr>
+    <!-- Page Header -->
+    <section class="page-header">
+      <div class="page-header-content">
+        <h1>GLCM Features</h1>
+        <p>Gray Level Co-occurrence Matrix texture analysis for medical imaging</p>
+      </div>
+    </section>
+
+    <!-- Content Section -->
+    <div class="content">
+      <div class="section">
+        <h2>Overview</h2>
+        <p>The Gray Level Co-occurrence Matrix (GLCM) is a fundamental texture analysis method that quantifies spatial relationships between voxel intensities in medical images. GLCM features capture information about the frequency of intensity value pairs occurring at specific spatial offsets, providing powerful descriptors of image texture and heterogeneity.</p>
+        
+        <div class="info-box">
+          <p>Radiomics.jl implements comprehensive GLCM feature extraction for both 2D and 3D medical images. The library computes co-occurrence matrices across multiple directions and distances, aggregating the results to produce rotationally invariant texture features suitable for radiomics analysis.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Extracted Features</h2>
+        <p>The following GLCM-based texture features are computed:</p>
+
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>Autocorrelation</strong>
+            <p>Measures correlation between intensities of neighboring voxels, quantifying spatial intensity dependencies.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Cluster Prominence</strong>
+            <p>Indicates sharpness of deviations from the mean; detects asymmetric patterns in texture.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Cluster Shade</strong>
+            <p>Measures asymmetry of cluster distributions, capturing skewness in spatial intensity patterns.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Cluster Tendency</strong>
+            <p>Quantifies the degree of clustering of similar intensity values in the image.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Contrast</strong>
+            <p>Measures local intensity contrast between neighboring voxels, indicating texture variation.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Correlation</strong>
+            <p>Statistical correlation between intensities of neighboring voxels, reflecting linear dependencies.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Joint Energy</strong>
+            <p>Uniformity of the GLCM; high values indicate homogeneous texture patterns.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Joint Entropy</strong>
+            <p>Measures the complexity or disorder of the GLCM, quantifying texture randomness.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Inverse Difference Moment (IDM)</strong>
+            <p>Measures homogeneity; higher values indicate less local variation and smoother textures.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Normalized IDM (IDMN)</strong>
+            <p>Normalized version of IDM, providing scale-invariant homogeneity measurement.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Inverse Difference (ID)</strong>
+            <p>Similar to IDM, measures proximity of intensity values to the central voxel.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Normalized Inverse Difference (IDN)</strong>
+            <p>Normalized version of ID for consistent comparison across different images.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Inverse Variance</strong>
+            <p>Measures dispersion of GLCM values, indicating texture heterogeneity.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Maximum Probability</strong>
+            <p>Maximum co-occurrence probability between gray levels, identifying dominant texture patterns.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Sum of Squares</strong>
+            <p>Measures total variation relative to the mean intensity in the GLCM.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Difference Average</strong>
+            <p>Mean of intensity differences between neighboring voxels across the GLCM.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Difference Entropy</strong>
+            <p>Disorder of intensity differences, quantifying complexity of local variations.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Difference Variance</strong>
+            <p>Variance of intensity differences between neighbors, measuring spread of local contrasts.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Sum Average</strong>
+            <p>Mean of sums of GLCM value pairs, representing average combined intensities.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Sum Entropy</strong>
+            <p>Entropy of sums; measures complexity of combined intensity distributions.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Joint Average</strong>
+            <p>Global mean of GLCM values, providing an average co-occurrence measure.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>IMC1 / IMC2</strong>
+            <p>Informational measures of correlation between marginal distributions, capturing mutual information.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Maximal Correlation Coefficient (MCC)</strong>
+            <p>Measures maximum linear correlation between rows and columns of the GLCM matrix.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Implementation Details</h2>
+        <div class="info-box">
+          <p>These functions are designed for advanced radiomics analysis on medical images. The 2D wrapper enables the 3D calculation methodology to be applied to planar images by adding a singleton dimension, ensuring consistency across different dimensionalities. Features are aggregated across multiple spatial directions to provide rotationally invariant descriptors.</p>
+        </div>
+      </div>
     </div>
 
-    <section>
-      <h2>GLCM Feature Extraction</h2>
-      <p>This page documents the main functions for computing 2D and 3D GLCM features.</p>
-
-      
-
-      <h2>Key Features</h2>
-      <ul>
-        <li><strong>Autocorrelation</strong>: measures correlation between intensities of neighboring voxels.</li>
-        <li><strong>Cluster Prominence</strong>: indicates sharpness of deviations from the mean; detects asymmetric patterns.</li>
-        <li><strong>Cluster Shade</strong>: measures asymmetry of cluster distributions.</li>
-        <li><strong>Cluster Tendency</strong>: degree of clustering of similar values.</li>
-        <li><strong>Contrast</strong>: measures local intensity contrast between neighboring voxels.</li>
-        <li><strong>Correlation</strong>: statistical correlation between intensities of neighboring voxels.</li>
-        <li><strong>Joint Energy</strong>: uniformity of the matrix; high values indicate homogeneity.</li>
-        <li><strong>Joint Entropy</strong>: measures the complexity or disorder of the GLCM.</li>
-        <li><strong>Inverse Difference Moment (IDM)</strong>: measures homogeneity; higher values indicate less local variation.</li>
-        <li><strong>Normalized IDM (IDMN)</strong>: normalized version of IDM.</li>
-        <li><strong>Inverse Difference (ID)</strong>: similar to IDM, measures proximity of values to central voxel.</li>
-        <li><strong>Normalized Inverse Difference (IDN)</strong>: normalized version of ID.</li>
-        <li><strong>Inverse Variance</strong>: measures dispersion of GLCM values.</li>
-        <li><strong>Maximum Probability</strong>: maximum co-occurrence probability between gray levels.</li>
-        <li><strong>Sum of Squares</strong>: measures total variation relative to the mean.</li>
-        <li><strong>Difference Average</strong>: mean of intensity differences between neighboring voxels.</li>
-        <li><strong>Difference Entropy</strong>: disorder of intensity differences.</li>
-        <li><strong>Difference Variance</strong>: variance of intensity differences between neighbors.</li>
-        <li><strong>Sum Average</strong>: mean of sums of GLCM value pairs.</li>
-        <li><strong>Sum Entropy</strong>: entropy of sums; measures complexity.</li>
-        <li><strong>Joint Average</strong>: global mean of GLCM values.</li>
-        <li><strong>IMC1 / IMC2</strong>: measures of informational correlation between marginal distributions.</li>
-        <li><strong>Maximal Correlation Coefficient (MCC)</strong>: measures maximum linear correlation between rows and columns of the GLCM.</li>
-      </ul>
-
-      <h2>Notes</h2>
-      <p>These functions are designed for advanced radiomics analysis on medical images. The 2D wrapper allows the 3D calculation to be applied to planar images by adding a singleton dimension.</p>
-    </section>
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+    </footer>
   </main>
 
   <script>

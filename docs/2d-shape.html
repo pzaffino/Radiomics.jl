@@ -1,103 +1,591 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Radiomics 2D Shape Features</title>
-    <style>
-        body {
-            font-family: Arial, sans-serif;
-            margin: 20px;
-            line-height: 1.6;
-            background-color: #f9f9f9;
-        }
-        h1, h2, h3 {
-            color: #2c3e50;
-        }
-        code {
-            background-color: #ecf0f1;
-            padding: 2px 4px;
-            border-radius: 4px;
-        }
-        pre {
-            background-color: #ecf0f1;
-            padding: 10px;
-            border-radius: 4px;
-            overflow-x: auto;
-        }
-        ul {
-            margin-bottom: 20px;
-        }
-        .feature {
-            margin-bottom: 10px;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Shape Features - Radiomics.jl</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #0f172a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      min-height: 100vh;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
+      line-height: 1.6;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      position: sticky;
+      top: 0;
+      height: 100vh;
+      width: 300px;
+      background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+    }
+
+    .sidebar-header {
+      padding: 40px 30px 30px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar nav {
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      padding: 14px 30px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-left: 3px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar a::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      transition: all 0.25s;
+    }
+
+    .sidebar a:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a:hover::before {
+      background: var(--primary-light);
+      transform: scale(1.3);
+    }
+    
+    .sidebar a.active {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: white;
+      font-weight: 600;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a.active::before {
+      background: var(--primary-light);
+    }
+
+    .dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.85);
+      text-align: left;
+      padding: 14px 30px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid transparent;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .dropdown-btn::after {
+      content: '▾';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      opacity: 0.7;
+    }
+
+    .dropdown.active .dropdown-btn::after {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .dropdown-content {
+      display: none;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px 0;
+    }
+
+    .dropdown-content a {
+      font-size: 0.88rem;
+      padding: 10px 30px 10px 50px;
+      font-weight: 400;
+      border-left: 3px solid transparent;
+    }
+
+    .dropdown-content a::before {
+      width: 4px;
+      height: 4px;
+    }
+
+    .dropdown.active .dropdown-content {
+      display: flex;
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      padding: 0;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 60px 60px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .page-header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .page-header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      font-weight: 400;
+    }
+
+    /* Content Section */
+    .content {
+      padding: 60px;
+      background: white;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      position: relative;
+      padding-bottom: 12px;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 2px;
+    }
+
+    h3 {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--primary-dark);
+      margin-top: 30px;
+      margin-bottom: 12px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    ul, ol {
+      margin-left: 24px;
+      margin-bottom: 20px;
+    }
+
+    li {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+
+    li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    code {
+      background: #f1f5f9;
+      color: #0f172a;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      border: 1px solid var(--border);
+    }
+
+    /* Code Block */
+    .code-container {
+      position: relative;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+
+    .code-header {
+      background: #1e293b;
+      padding: 12px 20px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .code-dot:nth-child(1) { background: #ef4444; }
+    .code-dot:nth-child(2) { background: #f59e0b; }
+    .code-dot:nth-child(3) { background: #10b981; }
+
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 30px;
+      border-radius: 0 0 12px 12px;
+      overflow-x: auto;
+      margin: 0;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid #1e293b;
+      border-top: none;
+    }
+
+    pre code {
+      background: transparent;
+      color: #e2e8f0;
+      padding: 0;
+      border: none;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-left: 4px solid var(--primary);
+      padding: 24px;
+      border-radius: 8px;
+      margin: 30px 0;
+    }
+
+    .info-box h3 {
+      margin-top: 0;
+      color: var(--primary-dark);
+    }
+
+    .info-box ul {
+      margin-bottom: 0;
+    }
+
+    /* Feature Card */
+    .feature-card {
+      background: var(--bg-light);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 20px;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      box-shadow: var(--shadow-md);
+      border-color: var(--primary-light);
+    }
+
+    .feature-card h3 {
+      margin-top: 0;
+      color: var(--primary-dark);
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--secondary);
+      color: rgba(255, 255, 255, 0.7);
+      padding: 40px 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .page-header, .content, .footer {
+        padding: 40px 30px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+    }
+  </style>
 </head>
 <body>
-    <h1>Radiomics 2D Shape Features</h1>
-    <p>This page describes the 2D shape features extracted from a binary mask using the provided Julia code. These features quantify the geometry of a 2D object.</p>
 
-    <h2>Input</h2>
-    <ul>
-        <li><code>mask_array</code>: a 2D binary array (BitArray) representing the shape.</li>
-        <li><code>spacing</code>: a vector of <code>Float32</code> values indicating the pixel spacing in each dimension.</li>
-        <li><code>verbose</code>: a Boolean flag to print progress messages.</li>
-    </ul>
-
-    <h2>Output</h2>
-    <p>The function <code>get_shape2d_features</code> returns a dictionary with the following features:</p>
-
-    <div class="feature">
-        <h3>Perimeter</h3>
-        <p>The perimeter of the shape, calculated by tracing the boundary pixels and scaling with pixel spacing.</p>
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h2>Radiomics.jl</h2>
+      <div class="sidebar-subtitle">Medical Imaging Library</div>
     </div>
+    <nav>
+      <a href="index.html">Home</a>
+      <div class="dropdown active">
+        <button class="dropdown-btn">Features</button>
+        <div class="dropdown-content">
+          <a href="first-order.html">First-order features</a>
+          <a href="2d-shape.html" class="active">2D shape features</a>
+          <a href="3d-shape.html">3D shape features</a>
+          <a href="glcm.html">GLCM features</a>
+          <a href="gldm.html">GLDM features</a>
+          <a href="glrlm.html">GLRLM features</a>
+          <a href="glszm.html">GLSZM features</a>
+          <a href="ngtdm.html">NGTDM features</a>
+        </div>
+      </div>
+      <a href="installation.html">Installation</a>
+    </nav>
+  </aside>
 
-    <div class="feature">
-        <h3>Mesh Surface</h3>
-        <p>The area of the 2D shape estimated using a mesh of the contour points.</p>
-    </div>
+  <main class="main">
+    <!-- Page Header -->
+    <section class="page-header">
+      <div class="page-header-content">
+        <h1>2D Shape Features</h1>
+        <p>Quantifying geometric properties of 2D objects from binary masks</p>
+      </div>
+    </section>
 
-    <div class="feature">
-        <h3>Maximum 2D Diameter</h3>
-        <p>The largest distance between two points on the contour of the shape.</p>
-    </div>
+    <!-- Content Section -->
+    <div class="content">
+      <div class="section">
+        <p>This page describes the 2D shape features extracted from a binary mask using the Radiomics.jl library. These features quantify the geometric properties of a 2D object, providing valuable information for shape analysis in medical imaging.</p>
+      </div>
 
-    <div class="feature">
-        <h3>Pixel Surface</h3>
-        <p>The area computed simply as the number of pixels in the mask multiplied by the pixel spacing in both dimensions.</p>
-    </div>
+      <div class="section">
+        <h2>Input Parameters</h2>
+        <div class="info-box">
+          <ul>
+            <li><code>mask_array</code>: A 2D binary array (BitArray) representing the shape region of interest</li>
+            <li><code>spacing</code>: A vector of <code>Float32</code> values indicating the pixel spacing in each dimension</li>
+            <li><code>verbose</code>: A Boolean flag to enable progress messages during computation</li>
+          </ul>
+        </div>
+      </div>
 
-    <div class="feature">
-        <h3>Perimeter to Surface Ratio</h3>
-        <p>Ratio of perimeter to surface area: <code>perimeter / surface</code>.</p>
-    </div>
+      <div class="section">
+        <h2>Extracted Features</h2>
+        <p>The function <code>get_shape2d_features</code> returns a comprehensive dictionary containing the following geometric features:</p>
 
-    <div class="feature">
-        <h3>Sphericity</h3>
-        <p>A measure of how circular the shape is: <code>(2 * sqrt(pi * surface)) / perimeter</code>.</p>
-    </div>
+        <div class="feature-card">
+          <h3>Perimeter</h3>
+          <p>The perimeter of the shape, calculated by tracing the boundary pixels and scaling with pixel spacing. This measure represents the total length of the object's boundary.</p>
+        </div>
 
-    <div class="feature">
-        <h3>Major and Minor Axis Lengths</h3>
-        <p>Calculated from the eigenvalues of the covariance matrix of the pixel coordinates:</p>
+        <div class="feature-card">
+          <h3>Mesh Surface</h3>
+          <p>The area of the 2D shape estimated using a mesh of the contour points. This provides a precise surface area calculation based on the object's boundary geometry.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Maximum 2D Diameter</h3>
+          <p>The largest distance between any two points on the contour of the shape. This feature represents the maximum extent of the object and is useful for size characterization.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Pixel Surface</h3>
+          <p>The area computed as the number of pixels in the mask multiplied by the pixel spacing in both dimensions. This represents the total area covered by the object.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Perimeter to Surface Ratio</h3>
+          <p>Ratio of perimeter to surface area: <code>perimeter / surface</code>. This normalized measure describes the shape's complexity independent of scale.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Sphericity</h3>
+          <p>A measure of how circular the shape is, calculated as: <code>(2 * sqrt(π * surface)) / perimeter</code>. Values closer to 1 indicate a more circular shape.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Major and Minor Axis Lengths</h3>
+          <p>Calculated from the eigenvalues of the covariance matrix of the pixel coordinates:</p>
+          <ul>
+            <li><strong>Major Axis Length</strong> = <code>4 * sqrt(largest eigenvalue)</code></li>
+            <li><strong>Minor Axis Length</strong> = <code>4 * sqrt(smallest eigenvalue)</code></li>
+          </ul>
+          <p>These axes represent the principal directions and extents of the shape.</p>
+        </div>
+
+        <div class="feature-card">
+          <h3>Elongation</h3>
+          <p>Ratio of minor to major axis lengths: <code>sqrt(smallest eigenvalue / largest eigenvalue)</code>. This describes how elongated the shape is, with values closer to 1 indicating a more circular shape and values closer to 0 indicating a highly elongated shape.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Computational Methods</h2>
+        <p>The 2D shape features are computed using sophisticated image analysis techniques:</p>
         <ul>
-            <li><code>Major Axis Length = 4 * sqrt(largest eigenvalue)</code></li>
-            <li><code>Minor Axis Length = 4 * sqrt(smallest eigenvalue)</code></li>
+          <li>The perimeter, surface, and diameter are computed from the mask using a <strong>marching squares approach</strong> with vertex interpolation for sub-pixel accuracy</li>
+          <li>The <strong>covariance matrix</strong> of pixel coordinates is analyzed to extract eigenvalues, which are then used to compute major/minor axes and elongation metrics</li>
+          <li>Pixel surface calculation employs direct counting of mask pixels, appropriately scaled by the provided spacing information</li>
         </ul>
+      </div>
+
+      <div class="section">
+        <h2>Usage Example</h2>
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code>using Radiomics
+
+# Load your 2D binary mask and define pixel spacing
+mask = load_binary_mask("path/to/mask.nii")
+spacing = [1.0f0, 1.0f0]  # pixel spacing in mm
+
+# Extract 2D shape features
+features = get_shape2d_features(mask, spacing, verbose=true)
+
+# Access individual features
+println("Perimeter: ", features["Perimeter"])
+println("Sphericity: ", features["Sphericity"])
+println("Elongation: ", features["Elongation"])</code></pre>
+        </div>
+      </div>
     </div>
 
-    <div class="feature">
-        <h3>Elongation</h3>
-        <p>Ratio of minor to major axis lengths, describing how elongated the shape is: <code>sqrt(smallest eigenvalue / largest eigenvalue)</code>.</p>
-    </div>
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+    </footer>
+  </main>
 
-    <h2>Methods Used</h2>
-    <ul>
-        <li>The perimeter, surface, and diameter are computed from the mask using a marching squares approach with vertex interpolation.</li>
-        <li>The covariance matrix of the pixel coordinates is used to compute eigenvalues for major/minor axes and elongation.</li>
-        <li>Pixel surface is a simple counting of mask pixels scaled by spacing.</li>
-    </ul>
-
+  <script>
+    const dropdownBtn = document.querySelector('.dropdown-btn');
+    dropdownBtn.addEventListener('click', () => {
+      dropdownBtn.parentElement.classList.toggle('active');
+    });
+  </script>
 
 </body>
 </html>

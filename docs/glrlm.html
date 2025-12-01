@@ -4,38 +4,385 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>GLRLM Features - Radiomics.jl</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
-    * { margin:0; padding:0; box-sizing:border-box; font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;}
-    body { display:flex; min-height:100vh; background-color:#ffffff; }
-    .sidebar { position:sticky; top:0; height:100vh; width:250px; background-color:#1e40af; color:white; padding:20px; display:flex; flex-direction:column;}
-    .sidebar h2 { text-align:center; margin-bottom:30px; font-size:1.5rem; }
-    .sidebar nav { display:flex; flex-direction:column; gap:10px; }
-    .sidebar a { color:white; text-decoration:none; padding:8px 12px; border-radius:5px; transition:background 0.3s; }
-    .sidebar a:hover, .sidebar a.active { background-color:rgba(255,255,255,0.2);}
-    .dropdown { display:flex; flex-direction:column; }
-    .dropdown-btn { background:none; border:none; color:white; text-align:left; padding:8px 12px; cursor:pointer; border-radius:5px; font-size:1rem; transition:background 0.3s;}
-    .dropdown-btn:hover { background-color:rgba(255,255,255,0.2);}
-    .dropdown-content { display:none; flex-direction:column; margin-left:10px; gap:5px;}
-    .dropdown-content a { font-size:0.9rem; padding:6px 12px; }
-    .dropdown.active .dropdown-content { display:flex; }
-    .main { flex:1; padding:40px; max-width:900px; margin:auto; }
-    .center { text-align:center; }
-    img.logo { width:280px; }
-    h2 { margin-top:50px; margin-bottom:15px; color:#1e40af; }
-    p, li { margin:10px 0; line-height:1.6; }
-    pre { background:#e5e7eb; padding:10px; border-radius:5px; overflow-x:auto; }
-    @media(max-width:768px) { body{flex-direction:column;} .sidebar{width:100%;height:auto;position:relative;flex-direction:row;overflow-x:auto;padding:10px;justify-content:space-around;} .sidebar nav{flex-direction:row;gap:10px;} .dropdown-content{position:absolute;background-color:#1e40af;top:50px;left:0;padding:10px;border-radius:5px;z-index:100;} .main{padding:20px;} }
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #0f172a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      min-height: 100vh;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
+      line-height: 1.6;
+      margin-left: 300px;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100vh;
+      width: 300px;
+      background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    .sidebar-header {
+      padding: 40px 30px 30px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    .sidebar nav {
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .sidebar a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      padding: 14px 30px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-left: 3px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .sidebar a::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      transition: all 0.25s;
+    }
+
+    .sidebar a:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a:hover::before {
+      background: var(--primary-light);
+      transform: scale(1.3);
+    }
+    
+    .sidebar a.active {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: white;
+      font-weight: 600;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a.active::before {
+      background: var(--primary-light);
+    }
+
+    .dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-btn {
+      background: none;
+      border: none;
+      color: rgba(255, 255, 255, 0.85);
+      text-align: left;
+      padding: 14px 30px;
+      cursor: pointer;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid transparent;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .dropdown-btn::after {
+      content: '▾';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      opacity: 0.7;
+    }
+
+    .dropdown.active .dropdown-btn::after {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .dropdown-content {
+      display: none;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px 0;
+    }
+
+    .dropdown-content a {
+      font-size: 0.88rem;
+      padding: 10px 30px 10px 50px;
+      font-weight: 400;
+      border-left: 3px solid transparent;
+    }
+
+    .dropdown-content a::before {
+      width: 4px;
+      height: 4px;
+    }
+
+    .dropdown.active .dropdown-content {
+      display: flex;
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      padding: 0;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
+    }
+
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 60px 60px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .page-header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .page-header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      font-weight: 400;
+    }
+
+    /* Content Section */
+    .content {
+      padding: 60px;
+      background: white;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      position: relative;
+      padding-bottom: 12px;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 2px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-left: 4px solid var(--primary);
+      padding: 24px;
+      border-radius: 8px;
+      margin: 30px 0;
+    }
+
+    .info-box p {
+      margin-bottom: 0;
+    }
+
+    /* Feature List */
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin: 30px 0;
+    }
+
+    .feature-item {
+      background: var(--bg-light);
+      border-left: 3px solid var(--primary-light);
+      padding: 16px 20px;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+
+    .feature-item:hover {
+      background: white;
+      box-shadow: var(--shadow-md);
+      transform: translateX(4px);
+    }
+
+    .feature-item strong {
+      color: var(--primary-dark);
+      font-weight: 600;
+      font-size: 1.05rem;
+    }
+
+    .feature-item p {
+      margin: 4px 0 0 0;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--secondary);
+      color: rgba(255, 255, 255, 0.7);
+      padding: 40px 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        margin-left: 0;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .page-header, .content, .footer {
+        padding: 40px 30px;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
+    }
   </style>
 </head>
 <body>
 
-  <!-- Sidebar -->
   <aside class="sidebar">
-    <h2>Radiomics.jl</h2>
+    <div class="sidebar-header">
+      <h2>Radiomics.jl</h2>
+      <div class="sidebar-subtitle">Medical Imaging Library</div>
+    </div>
     <nav>
       <a href="index.html">Home</a>
-      <div class="dropdown">
-        <button class="dropdown-btn">Features ▾</button>
+      <div class="dropdown active">
+        <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
           <a href="first-order.html">First-order features</a>
           <a href="2d-shape.html">2D shape features</a>
@@ -51,41 +398,125 @@
     </nav>
   </aside>
 
-  <!-- Main content -->
   <main class="main">
-    <div class="center">
-      <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
-      <p><strong>Gray Level Run Length Matrix (GLRLM) feature extraction in Julia</strong></p>
-      <hr>
+    <!-- Page Header -->
+    <section class="page-header">
+      <div class="page-header-content">
+        <h1>GLRLM Features</h1>
+        <p>Gray Level Run Length Matrix analysis for texture characterization</p>
+      </div>
+    </section>
+
+    <!-- Content Section -->
+    <div class="content">
+      <div class="section">
+        <h2>Overview</h2>
+        <p>The Gray Level Run Length Matrix (GLRLM) quantifies the length of consecutive runs of voxels with the same intensity value in medical images. This texture analysis method provides powerful descriptors for distinguishing between fine and coarse texture patterns, making it essential for radiomics feature extraction and tissue characterization.</p>
+        
+        <div class="info-box">
+          <p>GLRLM features capture directional texture patterns by analyzing run lengths across multiple orientations. The features are computed in 2D and 3D and averaged across directions to provide rotationally invariant descriptors that effectively characterize local and regional texture heterogeneity.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Extracted Features</h2>
+        <p>The following GLRLM-based texture features are computed:</p>
+
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>Short Run Emphasis (SRE)</strong>
+            <p>Measures the distribution of short runs; higher values indicate more short runs and finer textures.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Long Run Emphasis (LRE)</strong>
+            <p>Measures the distribution of long runs; higher values indicate coarser, more homogeneous textures.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Gray Level Non-Uniformity (GLN)</strong>
+            <p>Measures similarity of gray level values; lower values indicate more uniform gray level distribution.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Gray Level Non-Uniformity Normalized (GLNN)</strong>
+            <p>Normalized version of GLN, providing scale-invariant gray level uniformity measurement.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Run Length Non-Uniformity (RLN)</strong>
+            <p>Measures similarity of run lengths; lower values indicate more uniform run length distribution.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Run Length Non-Uniformity Normalized (RLNN)</strong>
+            <p>Normalized version of RLN for consistent comparison across different ROI sizes.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Run Percentage (RP)</strong>
+            <p>Measures the distribution of runs relative to the total number of voxels; indicates texture density and homogeneity.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Gray Level Variance (GLV)</strong>
+            <p>Measures variance in gray level intensities across runs, quantifying intensity dispersion.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Run Variance (RV)</strong>
+            <p>Measures variance in run lengths, quantifying the heterogeneity of texture patterns.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Run Entropy (RE)</strong>
+            <p>Measures disorder or randomness in run lengths and gray levels, indicating texture complexity.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Low Gray Level Run Emphasis (LGLRE)</strong>
+            <p>Emphasizes runs with low gray level values, highlighting darker regions in the image.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>High Gray Level Run Emphasis (HGLRE)</strong>
+            <p>Emphasizes runs with high gray level values, highlighting brighter regions in the image.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Short Run Low Gray Level Emphasis (SRLGLE)</strong>
+            <p>Joint measure emphasizing short runs with low gray level values, capturing fine dark textures.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Short Run High Gray Level Emphasis (SRHGLE)</strong>
+            <p>Joint measure emphasizing short runs with high gray level values, capturing fine bright textures.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Long Run Low Gray Level Emphasis (LRLGLE)</strong>
+            <p>Joint measure emphasizing long runs with low gray level values, capturing coarse dark textures.</p>
+          </div>
+
+          <div class="feature-item">
+            <strong>Long Run High Gray Level Emphasis (LRHGLE)</strong>
+            <p>Joint measure emphasizing long runs with high gray level values, capturing coarse bright textures.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Clinical Applications</h2>
+        <div class="info-box">
+          <p>GLRLM features are especially useful for capturing coarse and fine textures in medical images. These metrics are computed over multiple directions and averaged to obtain robust, rotationally invariant values for regions of interest. They have demonstrated clinical value in tumor characterization, treatment response assessment, and outcome prediction across various imaging modalities including CT, MRI, and PET.</p>
+        </div>
+      </div>
     </div>
 
-    <section>
-      <h2>GLRLM Feature Extraction</h2>
-      <p>This page documents the main functions for computing 2D and 3D GLRLM features, which quantify the length of consecutive runs of voxels with the same intensity.</p>
-
-      <h2>Key Features</h2>
-      <ul>
-        <li><strong>Short Run Emphasis (SRE)</strong>: measures the distribution of short runs; higher values indicate more short runs and finer textures.</li>
-        <li><strong>Long Run Emphasis (LRE)</strong>: measures the distribution of long runs; higher values indicate coarser textures.</li>
-        <li><strong>Gray Level Non-Uniformity (GLN)</strong>: measures similarity of gray level values; lower values indicate more uniform gray levels.</li>
-        <li><strong>Gray Level Non-Uniformity Normalized (GLNN)</strong>: normalized version of GLN.</li>
-        <li><strong>Run Length Non-Uniformity (RLN)</strong>: measures similarity of run lengths; lower values indicate more uniform run lengths.</li>
-        <li><strong>Run Length Non-Uniformity Normalized (RLNN)</strong>: normalized version of RLN.</li>
-        <li><strong>Run Percentage (RP)</strong>: measures the distribution of runs relative to the total number of voxels; indicates texture density.</li>
-        <li><strong>Gray Level Variance (GLV)</strong>: measures variance in gray level intensities.</li>
-        <li><strong>Run Variance (RV)</strong>: measures variance in run lengths.</li>
-        <li><strong>Run Entropy (RE)</strong>: measures disorder or randomness in run lengths and gray levels.</li>
-        <li><strong>Low Gray Level Run Emphasis (LGLRE)</strong>: emphasizes runs with low gray levels.</li>
-        <li><strong>High Gray Level Run Emphasis (HGLRE)</strong>: emphasizes runs with high gray levels.</li>
-        <li><strong>Short Run Low Gray Level Emphasis (SRLGE)</strong>: emphasizes short runs with low gray levels.</li>
-        <li><strong>Short Run High Gray Level Emphasis (SRHGE)</strong>: emphasizes short runs with high gray levels.</li>
-        <li><strong>Long Run Low Gray Level Emphasis (LRLGE)</strong>: emphasizes long runs with low gray levels.</li>
-        <li><strong>Long Run High Gray Level Emphasis (LRHGE)</strong>: emphasizes long runs with high gray levels.</li>
-      </ul>
-
-      <h2>Notes</h2>
-      <p>GLRLM features are especially useful for capturing coarse and fine textures in medical images. These metrics are computed over multiple directions and averaged to obtain robust values for a region of interest.</p>
-    </section>
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+    </footer>
   </main>
 
   <script>

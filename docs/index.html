@@ -3,55 +3,134 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Radiomics.jl Documentation</title>
+  <title>Radiomics.jl - Professional Medical Imaging Library</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #0f172a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
-      font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     }
 
     body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
       display: flex;
       min-height: 100vh;
-      background-color: #ffffff;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
+      line-height: 1.6;
     }
 
+    /* Sidebar Styling */
     .sidebar {
-      position: sticky;
+      position: fixed;
       top: 0;
+      left: 0;
       height: 100vh;
-      width: 250px;
-      background-color: #1e40af;
+      width: 300px;
+      background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
       color: white;
-      padding: 20px;
+      padding: 0;
       display: flex;
       flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+      z-index: 100;
+    }
+
+    body {
+      margin-left: 300px;
+    }
+
+    .sidebar-header {
+      padding: 40px 30px 30px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
     }
 
     .sidebar h2 {
-      text-align: center;
-      margin-bottom: 30px;
-      font-size: 1.5rem;
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+      letter-spacing: 0.5px;
     }
 
     .sidebar nav {
+      padding: 20px 0;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 4px;
     }
 
     .sidebar a {
-      color: white;
+      color: rgba(255, 255, 255, 0.85);
       text-decoration: none;
-      padding: 8px 12px;
-      border-radius: 5px;
-      transition: background 0.3s;
+      padding: 14px 30px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-left: 3px solid transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
 
-    .sidebar a:hover, .sidebar a.active {
-      background-color: rgba(255,255,255,0.2);
+    .sidebar a::before {
+      content: '';
+      width: 6px;
+      height: 6px;
+      background: rgba(255, 255, 255, 0.4);
+      border-radius: 50%;
+      transition: all 0.25s;
+    }
+
+    .sidebar a:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a:hover::before {
+      background: var(--primary-light);
+      transform: scale(1.3);
+    }
+    
+    .sidebar a.active {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: white;
+      font-weight: 600;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar a.active::before {
+      background: var(--primary-light);
     }
 
     .dropdown {
@@ -62,82 +141,358 @@
     .dropdown-btn {
       background: none;
       border: none;
-      color: white;
+      color: rgba(255, 255, 255, 0.85);
       text-align: left;
-      padding: 8px 12px;
+      padding: 14px 30px;
       cursor: pointer;
-      border-radius: 5px;
-      font-size: 1rem;
-      transition: background 0.3s;
+      font-size: 0.95rem;
+      font-weight: 500;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-left: 3px solid transparent;
+      font-family: 'Inter', sans-serif;
+    }
+
+    .dropdown-btn::after {
+      content: '▾';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      opacity: 0.7;
+    }
+
+    .dropdown.active .dropdown-btn::after {
+      transform: rotate(180deg);
     }
 
     .dropdown-btn:hover {
-      background-color: rgba(255,255,255,0.2);
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
     }
 
     .dropdown-content {
       display: none;
       flex-direction: column;
-      margin-left: 10px;
-      gap: 5px;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px 0;
     }
 
     .dropdown-content a {
-      font-size: 0.9rem;
-      padding: 6px 12px;
+      font-size: 0.88rem;
+      padding: 10px 30px 10px 50px;
+      font-weight: 400;
+      border-left: 3px solid transparent;
+    }
+
+    .dropdown-content a::before {
+      width: 4px;
+      height: 4px;
     }
 
     .dropdown.active .dropdown-content {
       display: flex;
     }
 
+    /* Main Content */
     .main {
       flex: 1;
-      padding: 40px;
-      max-width: 900px;
-      margin: auto;
+      padding: 0;
+      max-width: 1200px;
+      margin: 0 auto;
+      width: 100%;
     }
 
-    .center {
+    /* Hero Section */
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 80px 60px;
       text-align: center;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
     }
 
     img.logo {
       width: 280px;
+      margin-bottom: 30px;
+      filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.3));
+    }
+
+    .hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+      line-height: 1.2;
+    }
+
+    .hero p {
+      font-size: 1.15rem;
+      opacity: 0.95;
+      max-width: 700px;
+      margin: 0 auto 12px;
+      font-weight: 400;
+    }
+
+    .hero .beta-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.2);
+      padding: 6px 16px;
+      border-radius: 20px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      margin-top: 10px;
+      border: 1px solid rgba(255, 255, 255, 0.3);
+    }
+
+    /* Content Section */
+    .content {
+      padding: 60px;
+      background: white;
+    }
+
+    .section {
+      margin-bottom: 60px;
     }
 
     h2 {
-      margin-top: 50px;
-      margin-bottom: 15px;
-      color: #1e40af;
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+      position: relative;
+      padding-bottom: 16px;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 60px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 2px;
     }
 
     p {
-      margin: 10px 0;
-      line-height: 1.6;
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1rem;
+      margin-bottom: 16px;
     }
 
+    /* Code Block */
+    .code-container {
+      position: relative;
+      margin-top: 24px;
+    }
+
+    .code-header {
+      background: #1e293b;
+      padding: 12px 20px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .code-dot:nth-child(1) { background: #ef4444; }
+    .code-dot:nth-child(2) { background: #f59e0b; }
+    .code-dot:nth-child(3) { background: #10b981; }
+
     pre {
-      background: #f4f4f4;
-      padding: 15px;
-      border-radius: 5px;
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 30px;
+      border-radius: 0 0 12px 12px;
       overflow-x: auto;
+      margin: 0;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid #1e293b;
+      border-top: none;
     }
 
     code {
-      font-family: "Courier New", monospace;
-      font-size: 0.95rem;
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+    }
+
+    /* Team Section */
+    .team-section {
+      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+      padding: 80px 60px;
+      margin: 0;
+    }
+
+    .team-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .team-header h2 {
+      font-size: 2.5rem;
+      margin-bottom: 16px;
+    }
+
+    .team-header h2::after {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .team-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .team-member {
+      background: white;
+      text-align: center;
+      padding: 40px 30px;
+      border-radius: 16px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+    }
+
+    .team-member:hover {
+      transform: translateY(-12px);
+      box-shadow: var(--shadow-xl);
+      border-color: var(--primary-light);
+    }
+
+    .team-member-image {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin: 0 auto 24px;
+    }
+
+    .team-member img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 5px solid var(--primary);
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
+      transition: all 0.4s;
+    }
+
+    .team-member:hover img {
+      transform: scale(1.05);
+      box-shadow: 0 12px 32px rgba(37, 99, 235, 0.3);
+    }
+
+    .team-member h3 {
+      font-size: 1.25rem;
+      color: var(--text-primary);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .team-member .role {
+      color: var(--primary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--secondary);
+      color: rgba(255, 255, 255, 0.7);
+      padding: 40px 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+        margin-left: 0;
+      }
+
+      .sidebar {
+        width: 100%;
+        height: auto;
+        position: relative;
+      }
+
+      .hero {
+        padding: 60px 30px;
+      }
+
+      .content, .team-section {
+        padding: 40px 30px;
+      }
+
+      h2 {
+        font-size: 1.75rem;
+      }
+
+      .team-grid {
+        grid-template-columns: 1fr;
+      }
     }
   </style>
 </head>
 <body>
 
   <aside class="sidebar">
-    <h2>Radiomics.jl</h2>
+    <div class="sidebar-header">
+      <h2>Radiomics.jl</h2>
+      <div class="sidebar-subtitle">Medical Imaging Library</div>
+    </div>
     <nav>
       <a href="index.html" class="active">Home</a>
       <div class="dropdown">
-        <button class="dropdown-btn">Features ▾</button>
+        <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
           <a href="first-order.html">First-order features</a>
           <a href="2d-shape.html">2D shape features</a>
@@ -149,51 +504,127 @@
           <a href="ngtdm.html">NGTDM features</a>
         </div>
       </div>
-
       <a href="installation.html">Installation</a>
+      <a href="#team">Team</a>
     </nav>
   </aside>
 
   <main class="main">
-    <div class="center">
-      <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
-      <p><strong>An open-source Julia library for extracting radiomics features from medical images.</strong></p>
-      <p><em>Radiomics.jl is in an early stage and under active development</em></p>
-      <hr>
-    </div>
-
-    <section>
-      <h2>Welcome</h2>
-      <p>This is the home page of Radiomics.jl documentation. Use the sidebar to navigate to different sections, including the detailed Features pages.</p>
+    <!-- Hero Section -->
+    <section class="hero">
+      <div class="hero-content">
+        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
+        <h1>Advanced Radiomics Feature Extraction</h1>
+        <p>An open-source Julia library for extracting quantitative features from medical images with precision and efficiency.</p>
+        <span class="beta-badge">Early Stage Development</span>
+      </div>
     </section>
 
-    <section>
-      <h2>Example</h2>
-      <p>Once the library is installed, radiomics features can be extracted as reported in the following example (sample data shipped with the library are used):</p>
-      
-      <pre><code>
-using NIfTI
+    <!-- Content Section -->
+    <div class="content">
+      <div class="section">
+        <h2>Welcome to Radiomics.jl</h2>
+        <p>Radiomics.jl is a comprehensive Julia library designed for medical imaging researchers and clinicians. Our tool enables the extraction of high-throughput quantitative features from radiological images, supporting advanced research in precision medicine and computer-aided diagnosis.</p>
+        <p>Navigate through our documentation using the sidebar to explore detailed information about feature extraction methods, installation procedures, and implementation examples.</p>
+      </div>
+
+      <div class="section">
+        <h2>Quick Start Example</h2>
+        <p>Once installed, you can begin extracting radiomic features with just a few lines of code. The following example demonstrates feature extraction using sample data included with the library:</p>
+        
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code>using NIfTI
 using Radiomics
 
+# Load medical image and segmentation mask
 ct = niread("sample_data/CTChest.nii.gz")
 mask = niread("sample_data/Lungs.nii.gz")
+
+# Extract voxel spacing from image header
 spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
+# Extract radiomic features
 radiomic_features = Radiomics.extract_radiomic_features(
     ct.raw,
     mask.raw,
     spacing;
     verbose = true
-)
-      </code></pre>
+)</code></pre>
+        </div>
+      </div>
+    </div>
+
+    <!-- Team Section -->
+    <section class="team-section" id="team">
+      <div class="team-header">
+        <h2>Development Team</h2>
+        <p class="team-subtitle">Meet the experts behind Radiomics.jl, dedicated to advancing medical image analysis through innovative technology.</p>
+      </div>
+      <div class="team-grid">
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://avatars.githubusercontent.com/u/4259198?v=4" alt="Team Member">
+          </div>
+          <h3>Prof. Paolo Zaffino </h3>
+          <div class="role">Lead Developer, UMG</div>
+        </div>
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://avatars.githubusercontent.com/u/96300975?v=4" alt="Team Member">
+          </div>
+          <h3>Dr. Ciro Benito Raggio, PhD Student</h3>
+          <div class="role">Software Engineer, Kit</div>
+        </div>
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4" alt="Team Member">
+          </div>
+          <h3>Dr. Aldo Giuliani, PhD Student</h3>
+          <div class="role">Software Engineer, UMG</div>
+        </div>
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://avatars.githubusercontent.com/u/53857487?v=4" alt="Team Member">
+          </div>
+          <h3>Dr. Jakub Mitura, MD, PhD</h3>
+          <div class="role">Software Engineer</div>
+        </div>
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://avatars.githubusercontent.com/u/59024947?v=4" alt="Team Member">
+          </div>
+          <h3>Dr. Mohammadreza Javadi Namin</h3>
+          <div class="role">Software Engineer, POLIMI</div>
+        </div>
+      </div>
     </section>
 
+    <!-- Footer -->
+    <footer class="footer">
+      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+    </footer>
   </main>
 
   <script>
     const dropdownBtn = document.querySelector('.dropdown-btn');
     dropdownBtn.addEventListener('click', () => {
       dropdownBtn.parentElement.classList.toggle('active');
+    });
+
+    // Smooth scroll for anchor links
+    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+      anchor.addEventListener('click', function (e) {
+        e.preventDefault();
+        const target = document.querySelector(this.getAttribute('href'));
+        if (target) {
+          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      });
     });
   </script>
 
