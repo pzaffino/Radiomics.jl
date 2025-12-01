@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -333,6 +332,17 @@
       color: var(--text-secondary);
     }
 
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     /* Footer */
     .footer {
       background: var(--secondary);
@@ -349,17 +359,6 @@
 
     .footer a:hover {
       text-decoration: underline;
-    }
-
-    .formula {
-      margin-top: 8px;
-      font-family: 'Courier New', monospace;
-      background: white;
-      padding: 8px;
-      border-radius: 4px;
-      font-size: 0.9rem;
-      color: var(--primary-dark);
-      border: 1px solid var(--border);
     }
 
     /* Responsive */
@@ -453,83 +452,114 @@
           <div class="feature-item">
             <strong>Total Energy</strong>
             <p>Energy multiplied by the voxel volume, accounting for spatial resolution in the energy measurement.</p>
+            <div class="formula">E_total = V_voxel × Σ X(i)²</div>
           </div>
 
           <div class="feature-item">
             <strong>Entropy</strong>
             <p>Measure of uncertainty or randomness in the voxel intensity distribution, quantifying image complexity.</p>
+            <div class="formula">H = -Σ p(i) × log₂(p(i))</div>
           </div>
 
           <div class="feature-item">
             <strong>Minimum / Maximum</strong>
             <p>The minimum and maximum voxel values within the ROI, defining the intensity range.</p>
+            <div class="formula">min(X), max(X)</div>
           </div>
 
           <div class="feature-item">
             <strong>10th / 90th Percentile</strong>
             <p>Intensity values corresponding to the 10th and 90th percentiles of the distribution.</p>
+            <div class="formula">P₁₀, P₉₀</div>
           </div>
 
           <div class="feature-item">
             <strong>Mean</strong>
             <p>Average intensity value across all voxels in the ROI, representing central tendency.</p>
+            <div class="formula">μ = (1/N) × Σ X(i)</div>
           </div>
 
           <div class="feature-item">
             <strong>Median</strong>
             <p>Middle value of the sorted intensity distribution, robust to outliers.</p>
+            <div class="formula">M = X((N+1)/2)</div>
           </div>
 
           <div class="feature-item">
             <strong>Interquartile Range</strong>
             <p>Difference between the 75th and 25th percentiles, measuring the spread of the middle 50% of data.</p>
+            <div class="formula">IQR = P₇₅ - P₂₅</div>
           </div>
 
           <div class="feature-item">
             <strong>Range</strong>
             <p>Difference between maximum and minimum voxel values, indicating total intensity variation.</p>
+            <div class="formula">R = max(X) - min(X)</div>
           </div>
 
           <div class="feature-item">
             <strong>Mean Absolute Deviation</strong>
             <p>Average absolute deviation from the mean, quantifying average variability.</p>
+            <div class="formula">MAD = (1/N) × Σ |X(i) - μ|</div>
           </div>
 
           <div class="feature-item">
             <strong>Robust Mean Absolute Deviation</strong>
             <p>Mean absolute deviation calculated from values between the 10th and 90th percentiles, reducing outlier influence.</p>
+            <div class="formula">rMAD = (1/N₁₀₋₉₀) × Σ |X(i) - μ₁₀₋₉₀|</div>
           </div>
 
           <div class="feature-item">
             <strong>Root Mean Squared</strong>
             <p>Square root of the mean of squared voxel values, measuring the quadratic mean intensity.</p>
+            <div class="formula">RMS = √[(1/N) × Σ X(i)²]</div>
           </div>
 
           <div class="feature-item">
             <strong>Standard Deviation</strong>
             <p>Standard deviation of voxel values, quantifying dispersion around the mean.</p>
+            <div class="formula">σ = √[(1/N) × Σ (X(i) - μ)²]</div>
           </div>
 
           <div class="feature-item">
             <strong>Skewness</strong>
             <p>Measure of asymmetry of the voxel intensity distribution relative to the mean.</p>
+            <div class="formula">γ₁ = (1/N) × Σ [(X(i) - μ)/σ]³</div>
           </div>
 
           <div class="feature-item">
             <strong>Kurtosis</strong>
             <p>Measure of the "tailedness" of the distribution, indicating the presence of outliers.</p>
+            <div class="formula">γ₂ = (1/N) × Σ [(X(i) - μ)/σ]⁴</div>
           </div>
 
           <div class="feature-item">
             <strong>Variance</strong>
             <p>Variance of voxel values, representing the squared standard deviation.</p>
+            <div class="formula">σ² = (1/N) × Σ (X(i) - μ)²</div>
           </div>
 
           <div class="feature-item">
             <strong>Uniformity</strong>
             <p>Measure of the uniformity of voxel intensities, with higher values indicating more homogeneous regions.</p>
+            <div class="formula">U = Σ p(i)²</div>
           </div>
         </div>
+      </div>
+
+      <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>X(i)</strong> = intensity value of voxel i</li>
+          <li><strong>N</strong> = total number of voxels in the ROI</li>
+          <li><strong>μ</strong> = mean intensity value</li>
+          <li><strong>σ</strong> = standard deviation</li>
+          <li><strong>p(i)</strong> = probability (normalized frequency) of intensity value i</li>
+          <li><strong>P₁₀, P₂₅, P₇₅, P₉₀</strong> = 10th, 25th, 75th, and 90th percentiles</li>
+          <li><strong>V_voxel</strong> = volume of a single voxel</li>
+          <li><strong>Σ</strong> = summation over all voxels in the ROI</li>
+        </ul>
       </div>
 
       <div class="section">
