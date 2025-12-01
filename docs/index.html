@@ -199,8 +199,6 @@
     .main {
       flex: 1;
       padding: 0;
-      max-width: 1200px;
-      margin: 0 auto;
       width: 100%;
     }
 
@@ -250,6 +248,7 @@
       max-width: 700px;
       margin: 0 auto 12px;
       font-weight: 400;
+      color: white;
     }
 
     .hero .beta-badge {
@@ -267,6 +266,8 @@
     .content {
       padding: 60px;
       background: white;
+      max-width: 1200px;
+      margin: 0 auto;
     }
 
     .section {
@@ -516,7 +517,6 @@
         <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
         <h1>Advanced Radiomics Feature Extraction</h1>
         <p>An open-source Julia library for extracting quantitative features from medical images with precision and efficiency.</p>
-        <span class="beta-badge">Early Stage Development</span>
       </div>
     </section>
 
@@ -565,48 +565,81 @@ radiomic_features = Radiomics.extract_radiomic_features(
         <h2>Development Team</h2>
         <p class="team-subtitle">Meet the experts behind Radiomics.jl, dedicated to advancing medical image analysis through innovative technology.</p>
       </div>
+      
+      
+      
       <div class="team-grid">
         <div class="team-member">
           <div class="team-member-image">
             <img src="https://avatars.githubusercontent.com/u/4259198?v=4" alt="Team Member">
           </div>
           <h3>Prof. Paolo Zaffino </h3>
-          <div class="role">Lead Developer, UMG</div>
+          <div class="role">Università degli Studi "Magna Graecia" di Catanzaro</div>
         </div>
+        
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png" alt="Team Member">
+          </div>
+          <h3>Prof. Maria Francesca Spadea</h3>
+          <div class="role">Karlsruher Institut für Technologie</div>
+        </div>
+        
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg" alt="Team Member">
+          </div>
+          <h3>Prof. Carlo Cosentino</h3>
+          <div class="role">Università degli Studi "Magna Graecia" di Catanzaro</div>
+        </div>
+        
         <div class="team-member">
           <div class="team-member-image">
             <img src="https://avatars.githubusercontent.com/u/96300975?v=4" alt="Team Member">
           </div>
-          <h3>Dr. Ciro Benito Raggio, PhD Student</h3>
-          <div class="role">Software Engineer, Kit</div>
+          <h3>Eng. Ciro Benito Raggio, Research Assistant</h3>
+          <div class="role">Karlsruher Institut für Technologie</div>
         </div>
+        
         <div class="team-member">
           <div class="team-member-image">
             <img src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4" alt="Team Member">
           </div>
-          <h3>Dr. Aldo Giuliani, PhD Student</h3>
-          <div class="role">Software Engineer, UMG</div>
+          <h3>Eng. Aldo Giuliani, PhD Student</h3>
+          <div class="role">Università degli Studi "Magna Graecia" di Catanzaro</div>
         </div>
+        
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/53857487?v=4" alt="Team Member">
+            <img src="https://ai4ar.opi.org.pl/wp-content/uploads/2022/10/IMG_4281.jpg" alt="Team Member">
           </div>
           <h3>Dr. Jakub Mitura, MD, PhD</h3>
-          <div class="role">Software Engineer</div>
+          <div class="role">National Information Processing Institut</div>
         </div>
+        
         <div class="team-member">
           <div class="team-member-image">
             <img src="https://avatars.githubusercontent.com/u/59024947?v=4" alt="Team Member">
           </div>
-          <h3>Dr. Mohammadreza Javadi Namin</h3>
-          <div class="role">Software Engineer, POLIMI</div>
+          <h3>Eng. Mohammadreza Javadi Namin</h3>
+          <div class="role">Politecnico di Milano</div>
         </div>
+        
+        
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://mess-srl.it/wp-content/uploads/2023/09/utente-sconosciuto.png" alt="Team Member">
+          </div>
+          <h3>Eng. Nastaran Ghaffari Elkhechi </h3>
+          <div class="role">Politecnico di Milano</div>
+        </div>
+        
       </div>
     </section>
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>&copy; 2025 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 
