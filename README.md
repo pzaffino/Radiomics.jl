@@ -45,3 +45,5 @@ spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true)
 ```
+## **Website with complete documentation**
+The following link takes you to the project's dedicated website where you can view the complete documentation: https://aldogiulianicz.github.io/Radiomics.jl/index.html
