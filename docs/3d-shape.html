@@ -238,6 +238,17 @@
       color: white
     }
 
+    .formula {
+      margin-top: 8px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
     /* Content Section */
     .content {
       padding: 60px;
@@ -461,49 +472,59 @@
         <h2>Extracted Features</h2>
         
         <div class="feature-grid">
+          
           <div class="feature-card">
             <h3>Surface Area</h3>
             <p>Total area of the 3D object's surface mesh, calculated using triangular mesh elements from the Marching Cubes reconstruction.</p>
+            <div class="formula">A = Σ A_triangle</div>
           </div>
 
           <div class="feature-card">
             <h3>Mesh Volume</h3>
             <p>Volume of the object computed from the surface mesh representation, providing a precise measurement of the 3D region.</p>
+            <div class="formula">V_mesh = |Σ (p₁ · (p₂ × p₃))/6|</div>
           </div>
 
           <div class="feature-card">
             <h3>Surface-to-Volume Ratio</h3>
             <p>Normalized ratio quantifying the relationship between surface area and enclosed volume, useful for characterizing shape compactness.</p>
+            <div class="formula">SVR = A / V_mesh</div>
           </div>
 
           <div class="feature-card">
             <h3>Sphericity</h3>
             <p>Measure of how closely the shape resembles a perfect sphere, with values approaching 1 indicating higher spherical similarity.</p>
+            <div class="formula">Ψ = (π^(1/3) × (6V)^(2/3)) / A</div>
           </div>
 
           <div class="feature-card">
             <h3>Maximum 3D Diameter</h3>
             <p>Largest distance between any two points on the object's surface (Feret diameter), representing the maximum spatial extent.</p>
+            <div class="formula">D_max = max(||p_i - p_j||)</div>
           </div>
 
           <div class="feature-card">
             <h3>Principal Axes Lengths</h3>
             <p>Major, minor, and least axis lengths derived from eigenvalue decomposition of the voxel coordinate covariance matrix.</p>
+            <div class="formula">λ₁, λ₂, λ₃ (eigenvalues of Σ)</div>
           </div>
 
           <div class="feature-card">
             <h3>Elongation</h3>
             <p>Ratio between the middle and largest principal axes, describing the degree of shape elongation along primary directions.</p>
+            <div class="formula">E = √(λ₂ / λ₁)</div>
           </div>
 
           <div class="feature-card">
             <h3>Flatness</h3>
             <p>Ratio between the smallest and largest principal axes, quantifying how flat or thin the object appears in 3D space.</p>
+            <div class="formula">F = √(λ₃ / λ₁)</div>
           </div>
 
           <div class="feature-card">
             <h3>Voxel-based Volume</h3>
             <p>Volume calculated by counting foreground voxels and scaling by the voxel spacing, providing a discrete approximation.</p>
+            <div class="formula">V_voxel = N × Δx × Δy × Δz</div>
           </div>
         </div>
       </div>
@@ -528,7 +549,7 @@
 
     <!-- Footer -->
     <footer class="footer">
-      <p>&copy; 2024 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>&copy; 2025 Radiomics.jl. Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
   </main>
 
