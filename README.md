@@ -6,8 +6,6 @@
 
 **Radiomics.jl** is an open-source Julia library for extracting radiomics features from medical images.
 
-:warning: **THE LIBRARY IS CURRENTLY IN AN EARLY STAGE AND UNDER HEAVY DEVELOPMENT** :warning:
-
 :email: If you're interested in contributing to the project, please contact us via email at "p DOT zaffino AT unicz DOT it" :email:
 
 
@@ -47,3 +45,5 @@ spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true)
 ```
+## **Website with complete documentation**
+The following link takes you to the project's dedicated website where you can view the complete documentation: https://aldogiulianicz.github.io/Radiomics.jl/index.html
