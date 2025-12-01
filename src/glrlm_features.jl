@@ -1,15 +1,6 @@
-###############################################################
-# GLRLM Radiomics
-###############################################################
-
 using StatsBase
 
-
-function get_glrlm_features(img, mask, voxel_spacing; 
-                           n_bins::Union{Int,Nothing}=nothing,
-                           bin_width::Union{Float32,Nothing}=nothing,
-                           verbose=false)
-    """
+"""
         get_glrlm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false)
 
     Calculates and returns a dictionary of GLRLM (Gray Level Run Length Matrix) features.
@@ -40,6 +31,10 @@ function get_glrlm_features(img, mask, voxel_spacing;
         # Default (32 bins)
         features = get_glrlm_features(img, mask, spacing)
     """
+function get_glrlm_features(img, mask, voxel_spacing; 
+                           n_bins::Union{Int,Nothing}=nothing,
+                           bin_width::Union{Float32,Nothing}=nothing,
+                           verbose=false)
     if verbose
         if !isnothing(n_bins)
             println("Calcolo GLRLM con $(n_bins) bins...")
@@ -83,8 +78,7 @@ function get_glrlm_features(img, mask, voxel_spacing;
     return glrlm_features
 end
 
-function calculate_glrlm_matrix(discretized_img, mask, verbose)
-    """
+"""
     calculate_glrlm_matrix(discretized_img, mask, verbose)
 
     Calculates the Gray Level Run Length Matrix (GLRLM).
@@ -97,6 +91,7 @@ function calculate_glrlm_matrix(discretized_img, mask, verbose)
     # Returns
     - A tuple containing the GLRLM matrix and the angles used for calculation.
     """
+function calculate_glrlm_matrix(discretized_img, mask, verbose)
     if verbose
         println("Calculating GLRLM matrix...")
     end
@@ -158,9 +153,7 @@ function calculate_glrlm_matrix(discretized_img, mask, verbose)
     return P_glrlm, angles
 end
 
-
-function calculate_glrlm_feature(feature_idx, P_glrlm)
-    """
+"""
     calculate_glrlm_feature(feature_idx, P_glrlm)
 
     Calculates a specific GLRLM feature.
@@ -172,6 +165,7 @@ function calculate_glrlm_feature(feature_idx, P_glrlm)
     # Returns
     - The calculated feature value.
     """
+function calculate_glrlm_feature(feature_idx, P_glrlm)
     num_angles = size(P_glrlm, 3)
     feature_values = zeros(Float32, num_angles)
 

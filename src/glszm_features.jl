@@ -6,11 +6,7 @@ using StatsBase
 
 # La funzione discretize_image è in utils.jl che viene incluso da Radiomics.jl
 
-function get_glszm_features(img, mask, voxel_spacing; 
-                           n_bins::Union{Int,Nothing}=nothing,
-                           bin_width::Union{Float32,Nothing}=nothing,
-                           verbose=false)
-    """
+"""
     get_glszm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false)
 
     Calculates and returns a dictionary of GLSZM (Gray Level Size Zone Matrix) features.
@@ -41,13 +37,17 @@ function get_glszm_features(img, mask, voxel_spacing;
         # Default (32 bins)
         features = get_glszm_features(img, mask, spacing)
     """
+function get_glszm_features(img, mask, voxel_spacing; 
+                           n_bins::Union{Int,Nothing}=nothing,
+                           bin_width::Union{Float32,Nothing}=nothing,
+                           verbose=false)
     if verbose
         if !isnothing(n_bins)
-            println("Calcolo GLSZM con $(n_bins) bins...")
+            println("GLSZM calculation with $(n_bins) bins...")
         elseif !isnothing(bin_width)
-            println("Calcolo GLSZM con bin_width=$(bin_width)...")
+            println("GLSZM calculation with bin_width= $(bin_width) ...")
         else
-            println("Calcolo GLSZM con 32 bins (default)...")
+            println("GLSZM calculation with bin_width=25 (default)...")
         end
     end
 
@@ -57,9 +57,9 @@ function get_glszm_features(img, mask, voxel_spacing;
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
     if verbose
-        println("Range intensità: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilizzata: $(bin_width_used)")
-        println("Numero di gray levels effettivi: $(n_bins_actual)")
+        println("intensity range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Using Bin width: $(bin_width_used)")
+        println("Effective number of gray levek: $(n_bins_actual)")
     end
 
     # 2. Calculate the GLSZM matrix
@@ -93,8 +93,7 @@ function get_glszm_features(img, mask, voxel_spacing;
     return glszm_features
 end
 
-function calculate_glszm_matrix(discretized_img, mask, verbose)
-    """
+"""
     calculate_glszm_matrix(discretized_img, mask, verbose)
 
     Calculates the Gray Level Size Zone Matrix (GLSZM).
@@ -107,6 +106,7 @@ function calculate_glszm_matrix(discretized_img, mask, verbose)
     # Returns
     - A tuple containing the GLSZM matrix and the gray levels present in the ROI.
     """
+function calculate_glszm_matrix(discretized_img, mask, verbose)
     if verbose
         println("Calculating GLSZM matrix...")
     end
@@ -160,8 +160,7 @@ function calculate_glszm_matrix(discretized_img, mask, verbose)
     return P_glszm, gray_levels
 end
 
-function calculate_glszm_coefficients(P_glszm, gray_levels)
-    """
+"""
     calculate_glszm_coefficients(P_glszm, gray_levels)
 
     Calculates the coefficients used in the GLSZM feature calculations.
@@ -173,6 +172,7 @@ function calculate_glszm_coefficients(P_glszm, gray_levels)
     # Returns
     - A tuple containing the number of voxels, number of zones, sum over gray levels, sum over sizes, gray level vector, and size vector.
     """
+function calculate_glszm_coefficients(P_glszm, gray_levels)
     ps = sum(P_glszm, dims=1)
     pg = sum(P_glszm, dims=2)
     ivector = Float32.(gray_levels)
@@ -196,8 +196,7 @@ size_zone_non_uniformity(ps, Nz) = sum(ps .^ 2) / Nz
 size_zone_non_uniformity_normalized(ps, Nz) = sum(ps .^ 2) / (Nz ^ 2)
 zone_percentage(Nz, Np) = Nz / Np
 
-function gray_level_variance(pg, ivector, Nz)
-    """
+"""
     gray_level_variance(pg, ivector, Nz)
     Calculates the Gray Level Variance feature.
     # Arguments
@@ -207,13 +206,13 @@ function gray_level_variance(pg, ivector, Nz)
     # Returns
     - The calculated Gray Level Variance value.
     """
+function gray_level_variance(pg, ivector, Nz)
     p_g = pg ./ Nz
     u_i = sum(p_g .* ivector)
     sum(p_g .* (ivector .- u_i) .^ 2)
 end
 
-function zone_variance(ps, jvector, Nz)
-    """
+"""
     zone_variance(ps, jvector, Nz)
     Calculates the Zone Variance feature.
     # Arguments
@@ -223,13 +222,13 @@ function zone_variance(ps, jvector, Nz)
     # Returns
     - The calculated Zone Variance value.
     """
+function zone_variance(ps, jvector, Nz)
     p_s = ps' ./ Nz
     u_j = sum(p_s .* jvector)
     sum(p_s .* (jvector .- u_j) .^ 2)
 end
 
-function zone_entropy(P_glszm, Nz)
-    """
+"""
     zone_entropy(P_glszm, Nz)
     Calculates the Zone Entropy feature.
     # Arguments
@@ -238,6 +237,7 @@ function zone_entropy(P_glszm, Nz)
     # Returns
     - The calculated Zone Entropy value.
     """
+function zone_entropy(P_glszm, Nz)
     p_glszm = P_glszm ./ Nz
     -sum(p_glszm .* log2.(p_glszm .+ 1.0f-16))
 end
@@ -245,8 +245,7 @@ end
 low_gray_level_zone_emphasis(pg, ivector, Nz) = sum(pg ./ (ivector .^ 2)) / Nz
 high_gray_level_zone_emphasis(pg, ivector, Nz) = sum(pg .* (ivector .^ 2)) / Nz
 
-function small_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
-    """small_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
+"""small_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     Calculates the Small Area Low Gray Level Emphasis feature.
     # Arguments
     - `P_glszm`: The GLSZM matrix.
@@ -256,13 +255,13 @@ function small_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     # Returns
     - The calculated Small Area Low Gray Level Emphasis value.
     """
+function small_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_glszm ./ ((i_mat .^ 2) .* (j_mat .^ 2))) / Nz
 end
 
-function small_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
-    """small_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
+"""small_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     Calculates the Small Area High Gray Level Emphasis feature.
     # Arguments
     - `P_glszm`: The GLSZM matrix.
@@ -272,13 +271,13 @@ function small_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     # Returns
     - The calculated Small Area High Gray Level Emphasis value.
     """
+function small_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_glszm .* (i_mat .^ 2) ./ (j_mat .^ 2)) / Nz
 end
 
-function large_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
-    """large_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
+"""large_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     Calculates the Large Area Low Gray Level Emphasis feature.
     # Arguments
     - `P_glszm`: The GLSZM matrix.
@@ -288,13 +287,13 @@ function large_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     # Returns
     - The calculated Large Area Low Gray Level Emphasis value.
     """
+function large_area_low_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_glszm .* (j_mat .^ 2) ./ (i_mat .^ 2)) / Nz
 end
 
-function large_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
-    """large_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
+"""large_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     Calculates the Large Area High Gray Level Emphasis feature.
     # Arguments
     - `P_glszm`: The GLSZM matrix.
@@ -304,6 +303,7 @@ function large_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     # Returns
     - The calculated Large Area High Gray Level Emphasis value.
     """
+function large_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
     i_mat = reshape(ivector, :, 1)
     j_mat = reshape(jvector, 1, :)
     sum(P_glszm .* (i_mat .^ 2) .* (j_mat .^ 2)) / Nz

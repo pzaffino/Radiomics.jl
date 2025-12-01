@@ -10,13 +10,7 @@ include("ngtdm_features.jl")
 include("glrlm_features.jl")
 include("gldm_features.jl")
 
-function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-                                            force_2d::Bool=false,
-                                            force_2d_dimension::Int=1,
-                                            n_bins::Union{Int,Nothing}=nothing,
-                                            bin_width::Union{Float32,Nothing}=nothing,
-                                            verbose::Bool=false)::Dict{String, Float32}
-    """
+"""
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                               force_2d=false,
                               force_2d_dimension=1,
@@ -36,6 +30,12 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     # Returns:
     - A dictionary where keys are the feature names and values are the calculated feature values.
     """
+function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
+                                            force_2d::Bool=false,
+                                            force_2d_dimension::Int=1,
+                                            n_bins::Union{Int,Nothing}=nothing,
+                                            bin_width::Union{Float32,Nothing}=nothing,
+                                            verbose::Bool=false)::Dict{String, Float32}
     if verbose
         println("Extracting ONLY GLCM radiomic features...")
         if !isnothing(n_bins)
