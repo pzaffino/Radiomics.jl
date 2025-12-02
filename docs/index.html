@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,6 +38,60 @@
       line-height: 1.6;
     }
 
+    /* --- LAYOUT & SIDEBAR (Standardizzato) --- */
+
+    /* Mobile Menu Toggle */
+    .mobile-menu-toggle {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 300;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: var(--shadow-lg);
+      font-size: 1.2rem;
+      transition: all 0.3s;
+    }
+
+    .mobile-menu-toggle:hover {
+      background: var(--primary-dark);
+      transform: scale(1.05);
+    }
+
+    .mobile-menu-toggle.active {
+      background: #ef4444;
+    }
+
+    /* Logo di Navigazione (Fisso in alto a sinistra) */
+    .top-left-logo {
+      position: fixed;
+      top: 20px;
+      left: 70px;
+      z-index: 200;
+      width: 160px;
+      height: 160px;
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s ease;
+    }
+
+    .top-left-logo:hover {
+      transform: scale(1.05);
+    }
+
+    .top-left-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+    }
+
     /* Sidebar Styling */
     .sidebar {
       position: fixed;
@@ -53,14 +107,11 @@
       box-shadow: var(--shadow-xl);
       overflow-y: auto;
       z-index: 100;
-    }
-
-    body {
-      margin-left: 300px;
+      transition: transform 0.3s ease;
     }
 
     .sidebar-header {
-      padding: 40px 30px 30px;
+      padding: 200px 30px 30px; /* Spazio per il logo fisso */
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(0, 0, 0, 0.2);
     }
@@ -179,12 +230,15 @@
       max-height: 500px;
     }
 
-    /* Main Content */
+    /* Main Container */
     .main {
       flex: 1;
       padding: 0;
       width: 100%;
+      margin-left: 300px; /* Offset per la sidebar */
     }
+
+    /* --- HOME PAGE SPECIFIC STYLES --- */
 
     /* Hero Section */
     .hero {
@@ -212,7 +266,8 @@
       z-index: 1;
     }
 
-    img.logo {
+    /* Hero Logo (Il logo grande che volevi mantenere) */
+    img.hero-logo {
       width: 280px;
       margin-bottom: 30px;
       filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.3));
@@ -233,17 +288,6 @@
       margin: 0 auto 12px;
       font-weight: 400;
       color: white;
-    }
-
-    .hero .beta-badge {
-      display: inline-block;
-      background: rgba(255, 255, 255, 0.2);
-      padding: 6px 16px;
-      border-radius: 20px;
-      font-size: 0.85rem;
-      font-weight: 500;
-      margin-top: 10px;
-      border: 1px solid rgba(255, 255, 255, 0.3);
     }
 
     /* Content Section */
@@ -285,10 +329,11 @@
       margin-bottom: 16px;
     }
 
-    /* Code Block */
+    /* Code Block (Stile coerente con le altre pagine) */
     .code-container {
       position: relative;
       margin-top: 24px;
+      margin-bottom: 24px;
     }
 
     .code-header {
@@ -418,6 +463,23 @@
       text-transform: uppercase;
     }
 
+    .team-member-link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      margin-top: 12px;
+      color: var(--primary);
+      text-decoration: none;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: all 0.3s;
+    }
+
+    .team-member-link:hover {
+      color: var(--primary-dark);
+      gap: 8px;
+    }
+
     /* Footer */
     .footer {
       background: var(--secondary);
@@ -436,24 +498,95 @@
       text-decoration: underline;
     }
 
-    /* Responsive */
-    @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-        margin-left: 0;
+    /* Overlay for mobile menu */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* --- RESPONSIVE MEDIA QUERIES --- */
+    
+    /* Tablet breakpoint */
+    @media (max-width: 1024px) {
+      .top-left-logo {
+        width: 120px;
+        height: 120px;
+        left: 50px;
       }
 
       .sidebar {
+        width: 260px;
+      }
+
+      .main {
+        margin-left: 260px;
+      }
+
+      .hero, .content, .team-section, .footer {
+        padding: 40px;
+      }
+    }
+
+    /* Mobile breakpoint */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-menu-toggle {
+        display: block;
+      }
+
+      .sidebar {
+        width: 280px;
+        transform: translateX(-100%);
+        z-index: 250;
+      }
+
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
         width: 100%;
-        height: auto;
-        position: relative;
+      }
+
+      /* Logo Mobile (Centrato in alto) */
+      .top-left-logo {
+        width: 80px;
+        height: 80px;
+        top: 15px;
+        left: 50%;
+        transform: translateX(-50%);
+      }
+
+      .top-left-logo:hover {
+        transform: translateX(-50%) scale(1.05);
+      }
+
+      .sidebar-header {
+        padding: 110px 25px 25px;
       }
 
       .hero {
-        padding: 60px 30px;
+        padding: 100px 30px 40px; /* Padding extra in alto per non finire sotto il logo fisso */
       }
 
-      .content, .team-section {
+      .content, .team-section, .footer {
         padding: 40px 30px;
       }
 
@@ -464,15 +597,23 @@
       .team-grid {
         grid-template-columns: 1fr;
       }
+      
+      img.hero-logo {
+        width: 200px; /* Logo Hero un po' più piccolo su mobile */
+      }
     }
   </style>
 </head>
 <body>
 
-  <aside class="sidebar">
+  <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+  <div class="overlay" id="overlay"></div>
+
+  <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
-      <h2>Radiomics.jl</h2>
-      <div class="sidebar-subtitle">Medical Imaging Library</div>
+      <div class="top-left-logo">
+        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Radiomics.jl Logo">
+      </div>
     </div>
     <nav>
       <a href="index.html" class="active">Home</a>
@@ -489,22 +630,20 @@
           <a href="ngtdm.html">NGTDM features</a>
         </div>
       </div>
-      <a href="installation.html">Installation</a>
+      <a href="installation.html">Getting Start</a>
       <a href="#team">Team</a>
     </nav>
   </aside>
 
   <main class="main">
-    <!-- Hero Section -->
     <section class="hero">
       <div class="hero-content">
-        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="logo" alt="Radiomics.jl Logo">
+        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="hero-logo" alt="Radiomics.jl Big Logo">
         <h1>Advanced Radiomics Feature Extraction</h1>
         <p>An open-source Julia library for extracting quantitative features from medical images with precision and efficiency.</p>
       </div>
     </section>
 
-    <!-- Content Section -->
     <div class="content">
       <div class="section">
         <h2>Welcome to Radiomics.jl</h2>
@@ -523,8 +662,8 @@
           <p style="text-align: center;">
               <a href="https://github.com/pzaffino/Radiomics.jl"
                 target="_blank"
-                style="font-weight: bold; font-size: 1.3em;">
-                  Visit the GitHub repository
+                style="font-weight: bold; font-size: 1.3em; color: var(--primary); text-decoration: none;">
+                  Visit the GitHub repository →
               </a>
           </p>
       </div>
@@ -560,7 +699,6 @@ radiomic_features = Radiomics.extract_radiomic_features(
       </div>
     </div>
 
-    <!-- Team Section -->
     <section class="team-section" id="team">
       <div class="team-header">
         <h2>Development Team</h2>
@@ -570,39 +708,51 @@ radiomic_features = Radiomics.extract_radiomic_features(
       <div class="team-grid">
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/4259198?v=4" alt="Team Member">
+            <img src="https://avatars.githubusercontent.com/u/4259198?v=4" alt="Prof. Paolo Zaffino">
           </div>
-          <h3>Prof. Paolo Zaffino </h3>
+          <h3>Prof. Paolo Zaffino</h3>
           <div class="role">Università degli Studi "Magna Graecia" di Catanzaro</div>
+          <a href="https://dmsc.unicz.it/personale/docente/paolozaffino" target="_blank" class="team-member-link">
+            Profilo istituzionale →
+          </a>
         </div>
         
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png" alt="Team Member">
-          </div>
-          <h3>Prof. Maria Francesca Spadea</h3>
-          <div class="role">Karlsruher Institut für Technologie</div>
-        </div>
-        
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg" alt="Team Member">
+            <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg" alt="Prof. Carlo Cosentino">
           </div>
           <h3>Prof. Carlo Cosentino</h3>
           <div class="role">Università degli Studi "Magna Graecia" di Catanzaro</div>
+          <a href="https://dmsc.unicz.it/personale/docente/carlocosentino" target="_blank" class="team-member-link">
+            Profilo istituzionale →
+          </a>
         </div>
         
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/96300975?v=4" alt="Team Member">
+            <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png" alt="Prof. Maria Francesca Spadea">
+          </div>
+          <h3>Prof. Maria Francesca Spadea</h3>
+          <div class="role">Karlsruher Institut für Technologie</div>
+          <a href="https://www.ibt.kit.edu/Spadea_Francesca.php" target="_blank" class="team-member-link">
+            Profilo istituzionale →
+          </a>
+        </div>
+        
+        <div class="team-member">
+          <div class="team-member-image">
+            <img src="https://avatars.githubusercontent.com/u/96300975?v=4" alt="Eng. Ciro Benito Raggio">
           </div>
           <h3>Eng. Ciro Benito Raggio, Research Assistant</h3>
           <div class="role">Karlsruher Institut für Technologie</div>
+          <a href="http://ibt.kit.edu/english/Raggio_C.php" target="_blank" class="team-member-link">
+            Profilo istituzionale →
+          </a>
         </div>
         
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4" alt="Team Member">
+            <img src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4" alt="Eng. Aldo Giuliani">
           </div>
           <h3>Eng. Aldo Giuliani, PhD Student</h3>
           <div class="role">Università degli Studi "Magna Graecia" di Catanzaro</div>
@@ -610,7 +760,7 @@ radiomic_features = Radiomics.extract_radiomic_features(
         
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://ai4ar.opi.org.pl/wp-content/uploads/2022/10/IMG_4281.jpg" alt="Team Member">
+            <img src="https://ai4ar.opi.org.pl/wp-content/uploads/2022/10/IMG_4281.jpg" alt="Dr. Jakub Mitura">
           </div>
           <h3>Dr. Jakub Mitura, MD, PhD</h3>
           <div class="role">National Information Processing Institut</div>
@@ -618,25 +768,22 @@ radiomic_features = Radiomics.extract_radiomic_features(
         
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/59024947?v=4" alt="Team Member">
+            <img src="https://avatars.githubusercontent.com/u/59024947?v=4" alt="Eng. Mohammadreza Javadi Namin">
           </div>
           <h3>Eng. Mohammadreza Javadi Namin</h3>
           <div class="role">Politecnico di Milano</div>
         </div>
         
-        
         <div class="team-member">
           <div class="team-member-image">
-            <img src="https://mess-srl.it/wp-content/uploads/2023/09/utente-sconosciuto.png" alt="Team Member">
+            <img src="https://mess-srl.it/wp-content/uploads/2023/09/utente-sconosciuto.png" alt="Eng. Nastaran Ghaffari Elkhechi">
           </div>
-          <h3>Eng. Nastaran Ghaffari Elkhechi </h3>
+          <h3>Eng. Nastaran Ghaffari Elkhechi</h3>
           <div class="role">Politecnico di Milano</div>
         </div>
-        
       </div>
     </section>
 
-    <!-- Footer -->
     <footer class="footer">
       <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
     </footer>
@@ -644,11 +791,44 @@ radiomic_features = Radiomics.extract_radiomic_features(
 
   <script>
     const dropdownBtn = document.querySelector('.dropdown-btn');
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+
+    // Gestione Dropdown Sidebar
     dropdownBtn.addEventListener('click', () => {
       dropdownBtn.parentElement.classList.toggle('active');
     });
 
-    // Smooth scroll for anchor links
+    // Gestione Menu Mobile
+    mobileMenuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('active');
+      mobileMenuToggle.classList.toggle('active');
+      mobileMenuToggle.textContent = mobileMenuToggle.classList.contains('active') ? '✕' : '☰';
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('active');
+      mobileMenuToggle.classList.remove('active');
+      mobileMenuToggle.textContent = '☰';
+    });
+
+    // Close menu on link click (mobile)
+    const sidebarLinks = document.querySelectorAll('.sidebar a');
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('mobile-open');
+          overlay.classList.remove('active');
+          mobileMenuToggle.classList.remove('active');
+          mobileMenuToggle.textContent = '☰';
+        }
+      });
+    });
+
+    // Smooth scroll for anchor links (#team)
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function (e) {
         e.preventDefault();
