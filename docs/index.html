@@ -266,7 +266,7 @@
       z-index: 1;
     }
 
-    /* Hero Logo (Il logo grande che volevi mantenere) */
+    /* Hero Logo */
     img.hero-logo {
       width: 280px;
       margin-bottom: 30px;
@@ -410,6 +410,13 @@
       margin: 0 auto;
     }
 
+    /* MODIFICA: Utilizzo Flexbox per uniformare l'altezza */
+    .team-member-wrapper {
+      text-decoration: none;
+      display: flex; /* Modificato da block a flex per espandere il figlio */
+      height: 100%;  /* Occupa tutta l'altezza della cella della griglia */
+    }
+
     .team-member {
       background: white;
       text-align: center;
@@ -418,12 +425,24 @@
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: var(--shadow-md);
       border: 1px solid var(--border);
+      cursor: pointer;
+      
+      /* MODIFICA: Proprietà aggiunte per gestione altezza e contenuto */
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .team-member:hover {
       transform: translateY(-12px);
       box-shadow: var(--shadow-xl);
       border-color: var(--primary-light);
+    }
+    
+    .team-member-wrapper:not([href]) .team-member {
+      cursor: default;
     }
 
     .team-member-image {
@@ -617,6 +636,7 @@
     </div>
     <nav>
       <a href="index.html" class="active">Home</a>
+      <a href="#team">Team</a>
       <div class="dropdown">
         <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
@@ -631,7 +651,6 @@
         </div>
       </div>
       <a href="installation.html">Getting Started</a>
-      <a href="#team">Team</a>
     </nav>
   </aside>
 
@@ -706,80 +725,84 @@ radiomic_features = Radiomics.extract_radiomic_features(
       </div>
       
       <div class="team-grid">
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/4259198?v=4" alt="Prof. Paolo Zaffino">
+        <a href="https://dmsc.unicz.it/personale/docente/paolozaffino" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://avatars.githubusercontent.com/u/4259198?v=4" alt="Prof. Paolo Zaffino">
+            </div>
+            <h3>Prof. Paolo Zaffino</h3>
+            <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
           </div>
-          <h3>Prof. Paolo Zaffino</h3>
-          <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
-          <a href="https://dmsc.unicz.it/personale/docente/paolozaffino" target="_blank" class="team-member-link">
-            Profilo istituzionale →
-          </a>
+        </a>
+
+        <a href="https://www.ibt.kit.edu/Spadea_Francesca.php" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png" alt="Prof. Maria Francesca Spadea">
+            </div>
+            <h3>Prof. Maria Francesca Spadea</h3>
+            <div class="role">Karlsruher Institut für Technologie, Germany</div>
+          </div>
+        </a>
+        
+        <a href="https://dmsc.unicz.it/personale/docente/carlocosentino" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg" alt="Prof. Carlo Cosentino">
+            </div>
+            <h3>Prof. Carlo Cosentino</h3>
+            <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
+          </div>
+        </a>
+
+        <div class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4" alt="Eng. Aldo Giuliani">
+            </div>
+            <h3>Eng. Aldo Giuliani, PhD Student</h3>
+            <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
+          </div>
         </div>
 
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png" alt="Prof. Maria Francesca Spadea">
+        <div class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://ai4ar.opi.org.pl/wp-content/uploads/2022/10/IMG_4281.jpg" alt="Dr. Jakub Mitura">
+            </div>
+            <h3>Dr. Jakub Mitura, MD, PhD</h3>
+            <div class="role">National Information Processing Institut, Poland</div>
           </div>
-          <h3>Prof. Maria Francesca Spadea</h3>
-          <div class="role">Karlsruher Institut für Technologie, Germany</div>
-          <a href="https://www.ibt.kit.edu/Spadea_Francesca.php" target="_blank" class="team-member-link">
-            Profilo istituzionale →
-          </a>
         </div>
         
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg" alt="Prof. Carlo Cosentino">
+        <a href="http://ibt.kit.edu/english/Raggio_C.php" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://avatars.githubusercontent.com/u/96300975?v=4" alt="Eng. Ciro Benito Raggio">
+            </div>
+            <h3>Eng. Ciro Benito Raggio, Research Assistant</h3>
+            <div class="role">Karlsruher Institut für Technologie, Germany</div>
           </div>
-          <h3>Prof. Carlo Cosentino</h3>
-          <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
-          <a href="https://dmsc.unicz.it/personale/docente/carlocosentino" target="_blank" class="team-member-link">
-            Profilo istituzionale →
-          </a>
-        </div>
-
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4" alt="Eng. Aldo Giuliani">
+        </a>
+        
+        <div class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://avatars.githubusercontent.com/u/59024947?v=4" alt="Eng. Mohammadreza Javadi Namin">
+            </div>
+            <h3>Eng. Mohammadreza Javadi Namin</h3>
+            <div class="role">Politecnico di Milano, Italy</div>
           </div>
-          <h3>Eng. Aldo Giuliani, PhD Student</h3>
-          <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
-        </div>
-
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://ai4ar.opi.org.pl/wp-content/uploads/2022/10/IMG_4281.jpg" alt="Dr. Jakub Mitura">
-          </div>
-          <h3>Dr. Jakub Mitura, MD, PhD</h3>
-          <div class="role">National Information Processing Institut, Poland</div>
         </div>
         
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/96300975?v=4" alt="Eng. Ciro Benito Raggio">
+        <div class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://mess-srl.it/wp-content/uploads/2023/09/utente-sconosciuto.png" alt="Eng. Nastaran Ghaffari Elkhechi">
+            </div>
+            <h3>Eng. Nastaran Ghaffari Elkhechi</h3>
+            <div class="role">Politecnico di Milano, Italy</div>
           </div>
-          <h3>Eng. Ciro Benito Raggio, Research Assistant</h3>
-          <div class="role">Karlsruher Institut für Technologie, Germany</div>
-          <a href="http://ibt.kit.edu/english/Raggio_C.php" target="_blank" class="team-member-link">
-            Profilo istituzionale →
-          </a>
-        </div>
-        
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://avatars.githubusercontent.com/u/59024947?v=4" alt="Eng. Mohammadreza Javadi Namin">
-          </div>
-          <h3>Eng. Mohammadreza Javadi Namin</h3>
-          <div class="role">Politecnico di Milano, Italy</div>
-        </div>
-        
-        <div class="team-member">
-          <div class="team-member-image">
-            <img src="https://mess-srl.it/wp-content/uploads/2023/09/utente-sconosciuto.png" alt="Eng. Nastaran Ghaffari Elkhechi">
-          </div>
-          <h3>Eng. Nastaran Ghaffari Elkhechi</h3>
-          <div class="role">Politecnico di Milano, Italy</div>
         </div>
       </div>
     </section>
@@ -828,7 +851,6 @@ radiomic_features = Radiomics.extract_radiomic_features(
       });
     });
 
-    // Smooth scroll for anchor links (#team)
     document.querySelectorAll('a[href^="#"]').forEach(anchor => {
       anchor.addEventListener('click', function (e) {
         e.preventDefault();
