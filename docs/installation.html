@@ -372,6 +372,15 @@
       line-height: 1.7;
     }
 
+    /* Julia Syntax Highlighting */
+    .keyword { color: #c678dd; font-weight: 600; }
+    .function { color: #61afef; }
+    .string { color: #98c379; }
+    .module { color: #e5c07b; }
+    .operator { color: #56b6c2; }
+    .prompt { color: #98c379; font-weight: 600; }
+    .pkg-prompt { color: #61afef; font-weight: 600; }
+
     /* Info Box */
     .info-box {
       background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
@@ -715,7 +724,7 @@
     <section class="page-header">
       <div class="page-header-content">
         <h1>Installation Guide</h1>
-        <p>Get started with Radiomics.jl in minutes</p>
+        <p>Get started with Radiomics.jl</p>
       </div>
     </section>
 
@@ -730,8 +739,8 @@
             <span class="code-dot"></span>
             <span class="code-dot"></span>
           </div>
-          <pre><code>import Pkg
-Pkg.add("Radiomics")</code></pre>
+          <pre><code><span class="keyword">import</span> <span class="module">Pkg</span>
+<span class="module">Pkg</span><span class="operator">.</span><span class="function">add</span>(<span class="string">"Radiomics"</span>)</code></pre>
         </div>
 
         <p>Alternatively, you can use the Julia package mode by pressing <code>]</code> in the REPL:</p>
@@ -742,7 +751,7 @@ Pkg.add("Radiomics")</code></pre>
             <span class="code-dot"></span>
             <span class="code-dot"></span>
           </div>
-          <pre><code>julia> ]</code></pre>
+          <pre><code><span class="prompt">julia></span> ]</code></pre>
         </div>
 
         <p>Then, execute the following command to add Radiomics.jl to your environment:</p>
@@ -753,7 +762,7 @@ Pkg.add("Radiomics")</code></pre>
             <span class="code-dot"></span>
             <span class="code-dot"></span>
           </div>
-          <pre><code>pkg> add Radiomics</code></pre>
+          <pre><code><span class="pkg-prompt">pkg></span> add Radiomics</code></pre>
         </div>
       </div>
 
