@@ -6,6 +6,7 @@
   <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" type="image/x-icon">
   <title>Radiomics.jl - Professional Medical Imaging Library</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
       --primary: #2563eb;
@@ -21,6 +22,14 @@
       --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
       --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
       --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+      
+      /* Colori base per la sintassi (simulazione Dark Theme) */
+      --syntax-keyword: #ff79c6; /* Rosa */
+      --syntax-function: #50fa7b; /* Verde chiaro */
+      --syntax-type: #8be9fd; /* Azzurro */
+      --syntax-string: #f1fa8c; /* Giallo */
+      --syntax-comment: #6272a4; /* Grigio-blu */
+      --syntax-literal: #bd93f9; /* Viola */
     }
 
     * {
@@ -368,10 +377,22 @@
     }
 
     code {
-      font-family: 'Fira Code', 'Consolas', monospace;
+      /* Modificato il font in Fira Code per lo stile Julia */
+      font-family: 'Fira Code', 'Consolas', monospace; 
       font-size: 0.9rem;
       line-height: 1.7;
+      /* Aggiunta la proprietà display: block per consentire lo span */
+      display: block; 
     }
+
+    /* Stili per la sintassi Julia */
+    .julia-keyword { color: var(--syntax-keyword); font-weight: 600; }
+    .julia-function { color: var(--syntax-function); }
+    .julia-type { color: var(--syntax-type); }
+    .julia-string { color: var(--syntax-string); }
+    .julia-comment { color: var(--syntax-comment); }
+    .julia-literal { color: var(--syntax-literal); }
+
 
     /* Team Section */
     .team-section {
@@ -696,22 +717,22 @@
             <span class="code-dot"></span>
             <span class="code-dot"></span>
           </div>
-          <pre><code>using NIfTI
-using Radiomics
+          <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
 
-# Load medical image and segmentation mask
-ct = niread("sample_data/CTChest.nii.gz")
-mask = niread("sample_data/Lungs.nii.gz")
+<span class="julia-comment"># Load medical image and segmentation mask</span>
+ct = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
 
-# Extract voxel spacing from image header
-spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
+<span class="julia-comment"># Extract voxel spacing from image header</span>
+spacing = [<span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">2</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">3</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">4</span>]]
 
-# Extract radiomic features
-radiomic_features = Radiomics.extract_radiomic_features(
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(
     ct.raw,
     mask.raw,
     spacing;
-    verbose = true
+    verbose = <span class="julia-literal">true</span>
 )</code></pre>
         </div>
       </div>
