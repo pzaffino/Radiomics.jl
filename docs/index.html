@@ -23,13 +23,13 @@
       --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
       --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
       
-      /* Colori base per la sintassi (simulazione Dark Theme) */
-      --syntax-keyword: #ff79c6; /* Rosa */
-      --syntax-function: #50fa7b; /* Verde chiaro */
-      --syntax-type: #8be9fd; /* Azzurro */
-      --syntax-string: #f1fa8c; /* Giallo */
-      --syntax-comment: #6272a4; /* Grigio-blu */
-      --syntax-literal: #bd93f9; /* Viola */
+      /* Colori base per la sintassi */
+      --syntax-keyword: #ff79c6;
+      --syntax-function: #50fa7b;
+      --syntax-type: #8be9fd;
+      --syntax-string: #f1fa8c;
+      --syntax-comment: #6272a4;
+      --syntax-literal: #bd93f9;
     }
 
     * {
@@ -45,9 +45,11 @@
       background-color: var(--bg-light);
       color: var(--text-primary);
       line-height: 1.6;
+      overflow-x: hidden;
+      width: 100%;
     }
 
-    /* --- LAYOUT & SIDEBAR (Standardizzato) --- */
+    /* --- LAYOUT & SIDEBAR --- */
 
     /* Mobile Menu Toggle */
     .mobile-menu-toggle {
@@ -76,37 +78,13 @@
       background: #ef4444;
     }
 
-    /* Logo di Navigazione (Fisso in alto a sinistra) */
-    .top-left-logo {
-      position: fixed;
-      top: 20px;
-      left: 70px;
-      z-index: 200;
-      width: 160px;
-      height: 160px;
-      background: white;
-      border-radius: 8px;
-      padding: 10px;
-      box-shadow: var(--shadow-lg);
-      transition: transform 0.3s ease;
-    }
-
-    .top-left-logo:hover {
-      transform: scale(1.05);
-    }
-
-    .top-left-logo img {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-    }
-
     /* Sidebar Styling */
     .sidebar {
       position: fixed;
       top: 0;
       left: 0;
-      height: 100vh;
+      bottom: 0;
+      height: 100%;
       width: 300px;
       background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
       color: white;
@@ -119,28 +97,52 @@
       transition: transform 0.3s ease;
     }
 
+    /* FIX LOGO: Layout Header Sidebar */
     .sidebar-header {
-      padding: 200px 30px 30px; /* Spazio per il logo fisso */
+      /* Flexbox per centrare il contenuto (il logo) */
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 40px 20px; /* Spazio attorno al logo */
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(0, 0, 0, 0.2);
     }
 
-    .sidebar h2 {
-      font-size: 1.75rem;
-      font-weight: 800;
-      letter-spacing: -0.5px;
-      margin-bottom: 8px;
-      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
-      background-clip: text;
+    /* FIX LOGO: Stile del quadrato bianco */
+    .top-left-logo {
+      /* Rimosso position: fixed per farlo fluire nella sidebar */
+      position: relative;
+      width: 160px;
+      height: 160px;
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s ease;
+      /* Assicura che non venga schiacciato */
+      flex-shrink: 0;
     }
 
-    .sidebar-subtitle {
-      font-size: 0.85rem;
-      color: rgba(255, 255, 255, 0.6);
-      font-weight: 400;
-      letter-spacing: 0.5px;
+    .top-left-logo:hover {
+      transform: scale(1.05);
+    }
+
+    /* FIX LOGO: Link interno al logo */
+    .top-left-logo a {
+      display: block;
+      width: 100%;
+      height: 100%;
+      /* Reset stili link sidebar per evitare evidenziazioni indesiderate */
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .top-left-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
     }
 
     .sidebar nav {
@@ -150,7 +152,10 @@
       gap: 4px;
     }
 
-    .sidebar a {
+    /* Stili generali per i link della sidebar */
+    .sidebar nav > a, 
+    .sidebar .dropdown-btn, 
+    .sidebar .dropdown-content a {
       color: rgba(255, 255, 255, 0.85);
       text-decoration: none;
       padding: 14px 30px;
@@ -158,15 +163,17 @@
       font-weight: 500;
       font-size: 0.95rem;
       border-left: 3px solid transparent;
+      display: block; /* Assicura che si comportino bene */
     }
 
-    .sidebar a:hover {
+    .sidebar nav > a:hover,
+    .sidebar .dropdown-content a:hover {
       background-color: rgba(255, 255, 255, 0.08);
       color: white;
       border-left-color: var(--primary-light);
     }
     
-    .sidebar a.active {
+    .sidebar nav > a.active {
       background-color: rgba(37, 99, 235, 0.15);
       color: white;
       font-weight: 600;
@@ -181,18 +188,13 @@
     .dropdown-btn {
       background: none;
       border: none;
-      color: rgba(255, 255, 255, 0.85);
       text-align: left;
-      padding: 14px 30px;
       cursor: pointer;
-      font-size: 0.95rem;
-      font-weight: 500;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       display: flex;
       justify-content: space-between;
       align-items: center;
-      border-left: 3px solid transparent;
       font-family: 'Inter', sans-serif;
+      width: 100%;
     }
 
     .dropdown-btn::after {
@@ -226,12 +228,6 @@
       font-size: 0.88rem;
       padding: 10px 30px 10px 50px;
       font-weight: 400;
-      border-left: 3px solid transparent;
-    }
-
-    .dropdown-content a::before {
-      width: 4px;
-      height: 4px;
     }
 
     .dropdown.active .dropdown-content {
@@ -243,13 +239,13 @@
     .main {
       flex: 1;
       padding: 0;
-      width: 100%;
-      margin-left: 300px; /* Offset per la sidebar */
+      width: auto; 
+      margin-left: 300px;
+      min-width: 0;
     }
 
-    /* --- HOME PAGE SPECIFIC STYLES --- */
+    /* --- HOME PAGE STYLES --- */
 
-    /* Hero Section */
     .hero {
       background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
       padding: 80px 60px;
@@ -262,20 +258,13 @@
     .hero::before {
       content: '';
       position: absolute;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
       opacity: 0.3;
     }
 
-    .hero-content {
-      position: relative;
-      z-index: 1;
-    }
+    .hero-content { position: relative; z-index: 1; }
 
-    /* Hero Logo */
     img.hero-logo {
       width: 280px;
       margin-bottom: 30px;
@@ -295,11 +284,8 @@
       opacity: 0.95;
       max-width: 700px;
       margin: 0 auto 12px;
-      font-weight: 400;
-      color: white;
     }
 
-    /* Content Section */
     .content {
       padding: 60px;
       background: white;
@@ -307,9 +293,7 @@
       margin: 0 auto;
     }
 
-    .section {
-      margin-bottom: 60px;
-    }
+    .section { margin-bottom: 60px; }
 
     h2 {
       font-size: 2rem;
@@ -323,10 +307,8 @@
     h2::after {
       content: '';
       position: absolute;
-      bottom: 0;
-      left: 0;
-      width: 60px;
-      height: 4px;
+      bottom: 0; left: 0;
+      width: 60px; height: 4px;
       background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
       border-radius: 2px;
     }
@@ -338,7 +320,7 @@
       margin-bottom: 16px;
     }
 
-    /* Code Block (Stile coerente con le altre pagine) */
+    /* Code Block */
     .code-container {
       position: relative;
       margin-top: 24px;
@@ -354,12 +336,7 @@
       gap: 8px;
     }
 
-    .code-dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
-
+    .code-dot { width: 12px; height: 12px; border-radius: 50%; }
     .code-dot:nth-child(1) { background: #ef4444; }
     .code-dot:nth-child(2) { background: #f59e0b; }
     .code-dot:nth-child(3) { background: #10b981; }
@@ -377,22 +354,18 @@
     }
 
     code {
-      /* Modificato il font in Fira Code per lo stile Julia */
       font-family: 'Fira Code', 'Consolas', monospace; 
       font-size: 0.9rem;
       line-height: 1.7;
-      /* Aggiunta la proprietà display: block per consentire lo span */
       display: block; 
     }
 
-    /* Stili per la sintassi Julia */
     .julia-keyword { color: var(--syntax-keyword); font-weight: 600; }
     .julia-function { color: var(--syntax-function); }
     .julia-type { color: var(--syntax-type); }
     .julia-string { color: var(--syntax-string); }
     .julia-comment { color: var(--syntax-comment); }
     .julia-literal { color: var(--syntax-literal); }
-
 
     /* Team Section */
     .team-section {
@@ -401,20 +374,8 @@
       margin: 0;
     }
 
-    .team-header {
-      text-align: center;
-      margin-bottom: 60px;
-    }
-
-    .team-header h2 {
-      font-size: 2.5rem;
-      margin-bottom: 16px;
-    }
-
-    .team-header h2::after {
-      left: 50%;
-      transform: translateX(-50%);
-    }
+    .team-header { text-align: center; margin-bottom: 60px; }
+    .team-header h2::after { left: 50%; transform: translateX(-50%); }
 
     .team-subtitle {
       color: var(--text-secondary);
@@ -431,11 +392,10 @@
       margin: 0 auto;
     }
 
-    /* MODIFICA: Utilizzo Flexbox per uniformare l'altezza */
     .team-member-wrapper {
       text-decoration: none;
-      display: flex; /* Modificato da block a flex per espandere il figlio */
-      height: 100%;  /* Occupa tutta l'altezza della cella della griglia */
+      display: flex;
+      height: 100%;
     }
 
     .team-member {
@@ -446,9 +406,6 @@
       transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
       box-shadow: var(--shadow-md);
       border: 1px solid var(--border);
-      cursor: pointer;
-      
-      /* MODIFICA: Proprietà aggiunte per gestione altezza e contenuto */
       width: 100%;
       height: 100%;
       display: flex;
@@ -462,9 +419,7 @@
       border-color: var(--primary-light);
     }
     
-    .team-member-wrapper:not([href]) .team-member {
-      cursor: default;
-    }
+    .team-member-wrapper:not([href]) .team-member { cursor: default; }
 
     .team-member-image {
       position: relative;
@@ -503,23 +458,6 @@
       text-transform: uppercase;
     }
 
-    .team-member-link {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      margin-top: 12px;
-      color: var(--primary);
-      text-decoration: none;
-      font-size: 0.85rem;
-      font-weight: 500;
-      transition: all 0.3s;
-    }
-
-    .team-member-link:hover {
-      color: var(--primary-dark);
-      gap: 8px;
-    }
-
     /* Footer */
     .footer {
       background: var(--secondary);
@@ -529,118 +467,57 @@
       font-size: 0.9rem;
     }
 
-    .footer a {
-      color: var(--primary-light);
-      text-decoration: none;
-    }
+    .footer a { color: var(--primary-light); text-decoration: none; }
+    .footer a:hover { text-decoration: underline; }
 
-    .footer a:hover {
-      text-decoration: underline;
-    }
-
-    /* Overlay for mobile menu */
+    /* Overlay */
     .overlay {
       display: none;
       position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
+      top: 0; left: 0; right: 0; bottom: 0;
       background: rgba(0, 0, 0, 0.5);
       z-index: 200;
       opacity: 0;
       transition: opacity 0.3s;
     }
-
-    .overlay.active {
-      display: block;
-      opacity: 1;
-    }
+    .overlay.active { display: block; opacity: 1; }
 
     /* --- RESPONSIVE MEDIA QUERIES --- */
     
-    /* Tablet breakpoint */
     @media (max-width: 1024px) {
-      .top-left-logo {
-        width: 120px;
-        height: 120px;
-        left: 50px;
-      }
-
-      .sidebar {
-        width: 260px;
-      }
-
-      .main {
-        margin-left: 260px;
-      }
-
-      .hero, .content, .team-section, .footer {
-        padding: 40px;
-      }
+      .top-left-logo { width: 120px; height: 120px; }
+      .sidebar { width: 260px; }
+      .main { margin-left: 260px; width: auto; }
+      .hero, .content, .team-section, .footer { padding: 40px; }
     }
 
-    /* Mobile breakpoint */
     @media (max-width: 768px) {
-      body {
-        flex-direction: column;
-      }
-
-      .mobile-menu-toggle {
-        display: block;
-      }
+      body { flex-direction: column; }
+      .mobile-menu-toggle { display: block; }
 
       .sidebar {
         width: 280px;
         transform: translateX(-100%);
         z-index: 250;
+        height: 100%; 
+        bottom: 0;
       }
 
-      .sidebar.mobile-open {
-        transform: translateX(0);
-      }
+      .sidebar.mobile-open { transform: translateX(0); }
+      .main { margin-left: 0; width: 100%; }
 
-      .main {
-        margin-left: 0;
-        width: 100%;
-      }
-
-      /* Logo Mobile (Centrato in alto) */
+      /* Su mobile il logo sta dentro il menu, quindi resettiamo eventuali stili legacy */
       .top-left-logo {
-        width: 80px;
-        height: 80px;
-        top: 15px;
-        left: 50%;
-        transform: translateX(-50%);
+        width: 100px; height: 100px;
       }
 
-      .top-left-logo:hover {
-        transform: translateX(-50%) scale(1.05);
-      }
-
-      .sidebar-header {
-        padding: 110px 25px 25px;
-      }
-
-      .hero {
-        padding: 100px 30px 40px; /* Padding extra in alto per non finire sotto il logo fisso */
-      }
-
-      .content, .team-section, .footer {
-        padding: 40px 30px;
-      }
-
-      h2 {
-        font-size: 1.75rem;
-      }
-
-      .team-grid {
-        grid-template-columns: 1fr;
-      }
+      .sidebar-header { padding: 60px 25px 25px; }
       
-      img.hero-logo {
-        width: 200px; /* Logo Hero un po' più piccolo su mobile */
-      }
+      .hero { padding: 100px 30px 40px; }
+      .content, .team-section, .footer { padding: 40px 30px; }
+      h2 { font-size: 1.75rem; }
+      .team-grid { grid-template-columns: 1fr; }
+      img.hero-logo { width: 200px; }
     }
   </style>
 </head>
@@ -652,7 +529,9 @@
   <aside class="sidebar" id="sidebar">
     <div class="sidebar-header">
       <div class="top-left-logo">
-        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Radiomics.jl Logo">
+        <a href="index.html">
+            <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Radiomics.jl Logo">
+        </a>
       </div>
     </div>
     <nav>
@@ -838,12 +717,10 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');
 
-    // Gestione Dropdown Sidebar
     dropdownBtn.addEventListener('click', () => {
       dropdownBtn.parentElement.classList.toggle('active');
     });
 
-    // Gestione Menu Mobile
     mobileMenuToggle.addEventListener('click', () => {
       sidebar.classList.toggle('mobile-open');
       overlay.classList.toggle('active');
@@ -867,16 +744,6 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
           overlay.classList.remove('active');
           mobileMenuToggle.classList.remove('active');
           mobileMenuToggle.textContent = '☰';
-        }
-      });
-    });
-
-    document.querySelectorAll('a[href^="#"]').forEach(anchor => {
-      anchor.addEventListener('click', function (e) {
-        e.preventDefault();
-        const target = document.querySelector(this.getAttribute('href'));
-        if (target) {
-          target.scrollIntoView({ behavior: 'smooth', block: 'start' });
         }
       });
     });
