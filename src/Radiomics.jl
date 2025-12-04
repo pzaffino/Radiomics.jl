@@ -38,9 +38,11 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                                             verbose::Bool=false)::Dict{String, Float32}
 
     total_start_time = time()
+    total_time_accumulated = 0.0
+    total_bytes_accumulated = 0
 
     if verbose
-        println("Extracting ONLY GLCM radiomic features...")
+        println("Extracting radiomic features...")
         if !isnothing(n_bins)
             println("Using n_bins = $n_bins")
         elseif !isnothing(bin_width)
@@ -57,111 +59,133 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                                               force_2d, force_2d_dimension)
 
     # Sanity check
-    sanity_check_start_time = time()
-    input_sanity_check(img, mask, verbose)
+    result = @timed input_sanity_check(img, mask, verbose)
+    total_time_accumulated += result.time
+    total_bytes_accumulated += result.bytes
     if verbose
-        println("Sanity check time = $(time() - sanity_check_start_time) sec")
+        println("Sanity check: $(result.time) sec, $(result.bytes / 1024^2) MiB")
     end
 
     if ndims(img) == 3
         # First order features
-        first_order_start_time = time()
-        first_order_features = get_first_order_features(img, mask, voxel_spacing, verbose)
+        result = @timed get_first_order_features(img, mask, voxel_spacing, verbose)
+        first_order_features = result.value
         merge!(radiomic_features, first_order_features)
+        total_time_accumulated += result.time
+        total_bytes_accumulated += result.bytes
         if verbose
-            println("First order feature extraction time = $(time() - first_order_start_time) sec")
+            println("First order: $(result.time) sec, $(result.bytes / 1024^2) MiB")
             print_features("First Order Features", first_order_features)
         end
     end
 
-    # Work with 3d or 2d images
-    glcm_start_time = time()
-    glcm_features = get_glcm_features(img, mask, voxel_spacing; 
+    # Work with 3d or 2d images - GLCM features
+    result = @timed get_glcm_features(img, mask, voxel_spacing; 
                                       n_bins=n_bins, 
                                       bin_width=bin_width, 
                                       verbose=verbose)
+    glcm_features = result.value
     merge!(radiomic_features, glcm_features)
+    total_time_accumulated += result.time
+    total_bytes_accumulated += result.bytes
     if verbose
-        println("GLCM feature extraction time = $(time() - glcm_start_time) sec")
+        println("GLCM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
         print_features("GLCM Features", glcm_features)
-        println("Total GLCM features extracted: $(length(radiomic_features))")
+        println("Total GLCM features extracted: $(length(glcm_features))")
     end
 
     if ndims(mask) == 2
         # 2D shape features
-        shape_2d_start_time = time()
-        shape_2d_features = get_shape2d_features(mask, voxel_spacing, verbose)
+        result = @timed get_shape2d_features(mask, voxel_spacing, verbose)
+        shape_2d_features = result.value
         merge!(radiomic_features, shape_2d_features)
+        total_time_accumulated += result.time
+        total_bytes_accumulated += result.bytes
         if verbose
-            println("2D shape feature extraction time = $(time() - shape_2d_start_time) sec")
+            println("2D shape: $(result.time) sec, $(result.bytes / 1024^2) MiB")
             print_features("2D Shape Features", shape_2d_features)
         end
 
     elseif ndims(mask) == 3
         # 3D shape features
-        shape_3d_start_time = time()
-        shape_3d_features = get_shape3d_features(mask, voxel_spacing; verbose=verbose)
+        result = @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose)
+        shape_3d_features = result.value
         merge!(radiomic_features, shape_3d_features)
+        total_time_accumulated += result.time
+        total_bytes_accumulated += result.bytes
         if verbose
-            println("3D shape feature extraction time = $(time() - shape_3d_start_time) sec")
+            println("3D shape: $(result.time) sec, $(result.bytes / 1024^2) MiB")
             print_features("3D Shape Features", shape_3d_features)
         end
 
         # GLSZM features
-        glszm_start_time = time()
-        glszm_features = get_glszm_features(img, mask, voxel_spacing; 
+        result = @timed get_glszm_features(img, mask, voxel_spacing; 
                                       n_bins=n_bins, 
                                       bin_width=bin_width, 
                                       verbose=verbose)
+        glszm_features = result.value
         merge!(radiomic_features, glszm_features)
+        total_time_accumulated += result.time
+        total_bytes_accumulated += result.bytes
         if verbose
-            println("GLSZM feature extraction time = $(time() - glszm_start_time) sec")
+            println("GLSZM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
             print_features("GLSZM Features", glszm_features)
         end
 
         # NGTDM features
-        ngtdm_start_time = time()
-        ngtdm_features = get_ngtdm_features(img, mask, voxel_spacing; 
+        result = @timed get_ngtdm_features(img, mask, voxel_spacing; 
                                       n_bins=n_bins, 
                                       bin_width=bin_width, 
                                       verbose=verbose)
+        ngtdm_features = result.value
         merge!(radiomic_features, ngtdm_features)
+        total_time_accumulated += result.time
+        total_bytes_accumulated += result.bytes
         if verbose
-            println("NGTDM feature extraction time = $(time() - ngtdm_start_time) sec")
+            println("NGTDM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
             print_features("NGTDM Features", ngtdm_features)
         end
 
         # GLRLM features
-        glrlm_start_time = time()
-        glrlm_features = get_glrlm_features(img, mask, voxel_spacing; 
+        result = @timed get_glrlm_features(img, mask, voxel_spacing; 
                                       n_bins=n_bins, 
                                       bin_width=bin_width, 
                                       verbose=verbose)
+        glrlm_features = result.value
         merge!(radiomic_features, glrlm_features)
+        total_time_accumulated += result.time
+        total_bytes_accumulated += result.bytes
         if verbose
-            println("GLRLM feature extraction time = $(time() - glrlm_start_time) sec")
+            println("GLRLM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
             print_features("GLRLM Features", glrlm_features)
         end
 
         # GLDM features
-        gldm_start_time = time()
-        gldm_features = get_gldm_features(img, mask, voxel_spacing; 
+        result = @timed get_gldm_features(img, mask, voxel_spacing; 
                                       n_bins=n_bins, 
                                       bin_width=bin_width, 
                                       verbose=verbose)
+        gldm_features = result.value
         merge!(radiomic_features, gldm_features)
+        total_time_accumulated += result.time
+        total_bytes_accumulated += result.bytes
         if verbose
-            println("GLDM feature extraction time = $(time() - gldm_start_time) sec")
+            println("GLDM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
             print_features("GLDM Features", gldm_features)
         end
     end
 
+    total_time_real = time() - total_start_time
+
     if verbose
         println("\n======================")
         println("Total features extracted: $(length(radiomic_features))")
+        println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
+        println("Real time (end-to-end): $(total_time_real) sec")
+        println("Overhead: $(total_time_real - total_time_accumulated) sec")
+        println("Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
         println("======================\n")
         println("Radiomic features extraction completed.")
-        println("Total time = $(time() - total_start_time) sec")
     end
 
     return radiomic_features
@@ -169,13 +193,15 @@ end
 
 """
 Examples of usage:
-# 1) Whith specific n_bins: radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; n_bins=64, verbose=true);
+# 1) With specific n_bins: 
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; n_bins=64, verbose=true);
 
-# 2) Whith specific bin_width: radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; bin_width=25.0f0, verbose=true);
+# 2) With specific bin_width: 
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; bin_width=25.0f0, verbose=true);
 
-# 3) Whith default setting: radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=true); use a default bin_width (25)
+# 3) With default setting: 
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=true);
+# Uses default bin_width (25)
 """
 
-end 
-
-
+end
