@@ -36,6 +36,9 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                                             n_bins::Union{Int,Nothing}=nothing,
                                             bin_width::Union{Float32,Nothing}=nothing,
                                             verbose::Bool=false)::Dict{String, Float32}
+
+    total_start_time = time()
+
     if verbose
         println("Extracting ONLY GLCM radiomic features...")
         if !isnothing(n_bins)
@@ -157,6 +160,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         println("\n======================")
         println("Total features extracted: $(length(radiomic_features))")
         println("======================\n")
+        println("Radiomic features extraction completed.")
+        println("Total time = $(time() - total_start_time) sec")
     end
 
     return radiomic_features
