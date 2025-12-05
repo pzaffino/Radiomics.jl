@@ -115,15 +115,6 @@ function get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Fl
     # Step 7: Calculate voxel-based volume
     shape_3d_features["shape3d_voxel_volume"] = voxel_volume(processed_mask, spacing)
     
-    # Print features
-    if verbose
-        println("\n  ===== Computed Shape 3D Features =====")
-        for (k, v) in sort(collect(shape_3d_features))
-            println("    $k = $v")
-        end
-        println("  =====================================")
-    end
-
     return shape_3d_features
 end
 
@@ -580,11 +571,11 @@ end
     
     # Notes
     - sample_rate = 1.0: exact calculation (slow for large meshes)
-    - sample_rate = 0.1-0.3: good approximation with significant speedup, default 0.3
+    - sample_rate = 0.1-0.3: good approximation with significant speedup, default 0.05
     - sample_rate = 0.05: fast approximation, may underestimate slightly
     """
 function maximum_3d_diameter(triangles::Vector{NTuple{3,Vector{Float64}}}; 
-                            sample_rate::Float64=0.3,
+                            sample_rate::Float64=0.05,
                             min_samples::Int=100)
     if isempty(triangles)
         return Float32(0.0)

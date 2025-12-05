@@ -1,10 +1,4 @@
-###############################################################
-# GLSZM Radiomics - Using Shared Discretization Module
-###############################################################
-
 using StatsBase
-
-# La funzione discretize_image è in utils.jl che viene incluso da Radiomics.jl
 
 """
     get_glszm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false)
@@ -57,9 +51,9 @@ function get_glszm_features(img, mask, voxel_spacing;
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
     if verbose
-        println("intensity range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Using Bin width: $(bin_width_used)")
-        println("Effective number of gray levek: $(n_bins_actual)")
+        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Bin width utilized: $(bin_width_used)")
+        println("Effective Gray level utilized: $(n_bins_actual)")
     end
 
     # 2. Calculate the GLSZM matrix

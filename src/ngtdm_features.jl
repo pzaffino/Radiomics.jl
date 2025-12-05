@@ -37,11 +37,11 @@ function get_ngtdm_features(img, mask, voxel_spacing;
                            verbose=false)
     if verbose
         if !isnothing(n_bins)
-            println("Calcolo NGTDM con $(n_bins) bins...")
+            println("NGTDM calculation with $(n_bins) bins...")
         elseif !isnothing(bin_width)
-            println("Calcolo NGTDM con bin_width=$(bin_width)...")
+            println("NGTDM calculation with bin_width=$(bin_width)...")
         else
-            println("Calcolo NGTDM con 32 bins (default)...")
+            println("NGTDM calculation with 32 bins (default)...")
         end
     end
 
@@ -51,9 +51,9 @@ function get_ngtdm_features(img, mask, voxel_spacing;
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
     if verbose
-        println("Range intensità: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilizzata: $(bin_width_used)")
-        println("Numero di gray levels effettivi: $(n_bins_actual)")
+        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Bin width utilized: $(bin_width_used)")
+        println("Effective gray level: $(n_bins_actual)")
     end
 
     # 2. Calculate the NGTDM matrix
@@ -70,7 +70,7 @@ function get_ngtdm_features(img, mask, voxel_spacing;
     ngtdm_features["ngtdm_Strength"] = strength(p_i, s_i, ivector)
 
     if verbose
-        println("Completato! Estratte $(length(ngtdm_features)) features.")
+        println("completed, extract $(length(ngtdm_features)) features.")
     end
 
     return ngtdm_features

@@ -30,9 +30,9 @@ function calculate_glcm_3d(img::Array{Float32,3},
     disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
     
     if verbose
-        println("Range intensità: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilizzata: $(bin_width_used)")
-        println("Numero di gray levels effettivi: $(n_levels)")
+        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Bin width utilized: $(bin_width_used)")
+        println("Effective gray level utilized: $(n_levels)")
     end
     
     mask_idx = findall(mask)
@@ -311,11 +311,11 @@ function get_glcm_features(img::Array{Float32,3},
 
     if verbose
         if !isnothing(n_bins)
-            println("Calcolo GLCM con $(n_bins) bins...")
+            println("Calculating GLCM with $(n_bins) bins...")
         elseif !isnothing(bin_width)
-            println("Calcolo GLCM con bin_width=$(bin_width)...")
+            println("GLCM calculation with bin_width=$(bin_width)...")
         else
-            println("Calcolo GLCM con 32 bins (default)...")
+            println("GLCM calculation with 32 bins (default)...")
         end
     end
 
@@ -338,7 +338,7 @@ function get_glcm_features(img::Array{Float32,3},
         feats[name] = mean([f[name] for f in all_features])
     end
 
-    verbose && println("Completato! Estratte $(length(feats)) features.")
+    verbose && println("completed! Extract $(length(feats)) features.")
 
     return feats
 end
