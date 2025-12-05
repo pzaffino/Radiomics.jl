@@ -40,11 +40,11 @@ function get_gldm_features(img, mask, voxel_spacing;
                           verbose=false)
     if verbose
         if !isnothing(n_bins)
-            println("Calcolo GLDM con $(n_bins) bins...")
+            println("Calculating GLDM with $(n_bins) bins...")
         elseif !isnothing(bin_width)
-            println("Calcolo GLDM con bin_width=$(bin_width)...")
+            println("GLDM calculation with bin_width=$(bin_width)...")
         else
-            println("Calcolo GLDM con 32 bins (default)...")
+            println("GLDM calculation with 32 bins (default)...")
         end
     end
 
@@ -53,9 +53,9 @@ function get_gldm_features(img, mask, voxel_spacing;
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
     if verbose
-        println("Range intensità: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilizzata: $(bin_width_used)")
-        println("Numero di gray levels effettivi: $(n_bins_actual)")
+        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Bin width utilized: $(bin_width_used)")
+        println("Effective Gray level utilized: $(n_bins_actual)")
     end
 
     P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
@@ -78,7 +78,7 @@ function get_gldm_features(img, mask, voxel_spacing;
     gldm_features["gldm_LargeDependenceHighGrayLevelEmphasis"] = gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
 
     if verbose
-        println("Completato! Estratte $(length(gldm_features)) features.")
+        println("Completed! Extract $(length(gldm_features)) features.")
     end
 
     return gldm_features

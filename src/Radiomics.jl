@@ -91,7 +91,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     if verbose
         println("GLCM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
         print_features("GLCM Features", glcm_features)
-        println("Total GLCM features extracted: $(length(glcm_features))")
     end
 
     if ndims(mask) == 2

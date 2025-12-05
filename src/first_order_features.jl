@@ -29,135 +29,78 @@ function get_first_order_features(img::Array{Float32, 3}, mask::BitArray{3}, vox
     # Energy
     energy_feature_value::Float32 = get_energy_feature_value(roi_voxels)
     first_order_features["firstorder_energy"] = energy_feature_value
-    if verbose
-        println("  energy_feature_value = $energy_feature_value")
-    end
     
     # Total energy
     total_energy_feature_value::Float32 = get_total_energy_feature_value(voxel_volume, energy_feature_value)
     first_order_features["firstorder_total_energy"] = total_energy_feature_value
-    if verbose
-        println("  Total energy = $total_energy_feature_value")
-    end
 
     # Entropy
     entropy_feature_value::Float32 = get_entropy_feature_value(roi_voxels)
     first_order_features["firstorder_entropy"] = entropy_feature_value
-    if verbose
-        println("  Entropy = $entropy_feature_value")
-    end
 
     # Minimum
     minimum_feature_value::Float32 = get_minimum_feature_value(roi_voxels)
     first_order_features["firstorder_minimum"] = minimum_feature_value
-    if verbose
-        println("  Minimum = $minimum_feature_value")
-    end
 
     # 10th percentile
     percentile10_feature_value::Float32 = get_percentile10_feature_value(roi_voxels)
     first_order_features["firstorder_percentile10"] = percentile10_feature_value
-    if verbose
-        println("  10th percentile = $percentile10_feature_value")
-    end
 
     # 90th percentile
     percentile90_feature_value::Float32 = get_percentile90_feature_value(roi_voxels)
     first_order_features["firstorder_percentile90"] = percentile90_feature_value
-    if verbose
-        println("  90th percentile = $percentile90_feature_value")
-    end
 
     # Maximum
     maximum_feature_value::Float32 = get_maximum_feature_value(roi_voxels)
     first_order_features["firstorder_maximum"] = maximum_feature_value
-    if verbose
-        println("  Maximum = $maximum_feature_value")
-    end
 
     # Mean
     mean_feature_value::Float32 = get_mean_feature_value(roi_voxels)
     first_order_features["firstorder_mean"] = mean_feature_value
-    if verbose
-        println("  Mean = $mean_feature_value")
-    end
 
     # Median
     median_feature_value::Float32 = get_median_feature_value(roi_voxels)
     first_order_features["firstorder_median"] = median_feature_value
-    if verbose
-        println("  Median = $median_feature_value")
-    end
 
     # Interquartile range
     interquartile_range_feature_value::Float32 = get_interquartile_range_feature_value(roi_voxels)
     first_order_features["firstorder_interquartile_range"] = interquartile_range_feature_value
-    if verbose
-        println("  Interquartile range = $interquartile_range_feature_value")
-    end
 
     # Range
     range_feature_value::Float32 = get_range_feature_value(maximum_feature_value, minimum_feature_value)
     first_order_features["firstorder_range"] = range_feature_value
-    if verbose
-        println("  Range = $range_feature_value")
-    end
    
     # Mean absolute deviation
     mean_absolute_deviation_feature_value::Float32 = get_mean_absolute_deviation_feature_value(roi_voxels, mean_feature_value)
     first_order_features["firstorder_mean_absolute_deviation"] = mean_absolute_deviation_feature_value
-    if verbose
-        println("  Mean absolute deviation = $mean_absolute_deviation_feature_value")
-    end
 
     # Robust mean absolute deviation
     robust_mean_absolute_deviation_feature_value::Float32 = get_robust_mean_absolute_deviation_feature_value(roi_voxels)
     first_order_features["firstorder_robust_mean_absolute_deviation"] = robust_mean_absolute_deviation_feature_value
-    if verbose
-        println("  Robust mean absolute deviation = $robust_mean_absolute_deviation_feature_value")
-    end
 
     # Root mean squared
     root_mean_squared_feature_value::Float32 = get_root_mean_squared_feature_value(roi_voxels)
     first_order_features["firstorder_root_mean_squared"] = root_mean_squared_feature_value
-    if verbose
-        println("  Root mean squared = $root_mean_squared_feature_value")
-    end
 
     # Standard deviation
     standard_deviation_feature_value::Float32 = get_standard_deviation_feature_value(roi_voxels)
     first_order_features["firstorder_standard_deviation"] = standard_deviation_feature_value
-    if verbose
-        println("  Standard deviation = $standard_deviation_feature_value")
-    end
 
     # Skewness
     skewness_feature_value::Float32 = get_skewness_feature_value(roi_voxels, mean_feature_value)
     first_order_features["firstorder_skewness"] = skewness_feature_value
-    if verbose
-        println("  Skewness = $skewness_feature_value")
-    end
 
     # Kurtosis
     kurtosis_feature_value::Float32 = get_kurtosis_feature_value(roi_voxels, mean_feature_value)
     first_order_features["firstorder_kurtosis"] = kurtosis_feature_value
-    if verbose
-        println("  Kurtosis = $kurtosis_feature_value")
-    end
 
     # Variance
     variance_feature_value::Float32 = get_variance_feature_value(roi_voxels, mean_feature_value)
     first_order_features["firstorder_variance"] = variance_feature_value
-    if verbose
-        println("  Variance = $variance_feature_value")
-    end
 
     # Uniformity
     uniformity_feature_value::Float32 = get_uniformity_feature_value(roi_voxels)
     first_order_features["firstorder_uniformity"] = uniformity_feature_value
-    if verbose
-        println("  Uniformity = $uniformity_feature_value")
-    end
 
     # Return dictionary with first order features
     return first_order_features

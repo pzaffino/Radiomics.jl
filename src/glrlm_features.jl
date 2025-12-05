@@ -37,11 +37,11 @@ function get_glrlm_features(img, mask, voxel_spacing;
                            verbose=false)
     if verbose
         if !isnothing(n_bins)
-            println("Calcolo GLRLM con $(n_bins) bins...")
+            println("Calculating GLRLM with $(n_bins) bins...")
         elseif !isnothing(bin_width)
-            println("Calcolo GLRLM con bin_width=$(bin_width)...")
+            println("Calculating GLRLM with bin_width=$(bin_width)...")
         else
-            println("Calcolo GLRLM con 32 bins (default)...")
+            println("GLRLM calculation with 32 bins (default)...")
         end
     end
 
@@ -50,9 +50,9 @@ function get_glrlm_features(img, mask, voxel_spacing;
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
     if verbose
-        println("Range intensità: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilizzata: $(bin_width_used)")
-        println("Numero di gray levels effettivi: $(n_bins_actual)")
+        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Bin width utilized: $(bin_width_used)")
+        println("Effective Gray level utilized: $(n_bins_actual)")
     end
 
     P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, verbose)
@@ -72,7 +72,7 @@ function get_glrlm_features(img, mask, voxel_spacing;
     end
 
     if verbose
-        println("Completato! Estratte $(length(glrlm_features)) features.")
+        println("Completed! Extract $(length(glrlm_features)) features.")
     end
 
     return glrlm_features
