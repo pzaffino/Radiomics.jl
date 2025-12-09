@@ -12,7 +12,7 @@
 ## **Implemented features**
 
 Right now, the implemented features are:
-- first order features
+- first-order features
 - 2D shape features
 - 3D shape features
 - GLCM features
@@ -49,13 +49,13 @@ To compute only a subset of features, specify the desired ones using the feature
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features = [:glcm, :gldm])
 ```
-To compute more features with specific bin_width
+To compute more features with a specific bin_width
 ```julia
-radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], bin_width=25.0f0, verbose=true);
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], bin_width=25.0f0);
 ```
 To compute with a specific number of bins
 ```julia
-radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], n_bins=16, verbose=true);
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], n_bins=16);
 ```
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
