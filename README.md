@@ -45,6 +45,11 @@ spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true)
 ```
+To compute only a subset of features, specify the desired ones using the features flag.
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features = [:glcm, :gldm], verbose = true)
+```
+
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
