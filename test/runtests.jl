@@ -122,7 +122,7 @@ using Radiomics
     @test isapprox(radiomic_features["shape3d_surface_volume_ratio"], 0.09963599f0; rtol=0.02)
     @test isapprox(radiomic_features["shape3d_sphericity"], 0.26823393f0; rtol=0.02)
     @test isapprox(radiomic_features["shape3d_major_axis_length"], 314.70545f0; atol=0.01)
-    @test isapprox(radiomic_features["shape3d_maximum_3d_diameter"], 348.74203; atol=0.04)
+    @test isapprox(radiomic_features["shape3d_maximum_3d_diameter"], 345.69965; atol=0.04)# With sample_rate = 0.03, dafault settings
     @test isapprox(radiomic_features["shape3d_minor_axis_length"], 240.64522f0; atol=0.01)
     @test isapprox(radiomic_features["shape3d_least_axis_length"], 180.21617f0; atol=0.01)
     @test isapprox(radiomic_features["shape3d_elongation"], 0.7646681f0; atol=0.01)
