@@ -51,11 +51,11 @@ radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacin
 ```
 To compute more features with specific bin_width
 ```julia
-radiomic_features = extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], bin_width=25.0f0, verbose=true);
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], bin_width=25.0f0, verbose=true);
 ```
 To compute with a specific number of bins
 ```julia
-radiomic_features = extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], n_bins=16, verbose=true);
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], n_bins=16, verbose=true);
 ```
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
