@@ -223,24 +223,24 @@ end
 """
 # Examples:
     # Compute only GLCM features
-    features = extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm], verbose=true);
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm], verbose=true);
     
     # Compute only first_order and shape3d
-    features = extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:first_order, :shape3d], verbose=true);
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:first_order, :shape3d], verbose=true);
     
     # Compute GLCM and GLSZM with specific bin_width
-    features = extract_radiomic_features(ct.raw, mask.raw, spacing; 
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm], 
                                         bin_width=25.0f0, 
                                         verbose=true);
     
     # Compute all features (default behavior)
-    features = extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:all], verbose=true);
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:all], verbose=true);
     # or simply:
-    features = extract_radiomic_features(ct.raw, mask.raw, spacing, verbose=true);
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing, verbose=true);
     
     # Compute all texture features
-    features = extract_radiomic_features(ct.raw, mask.raw, spacing; 
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm, :glrlm, :gldm, :ngtdm], verbose=true);
     ```
 """
