@@ -538,6 +538,7 @@
     </div>
     <nav>
       <a href="index.html" class="active">Home</a> 
+      <a href="installation.html">Getting Started</a>
       <div class="dropdown">
         <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
@@ -551,7 +552,6 @@
           <a href="ngtdm.html">NGTDM features</a>
         </div>
       </div>
-      <a href="installation.html">Getting Started</a>
     </nav>
   </aside>
 
@@ -609,12 +609,7 @@ mask = <span class="julia-function">niread</span>(<span class="julia-string">"sa
 spacing = [<span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">2</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">3</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">4</span>]]
 
 <span class="julia-comment"># Extract radiomic features</span>
-radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(
-    ct.raw,
-    mask.raw,
-    spacing;
-    verbose = <span class="julia-literal">true</span>
-)</code></pre>
+radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing)</code></pre>
         </div>
       </div>
     </div>
