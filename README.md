@@ -43,7 +43,19 @@ ct = niread("sample_data/CTChest.nii.gz")
 mask = niread("sample_data/Lungs.nii.gz")
 spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true)
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing)
+```
+To compute only a subset of features, specify the desired ones using the features flag.
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features = [:glcm, :gldm])
+```
+To compute more features with specific bin_width
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], bin_width=25.0f0, verbose=true);
+```
+To compute with a specific number of bins
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], n_bins=16, verbose=true);
 ```
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
