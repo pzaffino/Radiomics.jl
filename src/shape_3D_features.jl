@@ -102,7 +102,7 @@ function get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Fl
     coords = get_voxel_coords(processed_mask, spacing)
 
     # Step 7: Maximum 3D Diameter
-    maxdiam = maximum_3d_diameter(triangles, sample_rate=0.3) # Sample rate for accuracy
+    maxdiam = maximum_3d_diameter(triangles, sample_rate=0.03) # Sample rate for accuracy
     shape_3d_features["shape3d_maximum_3d_diameter"] = maxdiam
     
     axes_lengths, elongation, flatness = principal_axes_features(coords)
@@ -575,7 +575,7 @@ end
     - sample_rate = 0.05: fast approximation, may underestimate slightly
     """
 function maximum_3d_diameter(triangles::Vector{NTuple{3,Vector{Float64}}}; 
-                            sample_rate::Float64=0.05,
+                            sample_rate::Float64=0.03,
                             min_samples::Int=100)
     if isempty(triangles)
         return Float32(0.0)
