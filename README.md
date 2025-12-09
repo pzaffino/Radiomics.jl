@@ -43,7 +43,7 @@ ct = niread("sample_data/CTChest.nii.gz")
 mask = niread("sample_data/Lungs.nii.gz")
 spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true)
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features = [:all], verbose = true)
 ```
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
