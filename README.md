@@ -1,7 +1,7 @@
 # **Welcome to Radiomics.jl**
-<a href="https://github.com/pzaffino/radiomics.jl">
+<center><a href="https://github.com/pzaffino/radiomics.jl">
   <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Logo Radiomicsjl" width="500"/>
-</a>
+</a></center>
 
 
 **Radiomics.jl** is an open-source Julia library for extracting radiomics features from medical images.
