@@ -38,12 +38,13 @@ include("gldm_features.jl")
     - A dictionary where keys are the feature names and values are the calculated feature values.
 """
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-                                   force_2d::Bool=false,
-                                   force_2d_dimension::Int=1,
-                                   n_bins::Union{Int,Nothing}=nothing,
-                                   bin_width::Union{Float32,Nothing}=nothing,
-                                   verbose::Bool=false,
-                                   features::Vector{Symbol}=[:all])::Dict{String, Float32}
+    force_2d::Bool=false,
+    force_2d_dimension::Int=1,
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float32,Nothing}=nothing,
+    verbose::Bool=false,
+    sample_rate::Float64=0.03,
+    features::Vector{Symbol}=[:all])::Dict{String,Float32}
 
     total_start_time = time()
     total_time_accumulated = 0.0
@@ -51,7 +52,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # If features contains :all, compute all features
     compute_all = :all in features
-    
+
     if verbose
         println("Extracting radiomic features...")
         if compute_all
@@ -66,13 +67,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         else
             println("Using default n_bins = 32")
         end
+        if sample_rate != 0.03
+            println("Using explicit sample_rate = $sample_rate")
+        end
     end
 
-    radiomic_features = Dict{String, Float32}()
+    radiomic_features = Dict{String,Float32}()
 
     # Cast and prepare inputs
     img, mask, voxel_spacing = prepare_inputs(img_input, mask_input, voxel_spacing_input,
-                                              force_2d, force_2d_dimension)
+        force_2d, force_2d_dimension)
 
     # Sanity check
     result = @timed input_sanity_check(img, mask, verbose)
@@ -97,10 +101,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # GLCM features (2D or 3D)
     if compute_all || :glcm in features
-        result = @timed get_glcm_features(img, mask, voxel_spacing; 
-                                          n_bins=n_bins, 
-                                          bin_width=bin_width, 
-                                          verbose=verbose)
+        result = @timed get_glcm_features(img, mask, voxel_spacing;
+            n_bins=n_bins,
+            bin_width=bin_width,
+            verbose=verbose)
         glcm_features = result.value
         merge!(radiomic_features, glcm_features)
         total_time_accumulated += result.time
@@ -128,7 +132,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     elseif ndims(mask) == 3
         # 3D shape features
         if compute_all || :shape3d in features
-            result = @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose)
+            result = @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate)
             shape_3d_features = result.value
             merge!(radiomic_features, shape_3d_features)
             total_time_accumulated += result.time
@@ -141,10 +145,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         # GLSZM features
         if compute_all || :glszm in features
-            result = @timed get_glszm_features(img, mask, voxel_spacing; 
-                                          n_bins=n_bins, 
-                                          bin_width=bin_width, 
-                                          verbose=verbose)
+            result = @timed get_glszm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose)
             glszm_features = result.value
             merge!(radiomic_features, glszm_features)
             total_time_accumulated += result.time
@@ -157,10 +161,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         # NGTDM features
         if compute_all || :ngtdm in features
-            result = @timed get_ngtdm_features(img, mask, voxel_spacing; 
-                                          n_bins=n_bins, 
-                                          bin_width=bin_width, 
-                                          verbose=verbose)
+            result = @timed get_ngtdm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose)
             ngtdm_features = result.value
             merge!(radiomic_features, ngtdm_features)
             total_time_accumulated += result.time
@@ -173,10 +177,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         # GLRLM features
         if compute_all || :glrlm in features
-            result = @timed get_glrlm_features(img, mask, voxel_spacing; 
-                                          n_bins=n_bins, 
-                                          bin_width=bin_width, 
-                                          verbose=verbose)
+            result = @timed get_glrlm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose)
             glrlm_features = result.value
             merge!(radiomic_features, glrlm_features)
             total_time_accumulated += result.time
@@ -189,10 +193,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         # GLDM features
         if compute_all || :gldm in features
-            result = @timed get_gldm_features(img, mask, voxel_spacing; 
-                                          n_bins=n_bins, 
-                                          bin_width=bin_width, 
-                                          verbose=verbose)
+            result = @timed get_gldm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose)
             gldm_features = result.value
             merge!(radiomic_features, gldm_features)
             total_time_accumulated += result.time
