@@ -1,4 +1,75 @@
-using Images
+"""
+    label_components(mask::AbstractArray{Bool})
+
+    Labels connected components in a binary mask using 26-connectivity for 3D
+    (or 8-connectivity for 2D).
+
+    # Arguments:
+        - `mask`: The input binary mask.
+
+    # Returns:
+        - An array of the same size as `mask` with integer labels.
+    """
+function label_components(mask::AbstractArray{Bool})
+    labels = zeros(Int, size(mask))
+    current_label = 0
+    queue = Int[]
+    sizehint!(queue, length(mask)) # Pre-allocate somewhat
+
+    dims = size(mask)
+    lin_indices = LinearIndices(dims)
+    cart_indices = CartesianIndices(dims)
+
+    # 3D offsets for 26-connectivity, or 2D for 8-connectivity
+    # We'll generate them dynamically to handle generic dims
+    offsets = Int[]
+    if ndims(mask) == 3
+        for z in -1:1, y in -1:1, x in -1:1
+            (x == 0 && y == 0 && z == 0) && continue
+            push!(offsets, lin_indices[CartesianIndex(x + 2, y + 2, z + 2)] - lin_indices[CartesianIndex(2, 2, 2)])
+        end
+    elseif ndims(mask) == 2
+        for y in -1:1, x in -1:1
+            (x == 0 && y == 0) && continue
+            push!(offsets, lin_indices[CartesianIndex(x + 2, y + 2)] - lin_indices[CartesianIndex(2, 2)])
+        end
+    end
+    # Note: The above offset calculation is a bit tricky with edge cases if not careful 
+    # about bounds. It's safer to use CartesianIndices for bounds checking or 
+    # standard neighbor iteration. 
+    # Let's stick to a robust standard BFS with CartesianIndices to ensure correctness 
+    # at edges, similar to the existing get_neighbors but optimized for the queue.
+
+    @inbounds for i in eachindex(mask)
+        if mask[i] && labels[i] == 0
+            current_label += 1
+            labels[i] = current_label
+            push!(queue, i)
+
+            while !isempty(queue)
+                idx = pop!(queue)
+                c_idx = cart_indices[idx]
+
+                # Check neighbors
+                for iter in CartesianIndices(ntuple(d -> -1:1, ndims(mask)))
+                    all(t -> t == 0, Tuple(iter)) && continue
+
+                    n_c_idx = c_idx + iter
+
+                    if checkbounds(Bool, mask, n_c_idx)
+                        n_idx = lin_indices[n_c_idx]
+                        if mask[n_idx] && labels[n_idx] == 0
+                            labels[n_idx] = current_label
+                            push!(queue, n_idx)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    return labels
+end
 
 """
     discretize_image(img::Array{Float32,3}, mask::BitArray{3}; 
@@ -38,22 +109,23 @@ using Images
         disc, n_bins, levels, bw = discretize_image(img, mask)
     """
 function discretize_image(img::Array{Float32,3},
-                         mask::BitArray{3};
-                         n_bins::Union{Int,Nothing}=nothing,
-                         bin_width::Union{Float32,Nothing}=nothing)
-    
-    masked_indices = findall(mask)
-    if isempty(masked_indices)
+    mask::BitArray{3};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float32,Nothing}=nothing)
+
+    # Early check for empty mask
+    if sum(mask) == 0
         return zeros(Int, size(img)), 0, Int[], 0.0f0
     end
 
-    vals = img[mask]
+    # Compute min/max from masked values
+    vals = view(img, mask)
     vmin = minimum(vals)
     vmax = maximum(vals)
 
     if !isnothing(n_bins) && !isnothing(bin_width)
         error("Specify either n_bins or bin_width, not both.")
-        
+
     elseif isnothing(n_bins) && isnothing(bin_width)
         bin_width = 25.0f0
     end
@@ -65,20 +137,27 @@ function discretize_image(img::Array{Float32,3},
         if bin_width_used ≈ 0.0f0
             bin_width_used = 1.0f0
         end
-        
-        @inbounds for idx in masked_indices
-            v = img[idx]
-            b = min(Int(floor((v - vmin) / bin_width_used)) + 1, n_bins)
-            disc[idx] = b
+
+        inv_bin_width = 1.0f0 / bin_width_used
+        # Iterate directly using linear indices without allocating index array
+        @inbounds for i in eachindex(mask)
+            if mask[i]
+                v = img[i]
+                b = min(Int(floor((v - vmin) * inv_bin_width)) + 1, n_bins)
+                disc[i] = b
+            end
         end
     else
         bin_width_used = bin_width
-        bin_offset = Int(floor(vmin / bin_width_used))
-        
-        @inbounds for idx in masked_indices
-            v = img[idx]
-            b = Int(floor(v / bin_width_used)) - bin_offset + 1
-            disc[idx] = b
+        inv_bin_width = 1.0f0 / bin_width_used
+        bin_offset = Int(floor(vmin * inv_bin_width))
+
+        @inbounds for i in eachindex(mask)
+            if mask[i]
+                v = img[i]
+                b = Int(floor(v * inv_bin_width)) - bin_offset + 1
+                disc[i] = b
+            end
         end
     end
 
@@ -100,23 +179,30 @@ end
     # Returns
     - A vector of linear indices of the neighbors.
     """
-function get_neighbors(idx, dims)
-    neighbors = []
-    cartesian_idx = CartesianIndices(dims)[idx]
+@inline function get_neighbors(idx, dims)
+    # Pre-allocate with maximum possible size (26 for 3D)
+    neighbors = Vector{Int}(undef, 26)
+    count = 0
 
-    for dz in -1:1, dy in -1:1, dx in -1:1
+    cartesian_idx = CartesianIndices(dims)[idx]
+    linear_indices = LinearIndices(dims)
+    cartesian_range = CartesianIndices(dims)
+
+    @inbounds for dz in -1:1, dy in -1:1, dx in -1:1
         if dz == 0 && dy == 0 && dx == 0
             continue
         end
 
         new_cartesian_idx = cartesian_idx + CartesianIndex(dx, dy, dz)
 
-        if checkbounds(Bool, CartesianIndices(dims), new_cartesian_idx)
-            push!(neighbors, LinearIndices(dims)[new_cartesian_idx])
+        if checkbounds(Bool, cartesian_range, new_cartesian_idx)
+            count += 1
+            neighbors[count] = linear_indices[new_cartesian_idx]
         end
     end
 
-    return neighbors
+    # Return only the filled portion
+    return resize!(neighbors, count)
 end
 
 """
@@ -135,41 +221,46 @@ function keep_largest_component(mask::AbstractArray{Bool})
     if sum(mask) == 0
         return mask
     end
-    
+
     # Label connected components
     labels = label_components(mask)
-    
-    # Count voxels in each component (excluding background=0)
-    component_sizes = Dict{Int, Int}()
-    for label_val in labels
-        if label_val > 0
-            component_sizes[label_val] = get(component_sizes, label_val, 0) + 1
-        end
-    end
-    
-    if isempty(component_sizes)
+
+    # Find max label to determine array size
+    max_label = maximum(labels)
+
+    if max_label == 0
         return mask
     end
-    
+
+    # Count voxels in each component using array (much faster than Dict)
+    component_sizes = zeros(Int, max_label)
+    @inbounds for label_val in labels
+        if label_val > 0
+            component_sizes[label_val] += 1
+        end
+    end
+
     # Check if there are multiple islands
-    num_islands = length(component_sizes)
+    num_islands = count(>(0), component_sizes)
     if num_islands > 1
         @warn "Detected $num_islands separate islands in the mask. 3D features will be computed only on the largest island. First order and texture features will consider all islands."
-        
+
         # Optional: print sizes of all islands for debugging
-        sorted_sizes = sort(collect(component_sizes), by=x->x[2], rev=true)
+        # Create pairs and sort
+        sorted_pairs = [(i, component_sizes[i]) for i in 1:max_label if component_sizes[i] > 0]
+        sort!(sorted_pairs, by=x -> x[2], rev=true)
         println("Island sizes (in voxels):")
-        for (i, (label_val, size)) in enumerate(sorted_sizes)
+        for (i, (label_val, size)) in enumerate(sorted_pairs)
             println("  Island $i: $size voxels")
         end
     end
-    
+
     # Find largest component
     largest_label = argmax(component_sizes)
-    
+
     # Create new mask with only largest component
     largest_component_mask = labels .== largest_label
-    
+
     return largest_component_mask
 end
 
@@ -185,9 +276,9 @@ end
     # Returns:
         - The padded mask (Array).
     """
-function pad_mask(mask::AbstractArray, pad::Int)
+@inline function pad_mask(mask::AbstractArray{Bool}, pad::Int)
     sz = size(mask)
-    new_shape = ntuple(i -> sz[i] + 2*pad, ndims(mask))
+    new_shape = ntuple(i -> sz[i] + 2 * pad, ndims(mask))
     new_mask = falses(new_shape)
     ranges = ntuple(i -> (1+pad):(sz[i]+pad), ndims(mask))
     new_mask[ranges...] .= mask
@@ -202,7 +293,7 @@ end
         - `verbose`: If true, prints progress messages.
         # Returns:
         - Nothing. Throws an error if the inputs are invalid."""
-function input_sanity_check(img, mask, verbose::Bool)
+function input_sanity_check(img::AbstractArray, mask::AbstractArray, verbose::Bool)
     if verbose
         println("Running input sanity check...")
     end
@@ -220,7 +311,7 @@ end
         # Returns:
         - Nothing. Prints the features to the console.
     """
-function print_features(title::String, features::Dict{String, Float32})
+function print_features(title::String, features::Dict{String,Float32})
     println("\n--- $title ---")
     sorted_keys = sort(collect(keys(features)))
     for (i, k) in enumerate(sorted_keys)
@@ -240,18 +331,34 @@ end
         - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
         # Returns:
         - A tuple containing the prepared image, mask, and voxel spacing."""
-function prepare_inputs(img_input, mask_input, voxel_spacing_input, force_2d, force_2d_dimension)
-    img = Float32.(img_input)
-    mask = BitArray(mask_input .!= 0.0f0)
-    
-    voxel_spacing = Float32.(voxel_spacing_input)
+function prepare_inputs(img_input::AbstractArray,
+    mask_input::AbstractArray,
+    voxel_spacing_input::AbstractVector,
+    force_2d::Bool,
+    force_2d_dimension::Int)
+    # Handle both 2D and 3D inputs
+    if ndims(img_input) == 2
+        # 2D input: convert to 2D Float32 array
+        img = convert(Array{Float32,2}, img_input)
+        mask = BitArray(mask_input .!= 0.0f0)
+    elseif ndims(img_input) == 3
+        # 3D input: convert to 3D Float32 array
+        img = convert(Array{Float32,3}, img_input)
+        mask = BitArray(mask_input .!= 0.0f0)
 
-    if ndims(img) == 3 && ndims(mask) == 3 && force_2d
-        if force_2d_dimension < 1 || force_2d_dimension > 3
-            throw(ArgumentError("force_2d_dimension must be between 1 and 3"))
+        if force_2d
+            if force_2d_dimension < 1 || force_2d_dimension > 3
+                throw(ArgumentError("force_2d_dimension must be between 1 and 3"))
+            end
+            # Use view instead of creating new array for spacing selection
+            dims_to_keep = setdiff(1:3, force_2d_dimension)
+            voxel_spacing = convert(Vector{Float32}, voxel_spacing_input[dims_to_keep])
+            return img, mask, voxel_spacing
         end
-        voxel_spacing = Float32.(voxel_spacing_input[setdiff(1:3, force_2d_dimension)])
+    else
+        throw(ArgumentError("Input image must be 2D or 3D, got $(ndims(img_input))D"))
     end
 
+    voxel_spacing = convert(Vector{Float32}, voxel_spacing_input)
     return img, mask, voxel_spacing
 end

@@ -33,11 +33,11 @@ using StatsBase
         # Default (32 bins)
         features = get_gldm_features(img, mask, spacing)
 """
-function get_gldm_features(img, mask, voxel_spacing; 
-                          n_bins::Union{Int,Nothing}=nothing,
-                          bin_width::Union{Float32,Nothing}=nothing,
-                          gldm_a=0, 
-                          verbose=false)
+function get_gldm_features(img, mask, voxel_spacing;
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float32,Nothing}=nothing,
+    gldm_a=0,
+    verbose=false)
     if verbose
         if !isnothing(n_bins)
             println("Calculating GLDM with $(n_bins) bins...")
@@ -48,7 +48,7 @@ function get_gldm_features(img, mask, voxel_spacing;
         end
     end
 
-    gldm_features = Dict{String, Float32}()
+    gldm_features = Dict{String,Float32}()
 
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
@@ -62,6 +62,12 @@ function get_gldm_features(img, mask, voxel_spacing;
 
     Nz, pd, pg, ivector, jvector = calculate_gldm_coefficients(P_gldm, gray_levels)
 
+    # Pre-compute matrices for combined features to avoid redundant reshaping
+    i_mat = reshape(ivector, :, 1)
+    j_mat = reshape(jvector, 1, :)
+    i_sq = i_mat .^ 2
+    j_sq = j_mat .^ 2
+
     gldm_features["gldm_SmallDependenceEmphasis"] = gldm_small_dependence_emphasis(pd, jvector, Nz)
     gldm_features["gldm_LargeDependenceEmphasis"] = gldm_large_dependence_emphasis(pd, jvector, Nz)
     gldm_features["gldm_GrayLevelNonUniformity"] = gldm_gray_level_non_uniformity(pg, Nz)
@@ -72,10 +78,10 @@ function get_gldm_features(img, mask, voxel_spacing;
     gldm_features["gldm_DependenceEntropy"] = gldm_dependence_entropy(P_gldm, Nz)
     gldm_features["gldm_LowGrayLevelEmphasis"] = gldm_low_gray_level_emphasis(pg, ivector, Nz)
     gldm_features["gldm_HighGrayLevelEmphasis"] = gldm_high_gray_level_emphasis(pg, ivector, Nz)
-    gldm_features["gldm_SmallDependenceLowGrayLevelEmphasis"] = gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    gldm_features["gldm_SmallDependenceHighGrayLevelEmphasis"] = gldm_small_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    gldm_features["gldm_LargeDependenceLowGrayLevelEmphasis"] = gldm_large_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    gldm_features["gldm_LargeDependenceHighGrayLevelEmphasis"] = gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
+    gldm_features["gldm_SmallDependenceLowGrayLevelEmphasis"] = gldm_small_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    gldm_features["gldm_SmallDependenceHighGrayLevelEmphasis"] = gldm_small_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    gldm_features["gldm_LargeDependenceLowGrayLevelEmphasis"] = gldm_large_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    gldm_features["gldm_LargeDependenceHighGrayLevelEmphasis"] = gldm_large_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
 
     if verbose
         println("Completed! Extract $(length(gldm_features)) features.")
@@ -153,23 +159,53 @@ end
     - A tuple containing the number of zones, sum over sizes, sum over gray levels, gray level vector, and size vector.
 """
 function calculate_gldm_coefficients(P_gldm, gray_levels)
-    pd = sum(P_gldm, dims=1)
-    pg = sum(P_gldm, dims=2)
+    Nz = sum(P_gldm)
+    Nz = Nz == 0 ? 1.0f-6 : Float32(Nz)
+
+    pd = vec(sum(P_gldm, dims=1))
+    pg = vec(sum(P_gldm, dims=2))
     ivector = Float32.(gray_levels)
     jvector = Float32.(1:size(P_gldm, 2))
-
-    Nz = sum(P_gldm)
-    Nz = Nz == 0 ? 1.0f-6 : Nz
 
     return Nz, pd, pg, ivector, jvector
 end
 
-# Feature implementations
-gldm_small_dependence_emphasis(pd, jvector, Nz) = sum(pd ./ (jvector' .^ 2)) / Nz
-gldm_large_dependence_emphasis(pd, jvector, Nz) = sum(pd .* (jvector' .^ 2)) / Nz
-gldm_gray_level_non_uniformity(pg, Nz) = sum(pg .^ 2) / Nz
-gldm_dependence_non_uniformity(pd, Nz) = sum(pd .^ 2) / Nz
-gldm_dependence_non_uniformity_normalized(pd, Nz) = sum(pd .^ 2) / (Nz ^ 2)
+# Feature implementations - optimized for vectorized operations
+function gldm_small_dependence_emphasis(pd, jvector, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for j in eachindex(jvector)
+        result += pd[j] / (jvector[j]^2)
+    end
+    return result * inv_Nz
+end
+
+function gldm_large_dependence_emphasis(pd, jvector, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for j in eachindex(jvector)
+        result += pd[j] * (jvector[j]^2)
+    end
+    return result * inv_Nz
+end
+
+function gldm_gray_level_non_uniformity(pg, Nz)
+    sum_sq = 0.0f0
+    @inbounds for val in pg
+        sum_sq += val^2
+    end
+    return sum_sq / Nz
+end
+
+function gldm_dependence_non_uniformity(pd, Nz)
+    sum_sq = 0.0f0
+    @inbounds for val in pd
+        sum_sq += val^2
+    end
+    return sum_sq / Nz
+end
+
+gldm_dependence_non_uniformity_normalized(pd, Nz) = gldm_dependence_non_uniformity(pd, Nz) / Nz
 
 """
     gldm_gray_level_variance(pg, ivector, Nz)
@@ -182,9 +218,19 @@ gldm_dependence_non_uniformity_normalized(pd, Nz) = sum(pd .^ 2) / (Nz ^ 2)
     - The calculated Gray Level Variance feature value.
 """
 function gldm_gray_level_variance(pg, ivector, Nz)
-    p_g = pg ./ Nz
-    u_i = sum(p_g .* ivector)
-    sum(p_g .* (ivector .- u_i) .^ 2)
+    inv_Nz = 1.0f0 / Nz
+    u_i = 0.0f0
+    @inbounds for i in eachindex(ivector)
+        u_i += pg[i] * ivector[i]
+    end
+    u_i *= inv_Nz
+
+    variance = 0.0f0
+    @inbounds for i in eachindex(ivector)
+        diff = ivector[i] - u_i
+        variance += pg[i] * diff * diff
+    end
+    return variance * inv_Nz
 end
 
 """
@@ -197,9 +243,19 @@ end
     # Returns
     - The calculated Dependence Variance feature value."""
 function gldm_dependence_variance(pd, jvector, Nz)
-    p_d = pd ./ Nz
-    u_j = sum(p_d .* jvector')
-    sum(p_d .* (jvector' .- u_j) .^ 2)
+    inv_Nz = 1.0f0 / Nz
+    u_j = 0.0f0
+    @inbounds for j in eachindex(jvector)
+        u_j += pd[j] * jvector[j]
+    end
+    u_j *= inv_Nz
+
+    variance = 0.0f0
+    @inbounds for j in eachindex(jvector)
+        diff = jvector[j] - u_j
+        variance += pd[j] * diff * diff
+    end
+    return variance * inv_Nz
 end
 
 """
@@ -212,12 +268,34 @@ end
     - The calculated Dependence Entropy feature value.
     """
 function gldm_dependence_entropy(P_gldm, Nz)
-    p_gldm = P_gldm ./ Nz
-    -sum(p_gldm .* log2.(p_gldm .+ 1.0f-16))
+    inv_Nz = 1.0f0 / Nz
+    entropy = 0.0f0
+    @inbounds for val in P_gldm
+        if val > 0
+            p = val * inv_Nz
+            entropy -= p * log2(p)
+        end
+    end
+    return entropy
 end
 
-gldm_low_gray_level_emphasis(pg, ivector, Nz) = sum(pg ./ (ivector .^ 2)) / Nz
-gldm_high_gray_level_emphasis(pg, ivector, Nz) = sum(pg .* (ivector .^ 2)) / Nz
+function gldm_low_gray_level_emphasis(pg, ivector, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for i in eachindex(ivector)
+        result += pg[i] / (ivector[i]^2)
+    end
+    return result * inv_Nz
+end
+
+function gldm_high_gray_level_emphasis(pg, ivector, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for i in eachindex(ivector)
+        result += pg[i] * (ivector[i]^2)
+    end
+    return result * inv_Nz
+end
 
 """
     gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector
@@ -230,10 +308,15 @@ gldm_high_gray_level_emphasis(pg, ivector, Nz) = sum(pg .* (ivector .^ 2)) / Nz
     - `Nz`: The number of zones.
     # Returns
     - The calculated Small Dependence Low Gray Level Emphasis feature value."""
-function gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_gldm ./ ((i_mat .^ 2) .* (j_mat .^ 2))) / Nz
+function gldm_small_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
+        if P_gldm[i, j] > 0
+            result += P_gldm[i, j] / (i_sq[i] * j_sq[j])
+        end
+    end
+    return result * inv_Nz
 end
 
 """
@@ -246,10 +329,15 @@ end
     - `Nz`: The number of zones.
     # Returns
     - The calculated Small Dependence High Gray Level Emphasis feature value."""
-function gldm_small_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_gldm .* (i_mat .^ 2) ./ (j_mat .^ 2)) / Nz
+function gldm_small_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
+        if P_gldm[i, j] > 0
+            result += P_gldm[i, j] * i_sq[i] / j_sq[j]
+        end
+    end
+    return result * inv_Nz
 end
 
 """
@@ -263,10 +351,15 @@ end
     # Returns
     - The calculated Large Dependence Low Gray Level Emphasis feature value.   
     """
-function gldm_large_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_gldm .* (j_mat .^ 2) ./ (i_mat .^ 2)) / Nz
+function gldm_large_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
+        if P_gldm[i, j] > 0
+            result += P_gldm[i, j] * j_sq[j] / i_sq[i]
+        end
+    end
+    return result * inv_Nz
 end
 
 """
@@ -279,8 +372,13 @@ end
     - `Nz`: The number of zones.
     # Returns
     - The calculated Large Dependence High Gray Level Emphasis feature value."""
-function gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_gldm .* (i_mat .^ 2) .* (j_mat .^ 2)) / Nz
+function gldm_large_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    inv_Nz = 1.0f0 / Nz
+    result = 0.0f0
+    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
+        if P_gldm[i, j] > 0
+            result += P_gldm[i, j] * i_sq[i] * j_sq[j]
+        end
+    end
+    return result * inv_Nz
 end

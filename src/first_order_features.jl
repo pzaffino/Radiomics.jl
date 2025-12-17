@@ -1,7 +1,3 @@
-#=
-# First order features
-=#
-
 using StatsBase
 
 """
@@ -15,12 +11,12 @@ using StatsBase
     - first_order_features::Dict{String, Float32}: Dictionary containing the extracted first order
       features
     """
-function get_first_order_features(img::Array{Float32, 3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}, verbose::Bool=false)
+function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}, verbose::Bool=false)
     if verbose
         println("Extracting first order features...")
     end
 
-    first_order_features = Dict{String, Float32}()
+    first_order_features = Dict{String,Float32}()
 
     # Some data can be useful for features extraction
     voxel_volume::Float32 = voxel_spacing[1] * voxel_spacing[2] * voxel_spacing[3]
@@ -29,7 +25,7 @@ function get_first_order_features(img::Array{Float32, 3}, mask::BitArray{3}, vox
     # Energy
     energy_feature_value::Float32 = get_energy_feature_value(roi_voxels)
     first_order_features["firstorder_energy"] = energy_feature_value
-    
+
     # Total energy
     total_energy_feature_value::Float32 = get_total_energy_feature_value(voxel_volume, energy_feature_value)
     first_order_features["firstorder_total_energy"] = total_energy_feature_value
@@ -69,7 +65,7 @@ function get_first_order_features(img::Array{Float32, 3}, mask::BitArray{3}, vox
     # Range
     range_feature_value::Float32 = get_range_feature_value(maximum_feature_value, minimum_feature_value)
     first_order_features["firstorder_range"] = range_feature_value
-   
+
     # Mean absolute deviation
     mean_absolute_deviation_feature_value::Float32 = get_mean_absolute_deviation_feature_value(roi_voxels, mean_feature_value)
     first_order_features["firstorder_mean_absolute_deviation"] = mean_absolute_deviation_feature_value
@@ -115,7 +111,7 @@ end
     # Returns
     - roi_voxels::Vector{Float32}: Vector containing the voxel values within the region of interest
     """
-function extract_roi_voxels(img::Array{Float32, 3}, mask::BitArray{3})::Vector{Float32}
+function extract_roi_voxels(img::Array{Float32,3}, mask::BitArray{3})::Vector{Float32}
     return vec(img[mask])
 end
 
@@ -135,17 +131,17 @@ function get_energy_feature_value(roi_voxels::Vector{Float32}, c::Float32=0.0f0)
     return energy_feature_value
 end
 
- """
-    Calculate the total energy feature value from the energy feature value and voxel volume.
-    # Arguments
-    - voxel_volume::Float32: Volume of a single voxel
-    - energy_feature_value::Float32: Energy feature value
-    # Returns
-    - total_energy_feature_value::Float32: Calculated total energy feature value
-    """
+"""
+   Calculate the total energy feature value from the energy feature value and voxel volume.
+   # Arguments
+   - voxel_volume::Float32: Volume of a single voxel
+   - energy_feature_value::Float32: Energy feature value
+   # Returns
+   - total_energy_feature_value::Float32: Calculated total energy feature value
+   """
 function get_total_energy_feature_value(voxel_volume::Float32, energy_feature_value::Float32)::Float32
     total_energy_feature_value::Float32 = voxel_volume * energy_feature_value
-    return total_energy_feature_value 
+    return total_energy_feature_value
 end
 
 """
@@ -160,7 +156,7 @@ end
 function get_entropy_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0, eps::Float64=2.2e-16)::Float32
     max_val::Float32 = maximum(roi_voxels)
     min_val::Float32 = minimum(roi_voxels)
-    edges = min_val:bin_width:(ceil(max_val/bin_width) * bin_width)
+    edges = min_val:bin_width:(ceil(max_val / bin_width)*bin_width)
 
     h = fit(Histogram, roi_voxels, edges)
     p = h.weights / sum(h.weights)
@@ -279,7 +275,7 @@ function get_mean_absolute_deviation_feature_value(roi_voxels::Vector{Float32}, 
         absolute_deviation = absolute_deviation + abs(roi_voxel - mean_feature_value)
     end
 
-    return (1/size(roi_voxels, 1)) * absolute_deviation
+    return (1 / size(roi_voxels, 1)) * absolute_deviation
 end
 
 """
@@ -307,7 +303,7 @@ function get_robust_mean_absolute_deviation_feature_value(roi_voxels::Vector{Flo
         robust_absolute_deviation = robust_absolute_deviation + abs(roi_voxel_10_90 - mean_10_90)
     end
 
-    return (1/size(roi_voxels_10_90, 1)) * robust_absolute_deviation
+    return (1 / size(roi_voxels_10_90, 1)) * robust_absolute_deviation
 end
 
 """
@@ -324,7 +320,7 @@ function get_root_mean_squared_feature_value(roi_voxels::Vector{Float32}, c::Flo
         squared = squared + (roi_voxel + c)^2
     end
 
-    return sqrt((1/size(roi_voxels, 1)) * squared)
+    return sqrt((1 / size(roi_voxels, 1)) * squared)
 end
 
 """
@@ -354,10 +350,10 @@ function get_skewness_feature_value(roi_voxels::Vector{Float32}, mean_feature_va
         sigma3 = sigma3 + (roi_voxel - mean_feature_value)^2
     end
 
-    mu3 = (1/size(roi_voxels, 1)) * mu3
-    sigma3 = sqrt((1/size(roi_voxels, 1)) * sigma3)^3
+    mu3 = (1 / size(roi_voxels, 1)) * mu3
+    sigma3 = sqrt((1 / size(roi_voxels, 1)) * sigma3)^3
 
-    return mu3/sigma3
+    return mu3 / sigma3
 end
 
 """
@@ -376,10 +372,10 @@ function get_kurtosis_feature_value(roi_voxels::Vector{Float32}, mean_feature_va
         sigma4 = sigma4 + (roi_voxel - mean_feature_value)^2
     end
 
-    mu4 = (1/size(roi_voxels, 1)) * mu4
-    sigma4 = ((1/size(roi_voxels, 1)) * sigma4)^2
+    mu4 = (1 / size(roi_voxels, 1)) * mu4
+    sigma4 = ((1 / size(roi_voxels, 1)) * sigma4)^2
 
-    return mu4/sigma4
+    return mu4 / sigma4
 end
 
 """
@@ -396,7 +392,7 @@ function get_variance_feature_value(roi_voxels::Vector{Float32}, mean_feature_va
         squared_diff = squared_diff + (roi_voxel - mean_feature_value)^2
     end
 
-    return (1/size(roi_voxels, 1)) * squared_diff
+    return (1 / size(roi_voxels, 1)) * squared_diff
 end
 
 """
@@ -410,7 +406,7 @@ end
 function get_uniformity_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0)::Float32
     max_val::Float32 = maximum(roi_voxels)
     min_val::Float32 = minimum(roi_voxels)
-    edges = min_val:bin_width:(ceil(max_val/bin_width) * bin_width)
+    edges = min_val:bin_width:(ceil(max_val / bin_width)*bin_width)
 
     h = fit(Histogram, roi_voxels, edges)
     p = h.weights / sum(h.weights)
@@ -422,4 +418,3 @@ function get_uniformity_feature_value(roi_voxels::Vector{Float32}, bin_width::Fl
 
     return uniformity
 end
-
