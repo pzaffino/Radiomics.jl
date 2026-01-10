@@ -17,6 +17,7 @@ include("gldm_features.jl")
                               n_bins=nothing,
                               bin_width=nothing,
                               verbose=false,
+                              keep_largest_only=true,
                               features=[:all])
     
     Extracts radiomic features from the given image and mask.
@@ -30,6 +31,8 @@ include("gldm_features.jl")
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
     - `verbose`: If true, prints progress messages.
+    - `sample_rate`: The sample rate for feature extraction (optional).
+    - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
     - `features`: Array of symbols specifying which features to compute. 
                  Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm, :all
                  Use [:all] to compute all features (default).
@@ -44,6 +47,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     bin_width::Union{Float32,Nothing}=nothing,
     verbose::Bool=false,
     sample_rate::Float64=0.03,
+    keep_largest_only::Bool=true,
     features::Vector{Symbol}=[:all])::Dict{String,Float32}
 
     total_start_time = time()
@@ -132,7 +136,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     elseif ndims(mask) == 3
         # 3D shape features
         if compute_all || :shape3d in features
-            result = @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate)
+            result = @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate, keep_largest_only=keep_largest_only)
             shape_3d_features = result.value
             merge!(radiomic_features, shape_3d_features)
             total_time_accumulated += result.time
@@ -246,6 +250,12 @@ end
     # Compute all texture features
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm, :glrlm, :gldm, :ngtdm], verbose=true);
+    
+    # Computer with sample_rate personalzed 
+    features = Radiomics.extract_radiomic_features(img, mask, spacing; sample_rate=1.0, verbose=true)
+
+    # Computer with keep_largest_only personalzed 
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
     ```
 """
 
