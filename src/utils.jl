@@ -362,3 +362,33 @@ function prepare_inputs(img_input::AbstractArray,
     voxel_spacing = convert(Vector{Float32}, voxel_spacing_input)
     return img, mask, voxel_spacing
 end
+
+function control(img_input, mask_input, bin_width)
+    # Determine effective bin_width
+    effective_bin_width = isnothing(bin_width) ? 25.0f0 : bin_width
+
+    # Calculate range and estimated number of bins
+    roi_vals = img_input[mask_input.!=0]
+    val_min = minimum(roi_vals)
+    val_max = maximum(roi_vals)
+    val_range = val_max - val_min
+    estimated_bins = Int(ceil(val_range / effective_bin_width))
+
+    if estimated_bins < 3
+        if isnothing(bin_width)
+            @warn """
+            The default bin_width (25.0) results in only $estimated_bins bin(s) 
+            for the current data range [$val_min, $val_max].
+            This may produce unreliable entropy and uniformity features.
+            Consider specifying a smaller bin_width or using n_bins instead.
+            """
+        else
+            @warn """
+            The chosen bin_width ($bin_width) results in only $estimated_bins bin(s) 
+            for the current data range [$val_min, $val_max].
+            This may produce unreliable entropy and uniformity features.
+            Consider using a smaller bin_width or using n_bins instead.
+            """
+        end
+    end
+end

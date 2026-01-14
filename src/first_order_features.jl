@@ -11,7 +11,7 @@ using StatsBase
     - first_order_features::Dict{String, Float32}: Dictionary containing the extracted first order
       features
     """
-function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}, verbose::Bool=false)
+function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}; bin_width::Union{Float32,Nothing}=nothing, verbose::Bool=false)
     if verbose
         println("Extracting first order features...")
     end
@@ -22,6 +22,9 @@ function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxe
     voxel_volume::Float32 = voxel_spacing[1] * voxel_spacing[2] * voxel_spacing[3]
     roi_voxels::Vector{Float32} = extract_roi_voxels(img, mask)
 
+    # Set default bin_width if not provided
+    effective_bin_width::Float32 = isnothing(bin_width) ? 25.0f0 : bin_width
+
     # Energy
     energy_feature_value::Float32 = get_energy_feature_value(roi_voxels)
     first_order_features["firstorder_energy"] = energy_feature_value
@@ -31,7 +34,7 @@ function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxe
     first_order_features["firstorder_total_energy"] = total_energy_feature_value
 
     # Entropy
-    entropy_feature_value::Float32 = get_entropy_feature_value(roi_voxels)
+    entropy_feature_value::Float32 = get_entropy_feature_value(roi_voxels, effective_bin_width)
     first_order_features["firstorder_entropy"] = entropy_feature_value
 
     # Minimum
@@ -95,7 +98,7 @@ function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxe
     first_order_features["firstorder_variance"] = variance_feature_value
 
     # Uniformity
-    uniformity_feature_value::Float32 = get_uniformity_feature_value(roi_voxels)
+    uniformity_feature_value::Float32 = get_uniformity_feature_value(roi_voxels, effective_bin_width)
     first_order_features["firstorder_uniformity"] = uniformity_feature_value
 
     # Return dictionary with first order features
@@ -153,23 +156,21 @@ end
     # Returns
     - entropy_feature_value::Float32: Calculated entropy feature value
     """
-function get_entropy_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0, eps::Float64=2.2e-16)::Float32
-    max_val::Float32 = maximum(roi_voxels)
-    min_val::Float32 = minimum(roi_voxels)
-    edges = min_val:bin_width:(ceil(max_val / bin_width)*bin_width)
+function get_entropy_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0)::Float32
+    eps = 2.2204460492503131e-16
+
+    max_val = maximum(roi_voxels)
+    min_val = minimum(roi_voxels)
+
+    n_bins = Int(ceil((max_val - min_val) / bin_width))
+    edges = range(min_val, min_val + n_bins * bin_width, length=n_bins + 1)
 
     h = fit(Histogram, roi_voxels, edges)
     p = h.weights / sum(h.weights)
 
-    entropy_feature_value::Float64 = 0.0
-    @inbounds for i in eachindex(p)
-        pi = p[i]
-        if pi > 0.0f0
-            entropy_feature_value += pi * log2(pi + eps)
-        end
-    end
+    entropy_value = -sum(p .* log2.(p .+ eps))
 
-    return -entropy_feature_value
+    return Float32(entropy_value)
 end
 
 """

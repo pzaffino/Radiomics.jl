@@ -69,11 +69,15 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         elseif !isnothing(bin_width)
             println("Using bin_width = $bin_width")
         else
-            println("Using default n_bins = 32")
+            println("Using default bin_width = 25.0")
         end
         if sample_rate != 0.03
             println("Using explicit sample_rate = $sample_rate")
         end
+    end
+
+    if isnothing(n_bins) && sum(mask_input) > 0
+        control(img_input, mask_input, bin_width)
     end
 
     radiomic_features = Dict{String,Float32}()
@@ -92,7 +96,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # First order features (only for 3D images)
     if ndims(img) == 3 && (compute_all || :first_order in features)
-        result = @timed get_first_order_features(img, mask, voxel_spacing, verbose)
+        result = @timed get_first_order_features(img, mask, voxel_spacing; bin_width=bin_width, verbose=verbose)
         first_order_features = result.value
         merge!(radiomic_features, first_order_features)
         total_time_accumulated += result.time
