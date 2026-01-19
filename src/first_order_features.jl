@@ -159,15 +159,12 @@ end
 function get_entropy_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0)::Float32
     eps = 2.2204460492503131e-16
 
-    max_val = maximum(roi_voxels)
-    min_val = minimum(roi_voxels)
+    binned_voxels = floor.(roi_voxels / bin_width) .* bin_width
 
-    n_bins = Int(ceil((max_val - min_val) / bin_width))
-    edges = range(min_val, min_val + n_bins * bin_width, length=n_bins + 1)
+    unique_vals = unique(binned_voxels)
+    counts = [count(==(v), binned_voxels) for v in unique_vals]
 
-    h = fit(Histogram, roi_voxels, edges)
-    p = h.weights / sum(h.weights)
-
+    p = counts / sum(counts)
     entropy_value = -sum(p .* log2.(p .+ eps))
 
     return Float32(entropy_value)
@@ -405,17 +402,12 @@ end
     - uniformity_feature_value::Float32: Calculated uniformity feature value
     """
 function get_uniformity_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0)::Float32
-    max_val::Float32 = maximum(roi_voxels)
-    min_val::Float32 = minimum(roi_voxels)
-    edges = min_val:bin_width:(ceil(max_val / bin_width)*bin_width)
+    binned_voxels = floor.(roi_voxels / bin_width)
 
-    h = fit(Histogram, roi_voxels, edges)
-    p = h.weights / sum(h.weights)
+    unique_vals = unique(binned_voxels)
+    counts = [count(==(v), binned_voxels) for v in unique_vals]
 
-    uniformity = 0.0
-    for p_i in p
-        uniformity = uniformity + p_i^2
-    end
+    p = counts / sum(counts)
 
-    return uniformity
+    return sum(p .^ 2)
 end

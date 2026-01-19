@@ -377,17 +377,17 @@ function control(img_input, mask_input, bin_width)
     if estimated_bins < 3
         if isnothing(bin_width)
             @warn """
-            The default bin_width (25.0) results in only $estimated_bins bin(s) 
-            for the current data range [$val_min, $val_max].
-            This may produce unreliable entropy and uniformity features.
-            Consider specifying a smaller bin_width or using n_bins instead.
+            The default bin_width (25.0), the current image range ($val_min, $val_max) is included in only $estimated_bins bin(s).
+            This may produce unreliable features.
+            Consider specifying a smaller bin_width (or using n_bins instead) 
+            or to properly scale the image intensity range.
             """
         else
             @warn """
-            The chosen bin_width ($bin_width) results in only $estimated_bins bin(s) 
-            for the current data range [$val_min, $val_max].
-            This may produce unreliable entropy and uniformity features.
-            Consider using a smaller bin_width or using n_bins instead.
+            With the current bin_width ($bin_width), the current image range ($val_min, $val_max) is included in only $estimated_bins bin(s).
+            This may produce unreliable features.
+            Consider specifying a smaller bin_width (or using n_bins instead) 
+            or to properly scale the image intensity range.
             """
         end
     end
