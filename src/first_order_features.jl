@@ -11,7 +11,7 @@ using StatsBase
     - first_order_features::Dict{String, Float32}: Dictionary containing the extracted first order
       features
     """
-function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}; bin_width::Union{Float32,Nothing}=nothing, verbose::Bool=false)
+function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float32,Nothing}=nothing, verbose::Bool=false)
     if verbose
         println("Extracting first order features...")
     end
@@ -22,8 +22,8 @@ function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxe
     voxel_volume::Float32 = voxel_spacing[1] * voxel_spacing[2] * voxel_spacing[3]
     roi_voxels::Vector{Float32} = extract_roi_voxels(img, mask)
 
-    # Set default bin_width if not provided
-    effective_bin_width::Float32 = isnothing(bin_width) ? 25.0f0 : bin_width
+    disc, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+    discretized_roi_voxels::Vector{Int} = disc[mask]
 
     # Energy
     energy_feature_value::Float32 = get_energy_feature_value(roi_voxels)
@@ -34,7 +34,7 @@ function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxe
     first_order_features["firstorder_total_energy"] = total_energy_feature_value
 
     # Entropy
-    entropy_feature_value::Float32 = get_entropy_feature_value(roi_voxels, effective_bin_width)
+    entropy_feature_value::Float32 = get_entropy_feature_value(discretized_roi_voxels)
     first_order_features["firstorder_entropy"] = entropy_feature_value
 
     # Minimum
@@ -98,7 +98,7 @@ function get_first_order_features(img::Array{Float32,3}, mask::BitArray{3}, voxe
     first_order_features["firstorder_variance"] = variance_feature_value
 
     # Uniformity
-    uniformity_feature_value::Float32 = get_uniformity_feature_value(roi_voxels, effective_bin_width)
+    uniformity_feature_value::Float32 = get_uniformity_feature_value(discretized_roi_voxels)
     first_order_features["firstorder_uniformity"] = uniformity_feature_value
 
     # Return dictionary with first order features
@@ -156,20 +156,17 @@ end
     # Returns
     - entropy_feature_value::Float32: Calculated entropy feature value
     """
-function get_entropy_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0)::Float32
+function get_entropy_feature_value(discretized_voxels::Vector{Int})::Float32
     eps = 2.2204460492503131e-16
 
-    binned_voxels = floor.(roi_voxels / bin_width) .* bin_width
-
-    unique_vals = unique(binned_voxels)
-    counts = [count(==(v), binned_voxels) for v in unique_vals]
+    unique_vals = unique(discretized_voxels)
+    counts = [count(==(v), discretized_voxels) for v in unique_vals]
 
     p = counts / sum(counts)
     entropy_value = -sum(p .* log2.(p .+ eps))
 
     return Float32(entropy_value)
 end
-
 """
     Calculate the minimum feature value from the voxel values within the region of interest.
     # Arguments
@@ -401,11 +398,9 @@ end
     # Returns
     - uniformity_feature_value::Float32: Calculated uniformity feature value
     """
-function get_uniformity_feature_value(roi_voxels::Vector{Float32}, bin_width::Float32=25.0f0)::Float32
-    binned_voxels = floor.(roi_voxels / bin_width)
-
-    unique_vals = unique(binned_voxels)
-    counts = [count(==(v), binned_voxels) for v in unique_vals]
+function get_uniformity_feature_value(discretized_voxels::Vector{Int})::Float32
+    unique_vals = unique(discretized_voxels)
+    counts = [count(==(v), discretized_voxels) for v in unique_vals]
 
     p = counts / sum(counts)
 

@@ -96,7 +96,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # First order features (only for 3D images)
     if ndims(img) == 3 && (compute_all || :first_order in features)
-        result = @timed get_first_order_features(img, mask, voxel_spacing; bin_width=bin_width, verbose=verbose)
+        result = @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, bin_width=bin_width, verbose=verbose)
         first_order_features = result.value
         merge!(radiomic_features, first_order_features)
         total_time_accumulated += result.time
