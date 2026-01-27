@@ -61,6 +61,44 @@ To compute features from the entire mask regardless of fragmentation, set keep_l
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
 ```
+## Using Radiomics.jl from Python
+Radiomics.jl can be used directly from a Python environment.
+
+To do this, the juliacall library must be installed:
+
+(please note that if Julia is not installed on your system, juliacall will use its own embedded version.)
+
+```bash
+pip install juliacall
+```
+
+In addition, the Radiomics.jl source code must be downloaded:
+
+```bash
+git clone https://github.com/pzaffino/Radiomics.jl.git
+```
+
+Once this is done, radiomic feature extraction can be performed as shown in the following example:
+
+```python
+import SimpleITK as sitk
+import numpy as np
+from juliacall import Main as jl
+
+jl.include("CODE_PATH/Radiomics.jl/src/Radiomics.jl")
+
+ct_sitk = sitk.ReadImage('DATA_PATH/ct.nii.gz')
+mask_sitk = sitk.ReadImage('DATA_PATH/mask.nii.gz')
+
+ct = sitk.GetArrayFromImage(ct_sitk)
+mask = sitk.GetArrayFromImage(mask_sitk)
+
+spacing = ct_sitk.GetSpacing()
+
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
+```
+
+
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
