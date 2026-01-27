@@ -100,7 +100,7 @@ mask_sitk = sitk.ReadImage('DATA_PATH/mask.nii.gz')
 ct = sitk.GetArrayFromImage(ct_sitk)
 mask = sitk.GetArrayFromImage(mask_sitk)
 
-spacing = ct_sitk.GetSpacing()
+spacing = list(ct_sitk.GetSpacing())
 
 radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))
 ```
