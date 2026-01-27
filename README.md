@@ -102,7 +102,7 @@ mask = sitk.GetArrayFromImage(mask_sitk)
 
 spacing = ct_sitk.GetSpacing()
 
-radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
+radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))
 ```
 
 
