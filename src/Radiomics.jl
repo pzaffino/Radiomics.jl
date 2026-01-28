@@ -259,13 +259,13 @@ end
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm, :glrlm, :gldm, :ngtdm], verbose=true);
     
-    # Computer with sample_rate personalzed 
+    # Compute with sample_rate personalzed 
     features = Radiomics.extract_radiomic_features(img, mask, spacing; sample_rate=1.0, verbose=true)
 
-    # Computer with keep_largest_only personalzed 
+    # Compute with keep_largest_only personalzed 
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
 
-    # Computer with weighting_norm personalzed 
+    # Compute with weighting_norm personalzed 
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, weighting_norm="euclidean");
 """
 
