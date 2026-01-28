@@ -16,6 +16,7 @@ include("gldm_features.jl")
                               force_2d_dimension=1,
                               n_bins=nothing,
                               bin_width=nothing,
+                              weighting_norm=nothing,
                               verbose=false,
                               keep_largest_only=true,
                               features=[:all])
@@ -45,6 +46,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     force_2d_dimension::Int=1,
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false,
     sample_rate::Float64=0.03,
     keep_largest_only::Bool=true,
@@ -112,6 +114,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         result = @timed get_glcm_features(img, mask, voxel_spacing;
             n_bins=n_bins,
             bin_width=bin_width,
+            weighting_norm=weighting_norm,
             verbose=verbose)
         glcm_features = result.value
         merge!(radiomic_features, glcm_features)
@@ -188,6 +191,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             result = @timed get_glrlm_features(img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width,
+                weighting_norm=weighting_norm,
                 verbose=verbose)
             glrlm_features = result.value
             merge!(radiomic_features, glrlm_features)
@@ -260,7 +264,9 @@ end
 
     # Computer with keep_largest_only personalzed 
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
-    ```
+
+    # Computer with weighting_norm personalzed 
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, weighting_norm="euclidean");
 """
 
 end

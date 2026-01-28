@@ -13,6 +13,7 @@ using Statistics
         - `spacing`: A vector specifying the voxel spacing in each dimension.
         - `n_bins`: The number of bins for discretizing intensity values (optional).
         - `bin_width`: The width of each bin (optional).
+        - `weighting_norm`: The norm used for weighting the GLCM (optional), Weighting method ("infinity (Chebyshev)", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
         - `verbose`: If true, enables verbose output for debugging or detailed processing information.
 
     # Returns:
@@ -25,6 +26,7 @@ function calculate_glcm_3d(img::Array{Float32,3},
     spacing::Vector{Float32};
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false)
 
     disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
@@ -33,6 +35,9 @@ function calculate_glcm_3d(img::Array{Float32,3},
         println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
         println("Bin width utilized: $(bin_width_used)")
         println("Effective gray level utilized: $(n_levels)")
+        if weighting_norm !== nothing
+            println("Weighting norm applied: $(weighting_norm)")
+        end
     end
 
     mask_idx = findall(mask)
@@ -58,7 +63,35 @@ function calculate_glcm_3d(img::Array{Float32,3},
         map_bin[Int(gl)] = i
     end
 
-    @inbounds for (dx, dy, dz) in dirs
+    # Calculate weights if weighting is specified
+    weights = ones(Float32, length(dirs))
+    if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
+        pixel_spacing = spacing
+        
+        @inbounds for (a_idx, (dx, dy, dz)) in enumerate(dirs)
+            angle = Float32.([dx, dy, dz])
+            
+            if weighting_norm == "infinity"
+                d = maximum(abs.(angle .* pixel_spacing))
+                weights[a_idx] = exp(-d^2)
+            elseif weighting_norm == "euclidean"
+                d_squared = sum((abs.(angle .* pixel_spacing)).^2)
+                weights[a_idx] = exp(-d_squared)
+            elseif weighting_norm == "manhattan"
+                d = sum(abs.(angle .* pixel_spacing))
+                weights[a_idx] = exp(-d^2)
+            else
+                @warn "Weighting norm \"$(weighting_norm)\" is unknown, weight set to 1"
+                weights[a_idx] = 1.0f0
+            end
+        end
+        
+        if verbose
+            println("Weights computed: ", weights)
+        end
+    end
+
+    @inbounds for (dir_idx, (dx, dy, dz)) in enumerate(dirs)
         G = zeros(Float32, Ng, Ng)
         for idx in mask_idx
             x, y, z = Tuple(idx)
@@ -74,12 +107,31 @@ function calculate_glcm_3d(img::Array{Float32,3},
             end
         end
 
-        # Normalize only if non-empty
-        total = sum(G)
-        if total > 0
-            @. G /= total  # In-place broadcasting
-            push!(glcm_matrices, G)
+        # Handle normalization based on weighting
+        if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
+            # Apply weight WITHOUT normalizing
+            if sum(G) > 0
+                @. G *= weights[dir_idx]
+                push!(glcm_matrices, G)
+            end
+        else
+            # No weighting: normalize each matrix separately
+            total = sum(G)
+            if total > 0
+                @. G /= total
+                push!(glcm_matrices, G)
+            end
         end
+    end
+
+    # If weighting is applied, sum all weighted matrices and normalize ONCE
+    if !isnothing(weighting_norm) && weighting_norm != "no_weighting" && !isempty(glcm_matrices)
+        summed_glcm = sum(glcm_matrices)
+        total = sum(summed_glcm)
+        if total > 0
+            summed_glcm ./= total
+        end
+        glcm_matrices = [summed_glcm]  # Replace with single normalized matrix
     end
 
     return glcm_matrices, gray_levels, bin_width_used
@@ -361,6 +413,7 @@ end
 function get_glcm_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32};
                             n_bins::Union{Int,Nothing}=nothing,
                             bin_width::Union{Float32,Nothing}=nothing,
+                            weighting_norm::Union{String,Nothing}=nothing,
                             verbose::Bool=false)
 
 The function calculates GLCM matrices in 3D, extracts texture features from each matrix, 
@@ -377,6 +430,7 @@ You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
     - `voxel_spacing`: A vector specifying the voxel spacing in each dimension.
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
+    - `weighting_norm`: The norm used for weighting the GLCM (optional), Weighting method ("infinity (Chebyshev)", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
     - `verbose`: If true, enables verbose output for debugging or detailed processing information.
     
 # Returns:
@@ -391,12 +445,16 @@ You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
         
     # Default (32 bins)
     features = get_glcm_features(img, mask, spacing)
+    
+    # With weighting
+    features = get_glcm_features(img, mask, spacing, weighting_norm="euclidean")
 """
 function get_glcm_features(img::Array{Float32,3},
     mask::BitArray{3},
     voxel_spacing::Vector{Float32};
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false)
 
     if verbose
@@ -412,6 +470,7 @@ function get_glcm_features(img::Array{Float32,3},
     glcm_matrices, gray_levels, bin_width_used = calculate_glcm_3d(img, mask, voxel_spacing;
         n_bins=n_bins,
         bin_width=bin_width,
+        weighting_norm=weighting_norm,
         verbose=verbose)
 
 
@@ -457,6 +516,7 @@ end
         - `voxel_spacing`: A vector specifying the voxel spacing in each dimension (2D).
         - `n_bins`: The number of bins for discretizing intensity values (optional).
         - `bin_width`: The width of each bin (optional).
+        - `weighting_norm`: The norm used for weighting the GLCM (optional)
         - `verbose`: If true, enables verbose output for debugging or detailed processing information.
     # Returns:
         - `feats`: A dictionary containing the mean GLCM features across all directions.
@@ -466,6 +526,7 @@ function get_glcm_features(img::Matrix{Float32},
     voxel_spacing::Vector{Float32};
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false)
 
 
@@ -481,5 +542,6 @@ function get_glcm_features(img::Matrix{Float32},
         spacing3d;
         n_bins=n_bins,
         bin_width=bin_width,
+        weighting_norm=weighting_norm,
         verbose=verbose)
 end

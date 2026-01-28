@@ -1,7 +1,7 @@
 using StatsBase
 
 """
-        get_glrlm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false)
+    get_glrlm_features with weighting support
 
     Calculates and returns a dictionary of GLRLM (Gray Level Run Length Matrix) features.
 
@@ -16,25 +16,28 @@ using StatsBase
     - `voxel_spacing`: The spacing of the voxels in the image.
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
+    - `weighting_norm`: Weighting method ("infinity", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
     - `verbose`: If true, prints progress messages.
 
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
 
     # Examples
-        # Using fixed number of bins (bin_width calculated automatically)
-        features = get_glrlm_features(img, mask, spacing, n_bins=64)
+        # Using fixed number of bins with weighting
+        features = get_glrlm_features(img, mask, spacing, n_bins=64, weighting_norm="euclidean")
         
-        # Using fixed bin width (number of bins calculated automatically)
-        features = get_glrlm_features(img, mask, spacing, bin_width=25.0f0)
+        # Using fixed bin width with weighting
+        features = get_glrlm_features(img, mask, spacing, bin_width=25.0f0, weighting_norm="infinity")
         
-        # Default (32 bins)
+        # Default (32 bins, no weighting)
         features = get_glrlm_features(img, mask, spacing)
-    """
+"""
 function get_glrlm_features(img, mask, voxel_spacing;
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
     verbose=false)
+    
     if verbose
         if !isnothing(n_bins)
             println("Calculating GLRLM with $(n_bins) bins...")
@@ -42,6 +45,9 @@ function get_glrlm_features(img, mask, voxel_spacing;
             println("Calculating GLRLM with bin_width=$(bin_width)...")
         else
             println("GLRLM calculation with 32 bins (default)...")
+        end
+        if !isnothing(weighting_norm)
+            println("Applying weighting: $(weighting_norm)")
         end
     end
 
@@ -55,7 +61,7 @@ function get_glrlm_features(img, mask, voxel_spacing;
         println("Effective Gray level utilized: $(n_bins_actual)")
     end
 
-    P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, verbose)
+    P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, verbose)
 
     feature_names = [
         "ShortRunEmphasis", "LongRunEmphasis", "GrayLevelNonUniformity",
@@ -79,19 +85,21 @@ function get_glrlm_features(img, mask, voxel_spacing;
 end
 
 """
-    calculate_glrlm_matrix(discretized_img, mask, verbose)
+    calculate_glrlm_matrix with weighting support
 
-    Calculates the Gray Level Run Length Matrix (GLRLM).
+    Calculates the Gray Level Run Length Matrix (GLRLM) with optional weighting.
 
     # Arguments
     - `discretized_img`: The discretized input image.
     - `mask`: The mask defining the region of interest.
+    - `voxel_spacing`: The spacing of the voxels in the image.
+    - `weighting_norm`: Weighting method (nothing, "infinity", "euclidean", "manhattan", "no_weighting").
     - `verbose`: If true, prints progress messages.
 
     # Returns
     - A tuple containing the GLRLM matrix and the angles used for calculation.
-    """
-function calculate_glrlm_matrix(discretized_img, mask, verbose)
+"""
+function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, verbose)
     if verbose
         println("Calculating GLRLM matrix...")
     end
@@ -118,7 +126,7 @@ function calculate_glrlm_matrix(discretized_img, mask, verbose)
     ]
 
     num_angles = length(angles)
-    P_glrlm = zeros(Int, num_gl, max_run_length, num_angles)
+    P_glrlm = zeros(Float32, num_gl, max_run_length, num_angles)
 
     # Pre-compute CartesianIndices and LinearIndices
     cart_indices = CartesianIndices(size(discretized_img))
@@ -155,9 +163,54 @@ function calculate_glrlm_matrix(discretized_img, mask, verbose)
                     curr_idx = next_idx
                 end
 
-                P_glrlm[gl_idx, run_length, angle_idx] += 1
+                P_glrlm[gl_idx, run_length, angle_idx] += 1.0f0
             end
         end
+    end
+
+    # Apply weighting if specified
+    if !isnothing(weighting_norm)
+        if verbose
+            println("Applying weighting ($(weighting_norm))...")
+        end
+        
+        pixel_spacing = voxel_spacing
+        weights = ones(Float32, num_angles)
+        
+        @inbounds for (a_idx, angle) in enumerate(angles)
+            angle_vec = Float32.([angle[1], angle[2], angle[3]])
+            abs_angle = abs.(angle_vec)
+            
+            if weighting_norm == "infinity"
+                weights[a_idx] = maximum(abs_angle .* pixel_spacing)
+            elseif weighting_norm == "euclidean"
+                weights[a_idx] = sqrt(sum((abs_angle .* pixel_spacing).^2))
+            elseif weighting_norm == "manhattan"
+                weights[a_idx] = sum(abs_angle .* pixel_spacing)
+            elseif weighting_norm == "no_weighting"
+                weights[a_idx] = 1.0f0
+            else
+                @warn "Weighting norm \"$(weighting_norm)\" is unknown, weighting factor set to 1"
+                weights[a_idx] = 1.0f0
+            end
+        end
+        
+        if verbose
+            println("Weights computed: ", weights)
+        end
+        
+        # Apply weights and sum across angles
+        # P_glrlm_weighted = sum(P_glrlm .* reshape(weights, 1, 1, :), dims=3)
+        weighted_glrlm = zeros(Float32, num_gl, max_run_length, 1)
+        @inbounds for angle_idx in 1:num_angles
+            for j in 1:max_run_length
+                for i in 1:num_gl
+                    weighted_glrlm[i, j, 1] += P_glrlm[i, j, angle_idx] * weights[angle_idx]
+                end
+            end
+        end
+        
+        P_glrlm = weighted_glrlm
     end
 
     return P_glrlm, angles
@@ -174,7 +227,7 @@ end
 
     # Returns
     - The calculated feature value.
-    """
+"""
 function calculate_glrlm_feature(feature_idx, P_glrlm)
     num_angles = size(P_glrlm, 3)
     feature_values = zeros(Float32, num_angles)
