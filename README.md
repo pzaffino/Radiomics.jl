@@ -61,6 +61,10 @@ To compute features from the entire mask regardless of fragmentation, set keep_l
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
 ```
+To compute with weighting_norm personalzed 
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false, weighting_norm="euclidean");
+```
 ## Using Radiomics.jl from Python
 Radiomics.jl can be used directly from Python in a simple and convenient way.
 
