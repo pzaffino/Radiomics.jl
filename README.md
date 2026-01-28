@@ -57,6 +57,55 @@ To compute with a specific number of bins
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], n_bins=16);
 ```
+To compute features from the entire mask regardless of fragmentation, set keep_largest_only to false; set it to true to isolate and analyze only the largest connected component
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
+```
+## Using Radiomics.jl from Python
+Radiomics.jl can be used directly from Python in a simple and convenient way.
+
+### Setup
+
+Juliacall acts as a bridge between Python and Julia.
+
+Install it via:
+
+If Julia is not already installed on your system, juliacall will download and use its own embedded version.
+
+```bash
+pip install juliacall
+```
+
+To install the Radiomics.jl package, run the following in Python:
+
+```python
+from juliacall import Main as jl
+jl.seval('import Pkg; Pkg.add("Radiomics")')
+```
+
+### Feature extraction
+
+Once the environment is set up, you can extract radiomic features as shown below:
+
+```python
+import SimpleITK as sitk
+import numpy as np
+
+from juliacall import Main as jl
+jl.seval("using Radiomics")
+
+ct_sitk = sitk.ReadImage('DATA_PATH/ct.nii.gz')
+mask_sitk = sitk.ReadImage('DATA_PATH/mask.nii.gz')
+
+ct = sitk.GetArrayFromImage(ct_sitk)
+mask = sitk.GetArrayFromImage(mask_sitk)
+
+spacing = list(ct_sitk.GetSpacing())
+
+radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))
+```
+
+
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
