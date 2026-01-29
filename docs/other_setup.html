@@ -622,7 +622,7 @@
         <nav>
             <a href="index.html">Home</a>
             <a href="installation.html">Getting Started</a>
-            <a href="other_setup.html" class="active">Other Setup</a>
+            <a href="python-usage.html" class="active">Python Usage</a>
             <div class="dropdown">
                 <button class="dropdown-btn">Features</button>
                 <div class="dropdown-content">
@@ -644,15 +644,15 @@
             <div class="page-header-content">
                 <h1>Using Radiomics.jl from Python</h1>
                 <p>Radiomics.jl can be used directly from Python in a simple and convenient way, providing seamless
-                    integration
-                    between Julia's performance and Python's ecosystem.</p>
+                    integration between Julia’s performance and the Python ecosystem; it is also interoperable with
+                    C/C++ applications.</p>
             </div>
         </section>
 
         <div class="content">
             <div class="section">
                 <h2>Feature Extraction Methods</h2>
-                <p>Choose your preferred method for extracting radiomic features from Python:</p>
+                <p>Select the radiomic feature extraction approach:</p>
 
                 <div class="method-toggle">
                     <button class="toggle-btn active" onclick="showMethod('juliacall')">
@@ -660,6 +660,9 @@
                     </button>
                     <button class="toggle-btn" onclick="showMethod('clib')">
                         ⚙️ Using C Shared Library
+                    </button>
+                    <button class="toggle-btn" onclick="showMethod('cpp')">
+                        💻 C++ Usage
                     </button>
                 </div>
 
@@ -762,10 +765,9 @@ radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacin
                             libraries after compilation.</p>
                     </div>
 
-                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Using the Shared Library from
+                    <h4 style="font-size: 1.1rem; margin-top: 32px; margin-bottom: 12px;">Using the Shared Library from
                         Python</h4>
-                    <p>For example, to extract features in Python using the shared library (in a Linux environment),
-                        run:</p>
+                    <p>To extract features in Python using the shared library (in a Linux environment), run:</p>
 
                     <div class="code-container">
                         <div class="code-header">
@@ -826,6 +828,151 @@ raw_json = lib.c_extract_radiomic_features(
 
 <span class="julia-comment"># Parse results</span>
 radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8'</span>))</code></pre>
+                    </div>
+                </div>
+
+                <!-- C++ Method -->
+                <div id="cpp-method" class="method-content">
+                    <h3>Call the C Shared Library from C++</h3>
+                    <p>Here is a C++ code snippet to extract radiomic features using the shared library on Linux:</p>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">CMakeLists.txt</h4>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-function">cmake_minimum_required</span>(VERSION <span class="julia-literal">3.10</span>)
+<span class="julia-function">project</span>(Radiomicsjl)
+
+<span class="julia-comment"># Find ITK</span>
+<span class="julia-function">find_package</span>(ITK REQUIRED)
+<span class="julia-function">include</span>(${ITK_USE_FILE})
+
+<span class="julia-function">add_executable</span>(Radiomicsjl main.cpp)
+
+<span class="julia-comment"># Link ITK and system library 'dl' to load .so file</span>
+<span class="julia-function">target_link_libraries</span>(Radiomicsjl 
+    ${ITK_LIBRARIES}
+    dl
+)</code></pre>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 32px; margin-bottom: 12px;">main.cpp</h4>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">#include</span> <span class="julia-string">"itkImage.h"</span>
+<span class="julia-keyword">#include</span> <span class="julia-string">"itkImageFileReader.h"</span>
+<span class="julia-keyword">#include</span> <span class="julia-string">&lt;iostream&gt;</span>
+<span class="julia-keyword">#include</span> <span class="julia-string">&lt;vector&gt;</span>
+<span class="julia-keyword">#include</span> <span class="julia-string">&lt;dlfcn.h&gt;</span> <span class="julia-comment">// to load .so file in Linux/macOS</span>
+
+<span class="julia-comment">// Define function signature of the function in the .so file</span>
+<span class="julia-keyword">typedef</span> <span class="julia-keyword">const</span> <span class="julia-type">char</span>* (*ExtractFeaturesFunc)(
+    <span class="julia-type">float</span>*,                      <span class="julia-comment">// img_ptr (c_float)</span>
+    <span class="julia-type">int64_t</span>, <span class="julia-type">int64_t</span>, <span class="julia-type">int64_t</span>,   <span class="julia-comment">// size_x, size_y, size_z (c_int64)</span>
+    <span class="julia-type">float</span>*,                      <span class="julia-comment">// mask_ptr (c_float)</span>
+    <span class="julia-type">double</span>, <span class="julia-type">double</span>, <span class="julia-type">double</span>,      <span class="julia-comment">// spacing_x, spacing_y, spacing_z (c_double)</span>
+    <span class="julia-type">int64_t</span>                      <span class="julia-comment">// n_bins (c_int64)</span>
+);
+
+
+<span class="julia-type">int</span> <span class="julia-function">main</span>(<span class="julia-type">int</span> argc, <span class="julia-type">char</span>* argv[]) {
+    <span class="julia-keyword">if</span> (argc &lt; <span class="julia-literal">4</span>) {
+        std::cerr &lt;&lt; <span class="julia-string">"Usage: "</span> &lt;&lt; argv[<span class="julia-literal">0</span>] &lt;&lt; <span class="julia-string">" anatomical_image binary_mask  bin_width"</span> &lt;&lt; std::endl;
+        <span class="julia-keyword">return</span> <span class="julia-literal">1</span>;
+    }
+
+    <span class="julia-comment">// Get parameters from command line</span>
+    std::string imagePath = argv[<span class="julia-literal">1</span>];
+    std::string maskPath = argv[<span class="julia-literal">2</span>];
+    <span class="julia-type">double</span> binWidth = std::stod(argv[<span class="julia-literal">3</span>]);
+
+    <span class="julia-comment">// Read images</span>
+    <span class="julia-keyword">using</span> PixelType = <span class="julia-type">float</span>;
+    <span class="julia-keyword">using</span> ImageType = itk::Image&lt;PixelType, <span class="julia-literal">3</span>&gt;;
+    <span class="julia-keyword">using</span> ReaderType = itk::ImageFileReader&lt;ImageType&gt;;
+
+    <span class="julia-keyword">auto</span> readerImg = ReaderType::New();
+    readerImg-&gt;SetFileName(imagePath);
+    
+    <span class="julia-keyword">auto</span> readerMask = ReaderType::New();
+    readerMask-&gt;SetFileName(maskPath);
+
+    <span class="julia-keyword">try</span> {
+        readerImg-&gt;Update();
+        readerMask-&gt;Update();
+    } <span class="julia-keyword">catch</span> (itk::ExceptionObject &amp;ex) {
+        std::cerr &lt;&lt; <span class="julia-string">"ITK error: "</span> &lt;&lt; ex.GetDescription() &lt;&lt; std::endl;
+        <span class="julia-keyword">return</span> <span class="julia-literal">1</span>;
+    }
+
+    ImageType::Pointer img = readerImg-&gt;GetOutput();
+    ImageType::Pointer mask = readerMask-&gt;GetOutput();
+
+    <span class="julia-comment">// Prepare arguments for the shared library call</span>
+    <span class="julia-keyword">auto</span> size = img-&gt;GetLargestPossibleRegion().GetSize();
+    <span class="julia-type">int64_t</span> nx = size[<span class="julia-literal">0</span>];
+    <span class="julia-type">int64_t</span> ny = size[<span class="julia-literal">1</span>];
+    <span class="julia-type">int64_t</span> nz = size[<span class="julia-literal">2</span>];
+
+    <span class="julia-keyword">auto</span> spacingITK = img-&gt;GetSpacing();
+    <span class="julia-type">double</span> sx = spacingITK[<span class="julia-literal">0</span>];
+    <span class="julia-type">double</span> sy = spacingITK[<span class="julia-literal">1</span>];
+    <span class="julia-type">double</span> sz = spacingITK[<span class="julia-literal">2</span>];
+
+    <span class="julia-type">float</span>* imgPtr = img-&gt;GetBufferPointer();
+    <span class="julia-type">float</span>* maskPtr = mask-&gt;GetBufferPointer();
+
+    <span class="julia-type">int64_t</span> nBins = <span class="julia-keyword">static_cast</span>&lt;<span class="julia-type">int64_t</span>&gt;(binWidth);
+
+    <span class="julia-comment">// Load and initialize shared library</span>
+    <span class="julia-type">void</span>* handle = <span class="julia-function">dlopen</span>(<span class="julia-string">"SHARED_LIB_PATH/radiomicsjl_build/lib/libradiomicsjl.so"</span>, RTLD_LAZY);
+    <span class="julia-keyword">if</span> (!handle) {
+        std::cerr &lt;&lt; <span class="julia-string">"Error during loading the library: "</span> &lt;&lt; <span class="julia-function">dlerror</span>() &lt;&lt; std::endl;
+        <span class="julia-keyword">return</span> <span class="julia-literal">1</span>;
+    }
+
+    <span class="julia-keyword">typedef</span> <span class="julia-type">void</span> (*InitJuliaFunc)(<span class="julia-type">int</span>, <span class="julia-type">char</span>**);
+
+    <span class="julia-keyword">auto</span> init_julia = (InitJuliaFunc) <span class="julia-function">dlsym</span>(handle, <span class="julia-string">"init_julia"</span>);
+    <span class="julia-keyword">if</span> (init_julia) {
+        init_julia(<span class="julia-literal">0</span>, <span class="julia-literal">NULL</span>);
+    }
+
+    <span class="julia-keyword">auto</span> extract_features = (ExtractFeaturesFunc) <span class="julia-function">dlsym</span>(handle, <span class="julia-string">"c_extract_radiomic_features"</span>);
+    <span class="julia-keyword">const</span> <span class="julia-type">char</span>* dlsym_error = <span class="julia-function">dlerror</span>();
+    <span class="julia-keyword">if</span> (dlsym_error) {
+        std::cerr &lt;&lt; <span class="julia-string">"Failed to find function symbol: "</span> &lt;&lt; dlsym_error &lt;&lt; std::endl;
+        <span class="julia-function">dlclose</span>(handle);
+        <span class="julia-keyword">return</span> <span class="julia-literal">1</span>;
+    }
+
+    <span class="julia-comment">// Run feature extraction</span>
+    std::cout &lt;&lt; <span class="julia-string">"Running feature extraction with bin_width = "</span> &lt;&lt; binWidth &lt;&lt; <span class="julia-string">"..."</span> &lt;&lt; std::endl;
+    <span class="julia-keyword">const</span> <span class="julia-type">char</span>* json_result = extract_features(
+        imgPtr,
+        nx, ny, nz,
+        maskPtr,
+        sx, sy, sz,
+        nBins); 
+
+    <span class="julia-keyword">if</span> (json_result) {
+        std::cout &lt;&lt; <span class="julia-string">"Features (JSON):\n"</span> &lt;&lt; json_result &lt;&lt; std::endl;
+    } <span class="julia-keyword">else</span> {
+        std::cerr &lt;&lt; <span class="julia-string">"The function returned a null pointer!"</span> &lt;&lt; std::endl;
+    }
+
+    <span class="julia-function">dlclose</span>(handle);
+    <span class="julia-keyword">return</span> <span class="julia-literal">0</span>;
+}</code></pre>
                     </div>
                 </div>
             </div>
@@ -894,6 +1041,9 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
             } else if (method === 'clib') {
                 document.getElementById('clib-method').classList.add('active');
                 document.querySelectorAll('.toggle-btn')[1].classList.add('active');
+            } else if (method === 'cpp') {
+                document.getElementById('cpp-method').classList.add('active');
+                document.querySelectorAll('.toggle-btn')[2].classList.add('active');
             }
         }
     </script>
