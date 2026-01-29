@@ -329,14 +329,6 @@
       border-radius: 2px;
     }
 
-    h3 {
-      font-size: 1.3rem;
-      font-weight: 600;
-      color: var(--text-primary);
-      margin-top: 32px;
-      margin-bottom: 16px;
-    }
-
     p {
       color: var(--text-secondary);
       line-height: 1.8;
@@ -743,64 +735,6 @@ spacing = [<span class="julia-literal">ct.header.pixdim</span>[<span class="juli
 
 <span class="julia-comment"># Extract radiomic features</span>
 radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing)</code></pre>
-        </div>
-      </div>
-
-      <div class="section">
-        <h2>Using Radiomics.jl from Python</h2>
-        <p>Radiomics.jl can be used directly from Python in a simple and convenient way.</p>
-
-        <h3>Setup</h3>
-        <p>Juliacall acts as a bridge between Python and Julia. Install it via:</p>
-
-        <div class="code-container">
-          <div class="code-header">
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-          </div>
-          <pre><code>pip install juliacall</code></pre>
-        </div>
-
-        <p>If Julia is not already installed on your system, juliacall will download and use its own embedded version.
-        </p>
-
-        <p>To install the Radiomics.jl package, run the following in Python:</p>
-
-        <div class="code-container">
-          <div class="code-header">
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-          </div>
-          <pre><code><span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
-jl.seval(<span class="julia-string">'import Pkg; Pkg.add("Radiomics")'</span>)</code></pre>
-        </div>
-
-        <h3>Feature Extraction</h3>
-        <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
-
-        <div class="code-container">
-          <div class="code-header">
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-          </div>
-          <pre><code><span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
-<span class="julia-keyword">import</span> numpy <span class="julia-keyword">as</span> np
-
-<span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
-jl.seval(<span class="julia-string">"using Radiomics"</span>)
-
-ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
-mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
-
-ct = sitk.GetArrayFromImage(ct_sitk)
-mask = sitk.GetArrayFromImage(mask_sitk)
-
-spacing = list(ct_sitk.GetSpacing())
-
-radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))</code></pre>
         </div>
       </div>
     </div>
