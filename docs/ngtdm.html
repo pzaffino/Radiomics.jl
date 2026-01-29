@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" type="image/png">
+  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+    type="image/png">
   <title>NGTDM Features - Radiomics.jl</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --primary: #2563eb;
@@ -156,7 +159,7 @@
     }
 
     /* Stili generali link sidebar */
-    .sidebar nav > a,
+    .sidebar nav>a,
     .sidebar .dropdown-btn,
     .sidebar .dropdown-content a {
       color: rgba(255, 255, 255, 0.85);
@@ -169,15 +172,15 @@
       display: block;
     }
 
-    .sidebar nav > a:hover,
+    .sidebar nav>a:hover,
     .sidebar .dropdown-content a:hover,
     .sidebar .dropdown-btn:hover {
       background-color: rgba(255, 255, 255, 0.08);
       color: white;
       border-left-color: var(--primary-light);
     }
-    
-    .sidebar nav > a.active,
+
+    .sidebar nav>a.active,
     .sidebar .dropdown-content a.active {
       background-color: rgba(37, 99, 235, 0.15);
       color: white;
@@ -475,21 +478,50 @@
 
     /* Tablet breakpoint */
     @media (max-width: 1024px) {
+
       /* FIX: Logo ridimensionato su tablet */
-      .top-left-logo { width: 120px; height: 120px; }
-      
-      .sidebar { width: 260px; }
-      .main { margin-left: 260px; width: auto; }
-      .page-header, .content, .footer { padding: 40px; }
-      .page-header h1 { font-size: 2rem; }
-      h2 { font-size: 1.5rem; }
-      .feature-list { grid-template-columns: 1fr; }
+      .top-left-logo {
+        width: 120px;
+        height: 120px;
+      }
+
+      .sidebar {
+        width: 260px;
+      }
+
+      .main {
+        margin-left: 260px;
+        width: auto;
+      }
+
+      .page-header,
+      .content,
+      .footer {
+        padding: 40px;
+      }
+
+      .page-header h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Mobile breakpoint */
     @media (max-width: 768px) {
-      body { flex-direction: column; }
-      .mobile-menu-toggle { display: block; }
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-menu-toggle {
+        display: block;
+      }
 
       .sidebar {
         width: 280px;
@@ -499,61 +531,160 @@
         bottom: 0;
       }
 
-      .sidebar.mobile-open { transform: translateX(0); }
-      .main { margin-left: 0; width: 100%; }
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
 
       /* FIX: Logo su mobile */
-      .top-left-logo { width: 100px; height: 100px; }
+      .top-left-logo {
+        width: 100px;
+        height: 100px;
+      }
 
-      .sidebar-header { padding: 60px 25px 25px; }
-      .sidebar h2 { font-size: 1.5rem; }
-      .sidebar nav { padding: 15px 0; }
-      
-      .sidebar a, .dropdown-btn { padding: 12px 25px; font-size: 0.9rem; }
-      .dropdown-content a { padding: 10px 25px 10px 45px; font-size: 0.85rem; }
+      .sidebar-header {
+        padding: 60px 25px 25px;
+      }
 
-      .page-header { padding: 100px 25px 40px; }
-      .page-header h1 { font-size: 1.75rem; }
-      .page-header p { font-size: 1rem; }
+      .sidebar h2 {
+        font-size: 1.5rem;
+      }
 
-      .content { padding: 30px 25px; }
-      .section { margin-bottom: 40px; }
-      h2 { font-size: 1.4rem; }
+      .sidebar nav {
+        padding: 15px 0;
+      }
 
-      .feature-list { grid-template-columns: 1fr; gap: 14px; }
-      .feature-item { padding: 14px 18px; }
-      .feature-item strong { font-size: 1rem; }
-      
-      .formula { font-size: 0.85rem; padding: 6px; }
-      .info-box { padding: 20px; }
-      .footer { padding: 30px 25px; }
+      .sidebar a,
+      .dropdown-btn {
+        padding: 12px 25px;
+        font-size: 0.9rem;
+      }
+
+      .dropdown-content a {
+        padding: 10px 25px 10px 45px;
+        font-size: 0.85rem;
+      }
+
+      .page-header {
+        padding: 100px 25px 40px;
+      }
+
+      .page-header h1 {
+        font-size: 1.75rem;
+      }
+
+      .page-header p {
+        font-size: 1rem;
+      }
+
+      .content {
+        padding: 30px 25px;
+      }
+
+      .section {
+        margin-bottom: 40px;
+      }
+
+      h2 {
+        font-size: 1.4rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .feature-item {
+        padding: 14px 18px;
+      }
+
+      .feature-item strong {
+        font-size: 1rem;
+      }
+
+      .formula {
+        font-size: 0.85rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 20px;
+      }
+
+      .footer {
+        padding: 30px 25px;
+      }
     }
 
     /* Small mobile breakpoint */
     @media (max-width: 480px) {
-      .mobile-menu-toggle { padding: 10px 14px; font-size: 1rem; }
+      .mobile-menu-toggle {
+        padding: 10px 14px;
+        font-size: 1rem;
+      }
 
       /* FIX: Logo su schermi piccoli */
-      .top-left-logo { width: 80px; height: 80px; }
+      .top-left-logo {
+        width: 80px;
+        height: 80px;
+      }
 
-      .page-header { padding: 90px 20px 30px; }
-      .page-header h1 { font-size: 1.5rem; }
-      .page-header p { font-size: 0.95rem; }
+      .page-header {
+        padding: 90px 20px 30px;
+      }
 
-      .content { padding: 25px 20px; }
-      h2 { font-size: 1.25rem; }
-      p { font-size: 0.95rem; }
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
 
-      .feature-list { gap: 12px; }
-      .feature-item { padding: 12px 16px; }
-      .feature-item strong { font-size: 0.95rem; }
-      .feature-item p { font-size: 0.9rem; }
-      
-      .formula { font-size: 0.8rem; padding: 6px; }
-      .info-box { padding: 15px; }
+      .page-header p {
+        font-size: 0.95rem;
+      }
+
+      .content {
+        padding: 25px 20px;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+      }
+
+      p {
+        font-size: 0.95rem;
+      }
+
+      .feature-list {
+        gap: 12px;
+      }
+
+      .feature-item {
+        padding: 12px 16px;
+      }
+
+      .feature-item strong {
+        font-size: 0.95rem;
+      }
+
+      .feature-item p {
+        font-size: 0.9rem;
+      }
+
+      .formula {
+        font-size: 0.8rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 15px;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
@@ -563,13 +694,15 @@
     <div class="sidebar-header">
       <div class="top-left-logo">
         <a href="index.html">
-          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Radiomics.jl Logo">    
+          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+            alt="Radiomics.jl Logo">
         </a>
       </div>
     </div>
     <nav>
       <a href="index.html">Home</a>
       <a href="installation.html">Getting Started</a>
+      <a href="other_setup.html">Other Setup</a>
       <div class="dropdown active">
         <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
@@ -597,11 +730,17 @@
     <div class="content">
       <div class="section">
         <h2>Overview</h2>
-        <p>The Neighbouring Gray Tone Difference Matrix (NGTDM) quantifies the difference between a gray value and the average gray value of its neighbors within a specified distance. This texture analysis method captures local intensity variations and spatial patterns by analyzing how each voxel's intensity relates to its surrounding neighborhood, providing essential descriptors for characterizing tissue heterogeneity in medical imaging.</p>
-        
-        
+        <p>The Neighbouring Gray Tone Difference Matrix (NGTDM) quantifies the difference between a gray value and the
+          average gray value of its neighbors within a specified distance. This texture analysis method captures local
+          intensity variations and spatial patterns by analyzing how each voxel's intensity relates to its surrounding
+          neighborhood, providing essential descriptors for characterizing tissue heterogeneity in medical imaging.</p>
+
+
         <div class="info-box">
-          <p>NGTDM features excel at capturing fine-scale texture patterns and local intensity variations by comparing each voxel with its immediate neighborhood. These features are particularly sensitive to subtle changes in tissue structure, making them invaluable for detecting early disease progression, tumor characterization, and quantitative assessment of heterogeneity in radiomics research.</p>
+          <p>NGTDM features excel at capturing fine-scale texture patterns and local intensity variations by comparing
+            each voxel with its immediate neighborhood. These features are particularly sensitive to subtle changes in
+            tissue structure, making them invaluable for detecting early disease progression, tumor characterization,
+            and quantitative assessment of heterogeneity in radiomics research.</p>
         </div>
       </div>
 
@@ -612,32 +751,41 @@
         <div class="feature-list">
           <div class="feature-item">
             <strong>Coarseness</strong>
-            <p>Measures the spatial rate of change in intensity; higher values indicate coarser textures with larger homogeneous regions.</p>
+            <p>Measures the spatial rate of change in intensity; higher values indicate coarser textures with larger
+              homogeneous regions.</p>
             <div class="formula">Coarseness = 1 / Σ<sub>i</sub> p<sub>i</sub> · s<sub>i</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Contrast</strong>
-            <p>Quantifies the intensity contrast between a voxel and its neighbors; higher values indicate larger differences and more heterogeneous patterns.</p>
-            <div class="formula">Contrast = (1 / (N<sub>g</sub>(N<sub>g</sub> - 1))) · Σ<sub>i,j</sub> p<sub>i</sub> · p<sub>j</sub> · (i - j)²</div>
+            <p>Quantifies the intensity contrast between a voxel and its neighbors; higher values indicate larger
+              differences and more heterogeneous patterns.</p>
+            <div class="formula">Contrast = (1 / (N<sub>g</sub>(N<sub>g</sub> - 1))) · Σ<sub>i,j</sub> p<sub>i</sub> ·
+              p<sub>j</sub> · (i - j)²</div>
           </div>
 
           <div class="feature-item">
             <strong>Busyness</strong>
-            <p>Measures rapid changes in intensity between neighboring voxels; higher values indicate more heterogeneous and busy textures.</p>
-            <div class="formula">Busyness = Σ<sub>i</sub> p<sub>i</sub> · s<sub>i</sub> / Σ<sub>i,j</sub> |i - j| · p<sub>i</sub> · p<sub>j</sub></div>
+            <p>Measures rapid changes in intensity between neighboring voxels; higher values indicate more heterogeneous
+              and busy textures.</p>
+            <div class="formula">Busyness = Σ<sub>i</sub> p<sub>i</sub> · s<sub>i</sub> / Σ<sub>i,j</sub> |i - j| ·
+              p<sub>i</sub> · p<sub>j</sub></div>
           </div>
 
           <div class="feature-item">
             <strong>Complexity</strong>
-            <p>Evaluates local intensity variations considering differences among all gray levels; higher values indicate more complex and intricate texture patterns.</p>
-            <div class="formula">Complexity = Σ<sub>i,j</sub> |i - j| / N<sub>v</sub> · (p<sub>i</sub> · s<sub>i</sub> + p<sub>j</sub> · s<sub>j</sub>)</div>
+            <p>Evaluates local intensity variations considering differences among all gray levels; higher values
+              indicate more complex and intricate texture patterns.</p>
+            <div class="formula">Complexity = Σ<sub>i,j</sub> |i - j| / N<sub>v</sub> · (p<sub>i</sub> · s<sub>i</sub> +
+              p<sub>j</sub> · s<sub>j</sub>)</div>
           </div>
 
           <div class="feature-item">
             <strong>Strength</strong>
-            <p>Measures the perceptual strength of the texture patterns; higher values indicate more prominent and well-defined structures within the region.</p>
-            <div class="formula">Strength = Σ<sub>i,j</sub> (p<sub>i</sub> + p<sub>j</sub>) · (i - j)² / Σ<sub>i</sub> s<sub>i</sub></div>
+            <p>Measures the perceptual strength of the texture patterns; higher values indicate more prominent and
+              well-defined structures within the region.</p>
+            <div class="formula">Strength = Σ<sub>i,j</sub> (p<sub>i</sub> + p<sub>j</sub>) · (i - j)² / Σ<sub>i</sub>
+              s<sub>i</sub></div>
           </div>
         </div>
       </div>
@@ -649,11 +797,14 @@
           <li><strong>G</strong> : Number of gray levels in the quantized image.</li>
           <li><strong>i, j</strong> : Gray level indices, ranging from 1 to <strong>G</strong>.</li>
           <li><strong>p_i</strong> : Probability of gray level <strong>i</strong> in the region of interest (ROI).</li>
-          <li><strong>s_i</strong> : Sum of absolute differences between gray level <strong>i</strong> and the average of its neighbors.</li>
+          <li><strong>s_i</strong> : Sum of absolute differences between gray level <strong>i</strong> and the average
+            of its neighbors.</li>
           <li><strong>N_g</strong> : Total number of gray levels (same as <strong>G</strong>).</li>
           <li><strong>N</strong> : Number of voxels (or pixels) in the ROI.</li>
-          <li><strong>f(i,j)</strong> : Frequency or probability of occurrence of gray level pair (<strong>i,j</strong>).</li>
-          <li><strong>Δ(i)</strong> : Difference between gray level <strong>i</strong> and the average of its neighboring voxels.</li>
+          <li><strong>f(i,j)</strong> : Frequency or probability of occurrence of gray level pair
+            (<strong>i,j</strong>).</li>
+          <li><strong>Δ(i)</strong> : Difference between gray level <strong>i</strong> and the average of its
+            neighboring voxels.</li>
         </ul>
       </div>
 
@@ -662,10 +813,14 @@
         <h2>Calculation Methodology</h2>
         <div class="steps-list">
           <ol>
-            <li>Discretize the image based on <code>n_bins</code> or <code>bin_width</code> parameters to create quantized intensity levels for consistent analysis.</li>
-            <li>Compute the NGTDM matrix using <code>calculate_ngtdm_matrix</code>, which evaluates the neighborhood of each voxel and calculates intensity differences.</li>
-            <li>Calculate coefficients using <code>calculate_ngtdm_coefficients</code>, deriving probability distributions (<code>p_i</code>) and difference measures (<code>s_i</code>).</li>
-            <li>Extract individual features using their corresponding mathematical formulas: <code>coarseness</code>, <code>contrast</code>, <code>busyness</code>, <code>complexity</code>, and <code>strength</code>.</li>
+            <li>Discretize the image based on <code>n_bins</code> or <code>bin_width</code> parameters to create
+              quantized intensity levels for consistent analysis.</li>
+            <li>Compute the NGTDM matrix using <code>calculate_ngtdm_matrix</code>, which evaluates the neighborhood of
+              each voxel and calculates intensity differences.</li>
+            <li>Calculate coefficients using <code>calculate_ngtdm_coefficients</code>, deriving probability
+              distributions (<code>p_i</code>) and difference measures (<code>s_i</code>).</li>
+            <li>Extract individual features using their corresponding mathematical formulas: <code>coarseness</code>,
+              <code>contrast</code>, <code>busyness</code>, <code>complexity</code>, and <code>strength</code>.</li>
           </ol>
         </div>
       </div>
@@ -673,13 +828,18 @@
       <div class="section">
         <h2>Clinical Applications</h2>
         <div class="info-box">
-          <p>NGTDM features are particularly valuable for capturing local texture patterns and assessing heterogeneity within regions of interest in medical imaging. These features have demonstrated clinical utility in tumor grading, response prediction to therapy, prognostic modeling, and tissue characterization across various imaging modalities including CT, MRI, and PET. Their sensitivity to fine-scale texture variations makes them essential tools in precision medicine and quantitative imaging biomarker development.</p>
+          <p>NGTDM features are particularly valuable for capturing local texture patterns and assessing heterogeneity
+            within regions of interest in medical imaging. These features have demonstrated clinical utility in tumor
+            grading, response prediction to therapy, prognostic modeling, and tissue characterization across various
+            imaging modalities including CT, MRI, and PET. Their sensitivity to fine-scale texture variations makes them
+            essential tools in precision medicine and quantitative imaging biomarker development.</p>
         </div>
       </div>
     </div>
 
     <footer class="footer">
-      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a>
+      </p>
     </footer>
   </main>
 
@@ -722,4 +882,5 @@
   </script>
 
 </body>
+
 </html>
