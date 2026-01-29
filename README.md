@@ -108,7 +108,73 @@ spacing = list(ct_sitk.GetSpacing())
 
 radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))
 ```
+# Generate C shared libray
 
+It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++ code or any language that provides a C shared library interface.
+
+To generate the library, execute the following in Julia (this will take a few minutes):
+
+```julia
+using PackageCompiler
+
+create_library(".", "radiomicsjl_build";
+               lib_name="libradiomicsjl",
+               force=true,
+               incremental=true,
+               filter_stdlibs=true)
+```
+
+The folder radiomicsjl_build will contain the shared libraries.
+
+For example, to extract features in Python using the shared library (in a Linux environment), run:
+
+```python
+import ctypes
+import os
+import json
+import numpy as np
+import SimpleITK as sitk
+
+lib_path = os.path.abspath("SHARED_LIB_PATH/radiomicsjl_build/lib/libradiomicsjl.so")
+lib = ctypes.CDLL(lib_path)
+lib.init_julia(0, None)
+
+lib.c_extract_radiomic_features.argtypes = [
+    ctypes.POINTER(ctypes.c_float),  # img_ptr   (Float32)
+    ctypes.c_int64,                  # size_x    (Int64)
+    ctypes.c_int64,                  # size_y    (Int64)
+    ctypes.c_int64,                  # size_z    (Int64)
+    ctypes.POINTER(ctypes.c_float),  # mask_ptr  (Float32)
+    ctypes.c_double,                 # spacing_x (Float64)
+    ctypes.c_double,                 # spacing_y (Float64)
+    ctypes.c_double,                 # spacing_z (Float64)
+    ctypes.c_int64                   # n_bins    (Int64)
+]
+
+lib.c_extract_radiomic_features.restype = ctypes.c_char_p
+
+ct_sitk = sitk.ReadImage('DATA_PATH/CT.nrrd')
+mask_sitk = sitk.ReadImage('DATA_PATH/left_parotid.nrrd')
+
+ct = np.asfortranarray(sitk.GetArrayFromImage(ct_sitk), dtype=np.float32)
+mask = np.asfortranarray(sitk.GetArrayFromImage(mask_sitk), dtype=np.float32)
+
+ptr_ct = ct.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+ptr_mask = mask.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+
+sx, sy, sz = ct.shape
+spacing = ct_sitk.GetSpacing()
+bin_width = 25
+
+raw_json = lib.c_extract_radiomic_features(
+        ptr_ct,
+        sx, sy, sz,
+        ptr_mask,
+        float(spacing[0]), float(spacing[1]), float(spacing[2]),
+        int(bin_width))
+
+readiomic_features = json.loads(raw_json.decode('utf-8'))
+```
 
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
