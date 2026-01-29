@@ -112,7 +112,7 @@ radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacin
 
 It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++ code or any language that provides a C shared library interface.
 
-To generate the library, execute the following in Julia (this will take a few minutes):
+To generate the library, navigate to the Radiomics.jl source folder and run the following in Julia (this will take a few minutes):
 
 ```julia
 using PackageCompiler
