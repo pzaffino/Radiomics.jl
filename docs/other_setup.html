@@ -1,0 +1,903 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon"
+        href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+        type="image/png">
+    <title>Python Usage - Radiomics.jl</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --primary-light: #3b82f6;
+            --secondary: #0f172a;
+            --text-primary: #1e293b;
+            --text-secondary: #64748b;
+            --bg-light: #f8fafc;
+            --bg-white: #ffffff;
+            --border: #e2e8f0;
+            --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+            --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+            --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+
+            /* Colori base per la sintassi */
+            --syntax-keyword: #ff79c6;
+            --syntax-function: #50fa7b;
+            --syntax-type: #8be9fd;
+            --syntax-string: #f1fa8c;
+            --syntax-comment: #6272a4;
+            --syntax-literal: #bd93f9;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            display: flex;
+            min-height: 100vh;
+            background-color: var(--bg-light);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            width: 100%;
+        }
+
+        /* --- LAYOUT & SIDEBAR --- */
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 300;
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            font-size: 1.2rem;
+            transition: all 0.3s;
+        }
+
+        .mobile-menu-toggle:hover {
+            background: var(--primary-dark);
+            transform: scale(1.05);
+        }
+
+        .mobile-menu-toggle.active {
+            background: #ef4444;
+        }
+
+        /* Sidebar Styling */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            bottom: 0;
+            height: 100%;
+            width: 300px;
+            background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
+            color: white;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            box-shadow: var(--shadow-xl);
+            overflow-y: auto;
+            z-index: 100;
+            transition: transform 0.3s ease;
+        }
+
+        /* FIX LOGO: Layout Header Sidebar */
+        .sidebar-header {
+            /* Flexbox per centrare il contenuto (il logo) */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 40px 20px;
+            /* Spazio attorno al logo */
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(0, 0, 0, 0.2);
+        }
+
+        /* FIX LOGO: Stile del quadrato bianco */
+        .top-left-logo {
+            /* Rimosso position: fixed per farlo fluire nella sidebar */
+            position: relative;
+            width: 160px;
+            height: 160px;
+            background: white;
+            border-radius: 8px;
+            padding: 10px;
+            box-shadow: var(--shadow-lg);
+            transition: transform 0.3s ease;
+            /* Assicura che non venga schiacciato */
+            flex-shrink: 0;
+        }
+
+        .top-left-logo:hover {
+            transform: scale(1.05);
+        }
+
+        /* FIX LOGO: Link interno al logo */
+        .top-left-logo a {
+            display: block;
+            width: 100%;
+            height: 100%;
+            /* Reset stili link sidebar per evitare evidenziazioni indesiderate */
+            padding: 0 !important;
+            background: transparent !important;
+            border: none !important;
+        }
+
+        .top-left-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            display: block;
+        }
+
+        .sidebar nav {
+            padding: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        /* Stili generali per i link della sidebar */
+        .sidebar nav>a,
+        .sidebar .dropdown-btn,
+        .sidebar .dropdown-content a {
+            color: rgba(255, 255, 255, 0.85);
+            text-decoration: none;
+            padding: 14px 30px;
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+            font-weight: 500;
+            font-size: 0.95rem;
+            border-left: 3px solid transparent;
+            display: block;
+            /* Assicura che si comportino bene */
+        }
+
+        .sidebar nav>a:hover,
+        .sidebar .dropdown-content a:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: white;
+            border-left-color: var(--primary-light);
+        }
+
+        .sidebar nav>a.active {
+            background-color: rgba(37, 99, 235, 0.15);
+            color: white;
+            font-weight: 600;
+            border-left-color: var(--primary-light);
+        }
+
+        .dropdown {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .dropdown-btn {
+            background: none;
+            border: none;
+            text-align: left;
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-family: 'Inter', sans-serif;
+            width: 100%;
+        }
+
+        .dropdown-btn::after {
+            content: '▾';
+            font-size: 0.8rem;
+            transition: transform 0.3s;
+            opacity: 0.7;
+        }
+
+        .dropdown.active .dropdown-btn::after {
+            transform: rotate(180deg);
+        }
+
+        .dropdown-btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
+            color: white;
+            border-left-color: var(--primary-light);
+        }
+
+        .dropdown-content {
+            display: none;
+            flex-direction: column;
+            background: rgba(0, 0, 0, 0.15);
+            padding: 8px 0;
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s ease-out;
+        }
+
+        .dropdown-content a {
+            font-size: 0.88rem;
+            padding: 10px 30px 10px 50px;
+            font-weight: 400;
+        }
+
+        .dropdown.active .dropdown-content {
+            display: flex;
+            max-height: 500px;
+        }
+
+        /* Main Container */
+        .main {
+            flex: 1;
+            padding: 0;
+            width: auto;
+            margin-left: 300px;
+            min-width: 0;
+        }
+
+        /* --- PAGE HEADER --- */
+
+        .page-header {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            padding: 60px 60px;
+            color: white;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .page-header::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+            opacity: 0.3;
+        }
+
+        .page-header-content {
+            position: relative;
+            z-index: 1;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .page-header h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 16px;
+            letter-spacing: -1px;
+            line-height: 1.2;
+        }
+
+        .page-header p {
+            color: rgba(255, 255, 255, 0.95);
+            font-size: 1.15rem;
+            max-width: 800px;
+        }
+
+        .content {
+            padding: 60px;
+            background: white;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .section {
+            margin-bottom: 60px;
+        }
+
+        h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 24px;
+            position: relative;
+            padding-bottom: 16px;
+        }
+
+        h2::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 60px;
+            height: 4px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+            border-radius: 2px;
+        }
+
+        h3 {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-top: 32px;
+            margin-bottom: 16px;
+        }
+
+        p {
+            color: var(--text-secondary);
+            line-height: 1.8;
+            font-size: 1rem;
+            margin-bottom: 16px;
+        }
+
+        /* Code Block */
+        .code-container {
+            position: relative;
+            margin-top: 24px;
+            margin-bottom: 24px;
+        }
+
+        .code-header {
+            background: #1e293b;
+            padding: 12px 20px;
+            border-radius: 12px 12px 0 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .code-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+        }
+
+        .code-dot:nth-child(1) {
+            background: #ef4444;
+        }
+
+        .code-dot:nth-child(2) {
+            background: #f59e0b;
+        }
+
+        .code-dot:nth-child(3) {
+            background: #10b981;
+        }
+
+        pre {
+            background: #0f172a;
+            color: #e2e8f0;
+            padding: 30px;
+            border-radius: 0 0 12px 12px;
+            overflow-x: auto;
+            margin: 0;
+            box-shadow: var(--shadow-lg);
+            border: 1px solid #1e293b;
+            border-top: none;
+        }
+
+        code {
+            font-family: 'Fira Code', 'Consolas', monospace;
+            font-size: 0.9rem;
+            line-height: 1.7;
+            display: block;
+        }
+
+        .julia-keyword {
+            color: var(--syntax-keyword);
+            font-weight: 600;
+        }
+
+        .julia-function {
+            color: var(--syntax-function);
+        }
+
+        .julia-type {
+            color: var(--syntax-type);
+        }
+
+        .julia-string {
+            color: var(--syntax-string);
+        }
+
+        .julia-comment {
+            color: var(--syntax-comment);
+        }
+
+        .julia-literal {
+            color: var(--syntax-literal);
+        }
+
+        /* Info Box */
+        .info-box {
+            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+            border-left: 4px solid var(--primary);
+            padding: 20px 24px;
+            border-radius: 8px;
+            margin: 24px 0;
+        }
+
+        .info-box p {
+            color: var(--text-primary);
+            margin-bottom: 0;
+        }
+
+        /* Toggle Buttons */
+        .method-toggle {
+            display: flex;
+            gap: 12px;
+            margin: 32px 0 24px;
+            flex-wrap: wrap;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            min-width: 200px;
+            padding: 16px 24px;
+            background: white;
+            border: 2px solid var(--border);
+            color: var(--text-primary);
+            font-size: 1rem;
+            font-weight: 600;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: var(--shadow-sm);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .toggle-btn:hover {
+            border-color: var(--primary-light);
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-md);
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .method-content {
+            display: none;
+            animation: fadeIn 0.4s ease-in-out;
+        }
+
+        .method-content.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        /* Footer */
+        .footer {
+            background: var(--secondary);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 40px 60px;
+            text-align: center;
+            font-size: 0.9rem;
+        }
+
+        .footer a {
+            color: var(--primary-light);
+            text-decoration: none;
+        }
+
+        .footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* Overlay */
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .overlay.active {
+            display: block;
+            opacity: 1;
+        }
+
+        /* --- RESPONSIVE MEDIA QUERIES --- */
+
+        @media (max-width: 1024px) {
+            .top-left-logo {
+                width: 120px;
+                height: 120px;
+            }
+
+            .sidebar {
+                width: 260px;
+            }
+
+            .main {
+                margin-left: 260px;
+                width: auto;
+            }
+
+            .page-header,
+            .content,
+            .footer {
+                padding: 40px;
+            }
+        }
+
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+
+            .mobile-menu-toggle {
+                display: block;
+            }
+
+            .sidebar {
+                width: 280px;
+                transform: translateX(-100%);
+                z-index: 250;
+                height: 100%;
+                bottom: 0;
+            }
+
+            .sidebar.mobile-open {
+                transform: translateX(0);
+            }
+
+            .main {
+                margin-left: 0;
+                width: 100%;
+            }
+
+            /* Su mobile il logo sta dentro il menu, quindi resettiamo eventuali stili legacy */
+            .top-left-logo {
+                width: 100px;
+                height: 100px;
+            }
+
+            .sidebar-header {
+                padding: 60px 25px 25px;
+            }
+
+            .page-header {
+                padding: 100px 30px 40px;
+            }
+
+            .content,
+            .footer {
+                padding: 40px 30px;
+            }
+
+            h2 {
+                font-size: 1.75rem;
+            }
+
+            .page-header h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+    <div class="overlay" id="overlay"></div>
+
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="top-left-logo">
+                <a href="index.html">
+                    <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+                        alt="Radiomics.jl Logo">
+                </a>
+            </div>
+        </div>
+        <nav>
+            <a href="index.html">Home</a>
+            <a href="installation.html">Getting Started</a>
+            <a href="other_setup.html" class="active">Python Usage</a>
+            <div class="dropdown">
+                <button class="dropdown-btn">Features</button>
+                <div class="dropdown-content">
+                    <a href="first-order.html">First-order features</a>
+                    <a href="2d-shape.html">2D shape features</a>
+                    <a href="3d-shape.html">3D shape features</a>
+                    <a href="glcm.html">GLCM features</a>
+                    <a href="gldm.html">GLDM features</a>
+                    <a href="glrlm.html">GLRLM features</a>
+                    <a href="glszm.html">GLSZM features</a>
+                    <a href="ngtdm.html">NGTDM features</a>
+                </div>
+            </div>
+        </nav>
+    </aside>
+
+    <main class="main">
+        <section class="page-header">
+            <div class="page-header-content">
+                <h1>Using Radiomics.jl from Python</h1>
+                <p>Radiomics.jl can be used directly from Python in a simple and convenient way, providing seamless
+                    integration
+                    between Julia's performance and Python's ecosystem.</p>
+            </div>
+        </section>
+
+        <div class="content">
+            <div class="section">
+                <h2>Feature Extraction Methods</h2>
+                <p>Choose your preferred method for extracting radiomic features from Python:</p>
+
+                <div class="method-toggle">
+                    <button class="toggle-btn active" onclick="showMethod('juliacall')">
+                        📦 Using Juliacall (Recommended)
+                    </button>
+                    <button class="toggle-btn" onclick="showMethod('clib')">
+                        ⚙️ Using C Shared Library
+                    </button>
+                </div>
+
+                <!-- Juliacall Method -->
+                <div id="juliacall-method" class="method-content active">
+                    <h3>Setup</h3>
+                    <p>Juliacall acts as a bridge between Python and Julia, enabling you to call Julia functions
+                        directly from
+                        Python code.</p>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Installing Juliacall</h4>
+                    <p>Install juliacall via pip:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>pip install juliacall</code></pre>
+                    </div>
+
+                    <div class="info-box">
+                        <p><strong>Note:</strong> If Julia is not already installed on your system, juliacall will
+                            download and use
+                            its own embedded version automatically.</p>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Installing Radiomics.jl</h4>
+                    <p>To install the Radiomics.jl package, run the following in Python:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
+jl.seval(<span class="julia-string">'import Pkg; Pkg.add("Radiomics")'</span>)</code></pre>
+                    </div>
+
+                    <h3 style="margin-top: 40px;">Feature Extraction with Juliacall</h3>
+                    <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
+<span class="julia-keyword">import</span> numpy <span class="julia-keyword">as</span> np
+
+<span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
+jl.seval(<span class="julia-string">"using Radiomics"</span>)
+
+<span class="julia-comment"># Load medical images</span>
+ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
+mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
+
+<span class="julia-comment"># Convert to numpy arrays</span>
+ct = sitk.GetArrayFromImage(ct_sitk)
+mask = sitk.GetArrayFromImage(mask_sitk)
+
+<span class="julia-comment"># Extract spacing information</span>
+spacing = list(ct_sitk.GetSpacing())
+
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))</code></pre>
+                    </div>
+                </div>
+
+                <!-- C Shared Library Method -->
+                <div id="clib-method" class="method-content">
+                    <h3>Generate C Shared Library</h3>
+                    <p>It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++
+                        code or any language that provides a C shared library interface.</p>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Building the Library</h4>
+                    <p>To generate the library, navigate to the Radiomics.jl source folder and run the following in
+                        Julia (this will take a few minutes):</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">using</span> <span class="julia-type">PackageCompiler</span>
+
+<span class="julia-function">create_library</span>(<span class="julia-string">"."</span>, <span class="julia-string">"radiomicsjl_build"</span>;
+               lib_name=<span class="julia-string">"libradiomicsjl"</span>,
+               force=<span class="julia-literal">true</span>,
+               incremental=<span class="julia-literal">true</span>,
+               filter_stdlibs=<span class="julia-literal">true</span>)</code></pre>
+                    </div>
+
+                    <div class="info-box">
+                        <p><strong>Note:</strong> The folder <code>radiomicsjl_build</code> will contain the shared
+                            libraries after compilation.</p>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Using the Shared Library from
+                        Python</h4>
+                    <p>For example, to extract features in Python using the shared library (in a Linux environment),
+                        run:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">import</span> ctypes
+<span class="julia-keyword">import</span> os
+<span class="julia-keyword">import</span> json
+<span class="julia-keyword">import</span> numpy <span class="julia-keyword">as</span> np
+<span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
+
+<span class="julia-comment"># Load the shared library</span>
+lib_path = os.path.abspath(<span class="julia-string">"SHARED_LIB_PATH/radiomicsjl_build/lib/libradiomicsjl.so"</span>)
+lib = ctypes.CDLL(lib_path)
+lib.init_julia(<span class="julia-literal">0</span>, <span class="julia-literal">None</span>)
+
+<span class="julia-comment"># Define function signatures</span>
+lib.c_extract_radiomic_features.argtypes = [
+    ctypes.POINTER(ctypes.c_float),  <span class="julia-comment"># img_ptr   (Float32)</span>
+    ctypes.c_int64,                  <span class="julia-comment"># size_x    (Int64)</span>
+    ctypes.c_int64,                  <span class="julia-comment"># size_y    (Int64)</span>
+    ctypes.c_int64,                  <span class="julia-comment"># size_z    (Int64)</span>
+    ctypes.POINTER(ctypes.c_float),  <span class="julia-comment"># mask_ptr  (Float32)</span>
+    ctypes.c_double,                 <span class="julia-comment"># spacing_x (Float64)</span>
+    ctypes.c_double,                 <span class="julia-comment"># spacing_y (Float64)</span>
+    ctypes.c_double,                 <span class="julia-comment"># spacing_z (Float64)</span>
+    ctypes.c_int64                   <span class="julia-comment"># n_bins    (Int64)</span>
+]
+
+lib.c_extract_radiomic_features.restype = ctypes.c_char_p
+
+<span class="julia-comment"># Load medical images</span>
+ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/CT.nrrd'</span>)
+mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/left_parotid.nrrd'</span>)
+
+<span class="julia-comment"># Convert to numpy arrays (Fortran-contiguous)</span>
+ct = np.asfortranarray(sitk.GetArrayFromImage(ct_sitk), dtype=np.float32)
+mask = np.asfortranarray(sitk.GetArrayFromImage(mask_sitk), dtype=np.float32)
+
+<span class="julia-comment"># Get data pointers</span>
+ptr_ct = ct.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+ptr_mask = mask.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
+
+<span class="julia-comment"># Extract parameters</span>
+sx, sy, sz = ct.shape
+spacing = ct_sitk.GetSpacing()
+bin_width = <span class="julia-literal">25</span>
+
+<span class="julia-comment"># Extract features</span>
+raw_json = lib.c_extract_radiomic_features(
+        ptr_ct,
+        sx, sy, sz,
+        ptr_mask,
+        float(spacing[<span class="julia-literal">0</span>]), float(spacing[<span class="julia-literal">1</span>]), float(spacing[<span class="julia-literal">2</span>]),
+        int(bin_width))
+
+<span class="julia-comment"># Parse results</span>
+radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8'</span>))</code></pre>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <footer class="footer">
+            <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on
+                    GitHub</a>
+            </p>
+        </footer>
+    </main>
+
+    <script>
+        const dropdownBtn = document.querySelector('.dropdown-btn');
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+
+        dropdownBtn.addEventListener('click', () => {
+            dropdownBtn.parentElement.classList.toggle('active');
+        });
+
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+            mobileMenuToggle.classList.toggle('active');
+            mobileMenuToggle.textContent = mobileMenuToggle.classList.contains('active') ? '✕' : '☰';
+        });
+
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            mobileMenuToggle.classList.remove('active');
+            mobileMenuToggle.textContent = '☰';
+        });
+
+        // Close menu on link click (mobile)
+        const sidebarLinks = document.querySelectorAll('.sidebar a');
+        sidebarLinks.forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('mobile-open');
+                    overlay.classList.remove('active');
+                    mobileMenuToggle.classList.remove('active');
+                    mobileMenuToggle.textContent = '☰';
+                }
+            });
+        });
+
+        // Method toggle functionality
+        function showMethod(method) {
+            // Hide all method contents
+            document.querySelectorAll('.method-content').forEach(content => {
+                content.classList.remove('active');
+            });
+
+            // Remove active class from all buttons
+            document.querySelectorAll('.toggle-btn').forEach(btn => {
+                btn.classList.remove('active');
+            });
+
+            // Show selected method
+            if (method === 'juliacall') {
+                document.getElementById('juliacall-method').classList.add('active');
+                document.querySelectorAll('.toggle-btn')[0].classList.add('active');
+            } else if (method === 'clib') {
+                document.getElementById('clib-method').classList.add('active');
+                document.querySelectorAll('.toggle-btn')[1].classList.add('active');
+            }
+        }
+    </script>
+
+</body>
+
+</html>
