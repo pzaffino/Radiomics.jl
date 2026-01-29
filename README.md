@@ -269,7 +269,7 @@ int main(int argc, char* argv[]) {
     int64_t nBins = static_cast<int64_t>(binWidth);
 
     // Load and initialize shared library
-    void* handle = dlopen("/home/eica2026/Radiomics.jl/radiomicsjl_build/lib/libradiomicsjl.so", RTLD_LAZY);
+    void* handle = dlopen("SHARED_LIB_PATH/radiomicsjl_build/lib/libradiomicsjl.so", RTLD_LAZY);
     if (!handle) {
         std::cerr << "Error during loading the library: " << dlerror() << std::endl;
         return 1;
