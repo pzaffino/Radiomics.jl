@@ -10,6 +10,8 @@ include("ngtdm_features.jl")
 include("glrlm_features.jl")
 include("gldm_features.jl")
 
+using JSON3
+
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                               force_2d=false,
@@ -234,6 +236,49 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     return radiomic_features
+end
+
+"""
+    Wrapper function to be exposed in the C shared library
+"""
+# Global Buffer globale to avoid the garbage collector (for shared library)
+const LAST_JSON_RESULT = Ref{String}("")
+
+Base.@ccallable function c_extract_radiomic_features(
+    img_ptr::Ptr{Float32},
+    img_size_x::Int64, img_size_y::Int64, img_size_z::Int64,
+    mask_ptr::Ptr{Float32},
+    spacing_x::Float64, spacing_y::Float64, spacing_z::Float64,
+    n_bins::Int64
+)::Cstring
+    global LAST_JSON_RESULT
+    try
+        # Prepare inputs for the main function
+        dims = (Int(img_size_x), Int(img_size_y), Int(img_size_z))
+        spacing = [spacing_x, spacing_y, spacing_z]
+        bins_val = n_bins <= 0 ? nothing : Int(n_bins)
+
+        img = unsafe_wrap(Array, img_ptr, dims)
+        mask = unsafe_wrap(Array, mask_ptr, dims)
+
+        # Call the main function
+        c_features_dict = extract_radiomic_features(
+            img, mask, spacing;
+            n_bins = bins_val,
+            verbose = false
+        )
+
+        # Save the features in the global buffer
+        LAST_JSON_RESULT[] = JSON3.write(c_features_dict) * "\0"
+        return pointer(LAST_JSON_RESULT[])
+
+    catch e
+        @error "Error during feature extration step" exception=(e, catch_backtrace())
+
+        err_msg = "{\"error\": \"$e\"}\0"
+        LAST_JSON_RESULT[] = err_msg
+        return pointer(LAST_JSON_RESULT[])
+    end
 end
 
 """
