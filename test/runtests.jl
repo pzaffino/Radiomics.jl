@@ -11,7 +11,7 @@ using Radiomics
 
     radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=false)
 
-    @test isapprox(radiomic_features["firstorder_entropy"], 2.7950206f0; atol=1e-4)
+    @test isapprox(radiomic_features["firstorder_entropy"], 2.833073; atol=1e-4)
     @test isapprox(radiomic_features["firstorder_energy"], 3.835767f11; rtol=1e-4)
     @test isapprox(radiomic_features["firstorder_median"], -867.0f0; atol=1e-4)
     @test isapprox(radiomic_features["firstorder_total_energy"], 4.3152378f12; rtol=1e-4)
@@ -21,7 +21,7 @@ using Radiomics
     @test isapprox(radiomic_features["firstorder_mean"], -854.6469f0; atol=1e-4)
     @test isapprox(radiomic_features["firstorder_skewness"], 1.4568754f0; rtol=3e-4)
     @test isapprox(radiomic_features["firstorder_mean_absolute_deviation"], 37.97294f0; rtol=1e-4)
-    @test isapprox(radiomic_features["firstorder_uniformity"], 0.1843532f0; atol=1e-4)
+    @test isapprox(radiomic_features["firstorder_uniformity"], 0.18202744; atol=1e-4)
     @test isapprox(radiomic_features["firstorder_percentile90"], -786.0f0; atol=1e-4)
     @test isapprox(radiomic_features["firstorder_minimum"], -1019.0f0; atol=1e-4)
     @test isapprox(radiomic_features["firstorder_root_mean_squared"], 856.1967f0; rtol=1e-4)

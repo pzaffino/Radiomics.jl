@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" type="image/png">
+  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+    type="image/png">
   <title>Radiomics.jl - Professional Medical Imaging Library</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
   <style>
     :root {
@@ -22,7 +25,7 @@
       --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
       --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
       --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
-      
+
       /* Colori base per la sintassi */
       --syntax-keyword: #ff79c6;
       --syntax-function: #50fa7b;
@@ -103,7 +106,8 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 40px 20px; /* Spazio attorno al logo */
+      padding: 40px 20px;
+      /* Spazio attorno al logo */
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(0, 0, 0, 0.2);
     }
@@ -153,8 +157,8 @@
     }
 
     /* Stili generali per i link della sidebar */
-    .sidebar nav > a, 
-    .sidebar .dropdown-btn, 
+    .sidebar nav>a,
+    .sidebar .dropdown-btn,
     .sidebar .dropdown-content a {
       color: rgba(255, 255, 255, 0.85);
       text-decoration: none;
@@ -163,17 +167,18 @@
       font-weight: 500;
       font-size: 0.95rem;
       border-left: 3px solid transparent;
-      display: block; /* Assicura che si comportino bene */
+      display: block;
+      /* Assicura che si comportino bene */
     }
 
-    .sidebar nav > a:hover,
+    .sidebar nav>a:hover,
     .sidebar .dropdown-content a:hover {
       background-color: rgba(255, 255, 255, 0.08);
       color: white;
       border-left-color: var(--primary-light);
     }
-    
-    .sidebar nav > a.active {
+
+    .sidebar nav>a.active {
       background-color: rgba(37, 99, 235, 0.15);
       color: white;
       font-weight: 600;
@@ -239,7 +244,7 @@
     .main {
       flex: 1;
       padding: 0;
-      width: auto; 
+      width: auto;
       margin-left: 300px;
       min-width: 0;
     }
@@ -258,12 +263,18 @@
     .hero::before {
       content: '';
       position: absolute;
-      top: 0; left: 0; right: 0; bottom: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
       opacity: 0.3;
     }
 
-    .hero-content { position: relative; z-index: 1; }
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
 
     img.hero-logo {
       width: 280px;
@@ -294,7 +305,9 @@
       margin: 0 auto;
     }
 
-    .section { margin-bottom: 60px; }
+    .section {
+      margin-bottom: 60px;
+    }
 
     h2 {
       font-size: 2rem;
@@ -308,10 +321,20 @@
     h2::after {
       content: '';
       position: absolute;
-      bottom: 0; left: 0;
-      width: 60px; height: 4px;
+      bottom: 0;
+      left: 0;
+      width: 60px;
+      height: 4px;
       background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
       border-radius: 2px;
+    }
+
+    h3 {
+      font-size: 1.3rem;
+      font-weight: 600;
+      color: var(--text-primary);
+      margin-top: 32px;
+      margin-bottom: 16px;
     }
 
     p {
@@ -337,10 +360,23 @@
       gap: 8px;
     }
 
-    .code-dot { width: 12px; height: 12px; border-radius: 50%; }
-    .code-dot:nth-child(1) { background: #ef4444; }
-    .code-dot:nth-child(2) { background: #f59e0b; }
-    .code-dot:nth-child(3) { background: #10b981; }
+    .code-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .code-dot:nth-child(1) {
+      background: #ef4444;
+    }
+
+    .code-dot:nth-child(2) {
+      background: #f59e0b;
+    }
+
+    .code-dot:nth-child(3) {
+      background: #10b981;
+    }
 
     pre {
       background: #0f172a;
@@ -355,18 +391,36 @@
     }
 
     code {
-      font-family: 'Fira Code', 'Consolas', monospace; 
+      font-family: 'Fira Code', 'Consolas', monospace;
       font-size: 0.9rem;
       line-height: 1.7;
-      display: block; 
+      display: block;
     }
 
-    .julia-keyword { color: var(--syntax-keyword); font-weight: 600; }
-    .julia-function { color: var(--syntax-function); }
-    .julia-type { color: var(--syntax-type); }
-    .julia-string { color: var(--syntax-string); }
-    .julia-comment { color: var(--syntax-comment); }
-    .julia-literal { color: var(--syntax-literal); }
+    .julia-keyword {
+      color: var(--syntax-keyword);
+      font-weight: 600;
+    }
+
+    .julia-function {
+      color: var(--syntax-function);
+    }
+
+    .julia-type {
+      color: var(--syntax-type);
+    }
+
+    .julia-string {
+      color: var(--syntax-string);
+    }
+
+    .julia-comment {
+      color: var(--syntax-comment);
+    }
+
+    .julia-literal {
+      color: var(--syntax-literal);
+    }
 
     /* Team Section */
     .team-section {
@@ -375,8 +429,15 @@
       margin: 0;
     }
 
-    .team-header { text-align: center; margin-bottom: 60px; }
-    .team-header h2::after { left: 50%; transform: translateX(-50%); }
+    .team-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .team-header h2::after {
+      left: 50%;
+      transform: translateX(-50%);
+    }
 
     .team-subtitle {
       color: var(--text-secondary);
@@ -419,8 +480,10 @@
       box-shadow: var(--shadow-xl);
       border-color: var(--primary-light);
     }
-    
-    .team-member-wrapper:not([href]) .team-member { cursor: default; }
+
+    .team-member-wrapper:not([href]) .team-member {
+      cursor: default;
+    }
 
     .team-member-image {
       position: relative;
@@ -468,61 +531,124 @@
       font-size: 0.9rem;
     }
 
-    .footer a { color: var(--primary-light); text-decoration: none; }
-    .footer a:hover { text-decoration: underline; }
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
 
     /* Overlay */
     .overlay {
       display: none;
       position: fixed;
-      top: 0; left: 0; right: 0; bottom: 0;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
       background: rgba(0, 0, 0, 0.5);
       z-index: 200;
       opacity: 0;
       transition: opacity 0.3s;
     }
-    .overlay.active { display: block; opacity: 1; }
+
+    .overlay.active {
+      display: block;
+      opacity: 1;
+    }
 
     /* --- RESPONSIVE MEDIA QUERIES --- */
-    
+
     @media (max-width: 1024px) {
-      .top-left-logo { width: 120px; height: 120px; }
-      .sidebar { width: 260px; }
-      .main { margin-left: 260px; width: auto; }
-      .hero, .content, .team-section, .footer { padding: 40px; }
-      .team-grid { grid-template-columns: repeat(2, 1fr); }
+      .top-left-logo {
+        width: 120px;
+        height: 120px;
+      }
+
+      .sidebar {
+        width: 260px;
+      }
+
+      .main {
+        margin-left: 260px;
+        width: auto;
+      }
+
+      .hero,
+      .content,
+      .team-section,
+      .footer {
+        padding: 40px;
+      }
+
+      .team-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
     }
 
     @media (max-width: 768px) {
-      body { flex-direction: column; }
-      .mobile-menu-toggle { display: block; }
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-menu-toggle {
+        display: block;
+      }
 
       .sidebar {
         width: 280px;
         transform: translateX(-100%);
         z-index: 250;
-        height: 100%; 
+        height: 100%;
         bottom: 0;
       }
 
-      .sidebar.mobile-open { transform: translateX(0); }
-      .main { margin-left: 0; width: 100%; }
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
 
       /* Su mobile il logo sta dentro il menu, quindi resettiamo eventuali stili legacy */
       .top-left-logo {
-        width: 100px; height: 100px;
+        width: 100px;
+        height: 100px;
       }
 
-      .sidebar-header { padding: 60px 25px 25px; }
-      
-      .hero { padding: 100px 30px 40px; }
-      .content, .team-section, .footer { padding: 40px 30px; }
-      h2 { font-size: 1.75rem; }
-      .team-grid { grid-template-columns: 1fr; }
-      img.hero-logo { width: 200px; }
+      .sidebar-header {
+        padding: 60px 25px 25px;
+      }
+
+      .hero {
+        padding: 100px 30px 40px;
+      }
+
+      .content,
+      .team-section,
+      .footer {
+        padding: 40px 30px;
+      }
+
+      h2 {
+        font-size: 1.75rem;
+      }
+
+      .team-grid {
+        grid-template-columns: 1fr;
+      }
+
+      img.hero-logo {
+        width: 200px;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
@@ -532,12 +658,13 @@
     <div class="sidebar-header">
       <div class="top-left-logo">
         <a href="index.html">
-            <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Radiomics.jl Logo">
+          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+            alt="Radiomics.jl Logo">
         </a>
       </div>
     </div>
     <nav>
-      <a href="index.html" class="active">Home</a> 
+      <a href="index.html" class="active">Home</a>
       <a href="installation.html">Getting Started</a>
       <div class="dropdown">
         <button class="dropdown-btn">Features</button>
@@ -558,40 +685,45 @@
   <main class="main">
     <section class="hero">
       <div class="hero-content">
-        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" class="hero-logo" alt="Radiomics.jl Big Logo">
+        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+          class="hero-logo" alt="Radiomics.jl Big Logo">
         <h1>Advanced Radiomics Feature Extraction</h1>
-        <p>An open-source Julia library for extracting quantitative features from medical images with precision and efficiency.</p>
+        <p>An open-source Julia library for extracting quantitative features from medical images with precision and
+          efficiency.</p>
       </div>
     </section>
 
     <div class="content">
       <div class="section">
         <h2>Welcome to Radiomics.jl</h2>
-        <p>Radiomics.jl is a comprehensive Julia library designed for medical imaging researchers and clinicians. Our tool enables the extraction of high-throughput quantitative features from radiological images, supporting advanced research in precision medicine and computer-aided diagnosis.</p>
-        <p>Navigate through our documentation using the sidebar to explore detailed information about feature extraction methods, installation procedures, and implementation examples.</p>
+        <p>Radiomics.jl is a comprehensive Julia library designed for medical imaging researchers and clinicians. Our
+          tool enables the extraction of high-throughput quantitative features from radiological images, supporting
+          advanced research in precision medicine and computer-aided diagnosis.</p>
+        <p>Navigate through our documentation using the sidebar to explore detailed information about feature extraction
+          methods, installation procedures, and implementation examples.</p>
       </div>
 
       <div class="section">
-          <h2>Contribution</h2>
-          <p>
-              Radiomics.jl is an open-source project. Contributions are welcome!
-              You can find the source code, report issues, or submit pull requests
-              on our official GitHub repository:
-          </p>
+        <h2>Contribution</h2>
+        <p>
+          Radiomics.jl is an open-source project. Contributions are welcome!
+          You can find the source code, report issues, or submit pull requests
+          on our official GitHub repository:
+        </p>
 
-          <p style="text-align: center;">
-              <a href="https://github.com/pzaffino/Radiomics.jl"
-                target="_blank"
-                style="font-weight: bold; font-size: 1.3em; color: var(--primary); text-decoration: none;">
-                  Visit the GitHub repository →
-              </a>
-          </p>
+        <p style="text-align: center;">
+          <a href="https://github.com/pzaffino/Radiomics.jl" target="_blank"
+            style="font-weight: bold; font-size: 1.3em; color: var(--primary); text-decoration: none;">
+            Visit the GitHub repository →
+          </a>
+        </p>
       </div>
 
       <div class="section">
         <h2>Quick Start Example</h2>
-        <p>Once installed, you can begin extracting radiomic features with just a few lines of code. The following example demonstrates feature extraction using sample data included with the library:</p>
-        
+        <p>Once installed, you can begin extracting radiomic features with just a few lines of code. The following
+          example demonstrates feature extraction using sample data included with the library:</p>
+
         <div class="code-container">
           <div class="code-header">
             <span class="code-dot"></span>
@@ -612,13 +744,72 @@ spacing = [<span class="julia-literal">ct.header.pixdim</span>[<span class="juli
 radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing)</code></pre>
         </div>
       </div>
+
+      <div class="section">
+        <h2>Using Radiomics.jl from Python</h2>
+        <p>Radiomics.jl can be used directly from Python in a simple and convenient way.</p>
+
+        <h3>Setup</h3>
+        <p>Juliacall acts as a bridge between Python and Julia. Install it via:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code>pip install juliacall</code></pre>
+        </div>
+
+        <p>If Julia is not already installed on your system, juliacall will download and use its own embedded version.
+        </p>
+
+        <p>To install the Radiomics.jl package, run the following in Python:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
+jl.seval(<span class="julia-string">'import Pkg; Pkg.add("Radiomics")'</span>)</code></pre>
+        </div>
+
+        <h3>Feature Extraction</h3>
+        <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
+<span class="julia-keyword">import</span> numpy <span class="julia-keyword">as</span> np
+
+<span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
+jl.seval(<span class="julia-string">"using Radiomics"</span>)
+
+ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
+mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
+
+ct = sitk.GetArrayFromImage(ct_sitk)
+mask = sitk.GetArrayFromImage(mask_sitk)
+
+spacing = list(ct_sitk.GetSpacing())
+
+radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))</code></pre>
+        </div>
+      </div>
     </div>
     <section class="team-section" id="team">
       <div class="team-header">
         <h2>Development Team</h2>
-        <p class="team-subtitle">Meet the experts behind Radiomics.jl, dedicated to advancing medical image analysis through innovative technology.</p>
+        <p class="team-subtitle">Meet the experts behind Radiomics.jl, dedicated to advancing medical image analysis
+          through innovative technology.</p>
       </div>
-      
+
       <div class="team-grid">
         <a href="https://dmsc.unicz.it/personale/docente/paolozaffino" target="_blank" class="team-member-wrapper">
           <div class="team-member">
@@ -633,17 +824,19 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
         <a href="https://www.ibt.kit.edu/Spadea_Francesca.php" target="_blank" class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
-              <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png" alt="Prof. Maria Francesca Spadea">
+              <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png"
+                alt="Prof. Maria Francesca Spadea">
             </div>
             <h3>Prof. Maria Francesca Spadea</h3>
             <div class="role">Karlsruher Institut für Technologie, Germany</div>
           </div>
         </a>
-        
+
         <a href="https://dmsc.unicz.it/personale/docente/carlocosentino" target="_blank" class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
-              <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg" alt="Prof. Carlo Cosentino">
+              <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg"
+                alt="Prof. Carlo Cosentino">
             </div>
             <h3>Prof. Carlo Cosentino</h3>
             <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
@@ -653,7 +846,9 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
         <div class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
-              <img src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4" alt="Eng. Aldo Giuliani">
+              <img
+                src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4"
+                alt="Eng. Aldo Giuliani">
             </div>
             <h3>Eng. Aldo Giuliani, PhD Student</h3>
             <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
@@ -669,7 +864,7 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
             <div class="role">National Information Processing Institut, Poland</div>
           </div>
         </div>
-        
+
         <a href="http://ibt.kit.edu/english/Raggio_C.php" target="_blank" class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
@@ -679,7 +874,7 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
             <div class="role">Karlsruher Institut für Technologie, Germany</div>
           </div>
         </a>
-        
+
         <div class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
@@ -689,11 +884,12 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
             <div class="role">Politecnico di Milano, Italy</div>
           </div>
         </div>
-        
+
         <div class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
-              <img src="https://mess-srl.it/wp-content/uploads/2023/09/utente-sconosciuto.png" alt="Eng. Nastaran Ghaffari Elkhechi">
+              <img src="https://mess-srl.it/wp-content/uploads/2023/09/utente-sconosciuto.png"
+                alt="Eng. Nastaran Ghaffari Elkhechi">
             </div>
             <h3>Eng. Nastaran Ghaffari Elkhechi</h3>
             <div class="role">Politecnico di Milano, Italy</div>
@@ -703,7 +899,9 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
         <div class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
-              <img src="https://media.licdn.com/dms/image/v2/C4E03AQE_ooV1zu4udQ/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1605547761502?e=2147483647&v=beta&t=jqc15U7sFfPg0jwyJymQqz2USjyhk9diOVriU8FtyKk" alt="Eng. Mohammadreza Javadi Namin">
+              <img
+                src="https://media.licdn.com/dms/image/v2/C4E03AQE_ooV1zu4udQ/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1605547761502?e=2147483647&v=beta&t=jqc15U7sFfPg0jwyJymQqz2USjyhk9diOVriU8FtyKk"
+                alt="Eng. Mohammadreza Javadi Namin">
             </div>
             <h3>Dr. Michela Destito, PhD</h3>
             <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
@@ -713,7 +911,8 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
     </section>
 
     <footer class="footer">
-      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a>
+      </p>
     </footer>
   </main>
 
@@ -756,4 +955,5 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
   </script>
 
 </body>
+
 </html>
