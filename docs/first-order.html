@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" type="image/png">
+  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+    type="image/png">
   <title>First-order Features - Radiomics.jl</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --primary: #2563eb;
@@ -156,7 +159,7 @@
     }
 
     /* Stili generali link sidebar */
-    .sidebar nav > a,
+    .sidebar nav>a,
     .sidebar .dropdown-btn,
     .sidebar .dropdown-content a {
       color: rgba(255, 255, 255, 0.85);
@@ -169,15 +172,15 @@
       display: block;
     }
 
-    .sidebar nav > a:hover,
+    .sidebar nav>a:hover,
     .sidebar .dropdown-content a:hover,
     .sidebar .dropdown-btn:hover {
       background-color: rgba(255, 255, 255, 0.08);
       color: white;
       border-left-color: var(--primary-light);
     }
-    
-    .sidebar nav > a.active,
+
+    .sidebar nav>a.active,
     .sidebar .dropdown-content a.active {
       background-color: rgba(37, 99, 235, 0.15);
       color: white;
@@ -431,21 +434,50 @@
 
     /* Tablet breakpoint */
     @media (max-width: 1024px) {
+
       /* FIX: Logo ridimensionato su tablet */
-      .top-left-logo { width: 120px; height: 120px; }
-      
-      .sidebar { width: 260px; }
-      .main { margin-left: 260px; width: auto; }
-      .page-header, .content, .footer { padding: 40px; }
-      .page-header h1 { font-size: 2rem; }
-      h2 { font-size: 1.5rem; }
-      .feature-list { grid-template-columns: 1fr; }
+      .top-left-logo {
+        width: 120px;
+        height: 120px;
+      }
+
+      .sidebar {
+        width: 260px;
+      }
+
+      .main {
+        margin-left: 260px;
+        width: auto;
+      }
+
+      .page-header,
+      .content,
+      .footer {
+        padding: 40px;
+      }
+
+      .page-header h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Mobile breakpoint */
     @media (max-width: 768px) {
-      body { flex-direction: column; }
-      .mobile-menu-toggle { display: block; }
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-menu-toggle {
+        display: block;
+      }
 
       .sidebar {
         width: 280px;
@@ -455,61 +487,160 @@
         bottom: 0;
       }
 
-      .sidebar.mobile-open { transform: translateX(0); }
-      .main { margin-left: 0; width: 100%; }
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
 
       /* FIX: Logo su mobile */
-      .top-left-logo { width: 100px; height: 100px; }
+      .top-left-logo {
+        width: 100px;
+        height: 100px;
+      }
 
-      .sidebar-header { padding: 60px 25px 25px; }
-      .sidebar h2 { font-size: 1.5rem; }
-      .sidebar nav { padding: 15px 0; }
-      
-      .sidebar a, .dropdown-btn { padding: 12px 25px; font-size: 0.9rem; }
-      .dropdown-content a { padding: 10px 25px 10px 45px; font-size: 0.85rem; }
+      .sidebar-header {
+        padding: 60px 25px 25px;
+      }
 
-      .page-header { padding: 100px 25px 40px; }
-      .page-header h1 { font-size: 1.75rem; }
-      .page-header p { font-size: 1rem; }
+      .sidebar h2 {
+        font-size: 1.5rem;
+      }
 
-      .content { padding: 30px 25px; }
-      .section { margin-bottom: 40px; }
-      h2 { font-size: 1.4rem; }
+      .sidebar nav {
+        padding: 15px 0;
+      }
 
-      .feature-list { grid-template-columns: 1fr; gap: 14px; }
-      .feature-item { padding: 14px 18px; }
-      .feature-item strong { font-size: 1rem; }
-      
-      .formula { font-size: 0.85rem; padding: 6px; }
-      .info-box { padding: 20px; }
-      .footer { padding: 30px 25px; }
+      .sidebar a,
+      .dropdown-btn {
+        padding: 12px 25px;
+        font-size: 0.9rem;
+      }
+
+      .dropdown-content a {
+        padding: 10px 25px 10px 45px;
+        font-size: 0.85rem;
+      }
+
+      .page-header {
+        padding: 100px 25px 40px;
+      }
+
+      .page-header h1 {
+        font-size: 1.75rem;
+      }
+
+      .page-header p {
+        font-size: 1rem;
+      }
+
+      .content {
+        padding: 30px 25px;
+      }
+
+      .section {
+        margin-bottom: 40px;
+      }
+
+      h2 {
+        font-size: 1.4rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .feature-item {
+        padding: 14px 18px;
+      }
+
+      .feature-item strong {
+        font-size: 1rem;
+      }
+
+      .formula {
+        font-size: 0.85rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 20px;
+      }
+
+      .footer {
+        padding: 30px 25px;
+      }
     }
 
     /* Small mobile breakpoint */
     @media (max-width: 480px) {
-      .mobile-menu-toggle { padding: 10px 14px; font-size: 1rem; }
+      .mobile-menu-toggle {
+        padding: 10px 14px;
+        font-size: 1rem;
+      }
 
       /* FIX: Logo su schermi piccoli */
-      .top-left-logo { width: 80px; height: 80px; }
+      .top-left-logo {
+        width: 80px;
+        height: 80px;
+      }
 
-      .page-header { padding: 90px 20px 30px; }
-      .page-header h1 { font-size: 1.5rem; }
-      .page-header p { font-size: 0.95rem; }
+      .page-header {
+        padding: 90px 20px 30px;
+      }
 
-      .content { padding: 25px 20px; }
-      h2 { font-size: 1.25rem; }
-      p { font-size: 0.95rem; }
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
 
-      .feature-list { gap: 12px; }
-      .feature-item { padding: 12px 16px; }
-      .feature-item strong { font-size: 0.95rem; }
-      .feature-item p { font-size: 0.9rem; }
-      
-      .formula { font-size: 0.8rem; padding: 6px; }
-      .info-box { padding: 15px; }
+      .page-header p {
+        font-size: 0.95rem;
+      }
+
+      .content {
+        padding: 25px 20px;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+      }
+
+      p {
+        font-size: 0.95rem;
+      }
+
+      .feature-list {
+        gap: 12px;
+      }
+
+      .feature-item {
+        padding: 12px 16px;
+      }
+
+      .feature-item strong {
+        font-size: 0.95rem;
+      }
+
+      .feature-item p {
+        font-size: 0.9rem;
+      }
+
+      .formula {
+        font-size: 0.8rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 15px;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
@@ -519,13 +650,15 @@
     <div class="sidebar-header">
       <div class="top-left-logo">
         <a href="index.html">
-          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Radiomics.jl Logo">
+          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+            alt="Radiomics.jl Logo">
         </a>
       </div>
     </div>
     <nav>
       <a href="index.html">Home</a>
       <a href="installation.html">Getting Started</a>
+      <a href="other_setup.html">Other Setup</a>
       <div class="dropdown active">
         <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
@@ -553,10 +686,14 @@
     <div class="content">
       <div class="section">
         <h2>Overview</h2>
-        <p><strong>First-order features</strong> describe the statistical properties of voxel intensities within a region of interest (ROI). These features characterize the distribution of intensity values without considering the spatial arrangement of voxels, providing fundamental quantitative descriptors for radiomics analysis.</p>
-        
+        <p><strong>First-order features</strong> describe the statistical properties of voxel intensities within a
+          region of interest (ROI). These features characterize the distribution of intensity values without considering
+          the spatial arrangement of voxels, providing fundamental quantitative descriptors for radiomics analysis.</p>
+
         <div class="info-box">
-          <p>First-order statistics are intensity-based features that capture the overall texture and heterogeneity of the ROI through statistical moments and distribution characteristics. They serve as essential baseline features in radiomics pipelines and medical image analysis workflows.</p>
+          <p>First-order statistics are intensity-based features that capture the overall texture and heterogeneity of
+            the ROI through statistical moments and distribution characteristics. They serve as essential baseline
+            features in radiomics pipelines and medical image analysis workflows.</p>
         </div>
       </div>
 
@@ -579,7 +716,8 @@
 
           <div class="feature-item">
             <strong>Entropy</strong>
-            <p>Measure of uncertainty or randomness in the voxel intensity distribution, quantifying image complexity.</p>
+            <p>Measure of uncertainty or randomness in the voxel intensity distribution, quantifying image complexity.
+            </p>
             <div class="formula">H = -Σ p(i) × log₂(p(i))</div>
           </div>
 
@@ -627,7 +765,8 @@
 
           <div class="feature-item">
             <strong>Robust Mean Absolute Deviation</strong>
-            <p>Mean absolute deviation calculated from values between the 10th and 90th percentiles, reducing outlier influence.</p>
+            <p>Mean absolute deviation calculated from values between the 10th and 90th percentiles, reducing outlier
+              influence.</p>
             <div class="formula">rMAD = (1/N₁₀₋₉₀) × Σ |X(i) - μ₁₀₋₉₀|</div>
           </div>
 
@@ -663,7 +802,8 @@
 
           <div class="feature-item">
             <strong>Uniformity</strong>
-            <p>Measure of the uniformity of voxel intensities, with higher values indicating more homogeneous regions.</p>
+            <p>Measure of the uniformity of voxel intensities, with higher values indicating more homogeneous regions.
+            </p>
             <div class="formula">U = Σ p(i)²</div>
           </div>
         </div>
@@ -686,7 +826,8 @@
 
       <div class="section">
         <h2>Clinical Significance</h2>
-        <p>First-order features provide quantitative information about the texture and heterogeneity of medical images within the ROI. These features are essential for radiomics analysis and have demonstrated value in:</p>
+        <p>First-order features provide quantitative information about the texture and heterogeneity of medical images
+          within the ROI. These features are essential for radiomics analysis and have demonstrated value in:</p>
         <ul style="margin-left: 24px; color: var(--text-secondary);">
           <li>Tumor characterization and classification</li>
           <li>Treatment response assessment</li>
@@ -698,7 +839,8 @@
     </div>
 
     <footer class="footer">
-      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a>
+      </p>
     </footer>
   </main>
 
@@ -741,4 +883,5 @@
   </script>
 
 </body>
+
 </html>

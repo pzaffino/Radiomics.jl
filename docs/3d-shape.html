@@ -1,11 +1,14 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" type="image/png">
+  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+    type="image/png">
   <title>3D Shape Features - Radiomics.jl</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
   <style>
     :root {
       --primary: #2563eb;
@@ -156,7 +159,7 @@
     }
 
     /* Stili generali link sidebar */
-    .sidebar nav > a,
+    .sidebar nav>a,
     .sidebar .dropdown-btn,
     .sidebar .dropdown-content a {
       color: rgba(255, 255, 255, 0.85);
@@ -169,15 +172,15 @@
       display: block;
     }
 
-    .sidebar nav > a:hover,
+    .sidebar nav>a:hover,
     .sidebar .dropdown-content a:hover,
     .sidebar .dropdown-btn:hover {
       background-color: rgba(255, 255, 255, 0.08);
       color: white;
       border-left-color: var(--primary-light);
     }
-    
-    .sidebar nav > a.active,
+
+    .sidebar nav>a.active,
     .sidebar .dropdown-content a.active {
       background-color: rgba(37, 99, 235, 0.15);
       color: white;
@@ -334,7 +337,8 @@
       margin-bottom: 16px;
     }
 
-    ul, ol {
+    ul,
+    ol {
       margin-left: 24px;
       margin-bottom: 20px;
     }
@@ -453,21 +457,50 @@
 
     /* Tablet breakpoint */
     @media (max-width: 1024px) {
+
       /* FIX: Logo ridimensionato su tablet */
-      .top-left-logo { width: 120px; height: 120px; }
-      
-      .sidebar { width: 260px; }
-      .main { margin-left: 260px; width: auto; }
-      .page-header, .content, .footer { padding: 40px; }
-      .page-header h1 { font-size: 2rem; }
-      h2 { font-size: 1.5rem; }
-      .feature-list { grid-template-columns: 1fr; }
+      .top-left-logo {
+        width: 120px;
+        height: 120px;
+      }
+
+      .sidebar {
+        width: 260px;
+      }
+
+      .main {
+        margin-left: 260px;
+        width: auto;
+      }
+
+      .page-header,
+      .content,
+      .footer {
+        padding: 40px;
+      }
+
+      .page-header h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
     }
 
     /* Mobile breakpoint */
     @media (max-width: 768px) {
-      body { flex-direction: column; }
-      .mobile-menu-toggle { display: block; }
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-menu-toggle {
+        display: block;
+      }
 
       .sidebar {
         width: 280px;
@@ -477,59 +510,152 @@
         bottom: 0;
       }
 
-      .sidebar.mobile-open { transform: translateX(0); }
-      .main { margin-left: 0; width: 100%; }
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
 
       /* FIX: Logo su mobile */
-      .top-left-logo { width: 100px; height: 100px; }
+      .top-left-logo {
+        width: 100px;
+        height: 100px;
+      }
 
-      .sidebar-header { padding: 60px 25px 25px; }
-      .sidebar h2 { font-size: 1.5rem; }
-      .sidebar nav { padding: 15px 0; }
-      
-      .sidebar a, .dropdown-btn { padding: 12px 25px; font-size: 0.9rem; }
-      .dropdown-content a { padding: 10px 25px 10px 45px; font-size: 0.85rem; }
+      .sidebar-header {
+        padding: 60px 25px 25px;
+      }
 
-      .page-header { padding: 100px 25px 40px; }
-      .page-header h1 { font-size: 1.75rem; }
-      .page-header p { font-size: 1rem; }
+      .sidebar h2 {
+        font-size: 1.5rem;
+      }
 
-      .content { padding: 30px 25px; }
-      .section { margin-bottom: 40px; }
-      h2 { font-size: 1.4rem; }
+      .sidebar nav {
+        padding: 15px 0;
+      }
 
-      .feature-list { grid-template-columns: 1fr; gap: 14px; }
-      .feature-item { padding: 14px 18px; }
-      .feature-item strong { font-size: 1rem; }
-      
-      .formula { font-size: 0.85rem; padding: 6px; }
-      .info-box { padding: 20px; }
-      .footer { padding: 30px 25px; }
+      .sidebar a,
+      .dropdown-btn {
+        padding: 12px 25px;
+        font-size: 0.9rem;
+      }
+
+      .dropdown-content a {
+        padding: 10px 25px 10px 45px;
+        font-size: 0.85rem;
+      }
+
+      .page-header {
+        padding: 100px 25px 40px;
+      }
+
+      .page-header h1 {
+        font-size: 1.75rem;
+      }
+
+      .page-header p {
+        font-size: 1rem;
+      }
+
+      .content {
+        padding: 30px 25px;
+      }
+
+      .section {
+        margin-bottom: 40px;
+      }
+
+      h2 {
+        font-size: 1.4rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .feature-item {
+        padding: 14px 18px;
+      }
+
+      .feature-item strong {
+        font-size: 1rem;
+      }
+
+      .formula {
+        font-size: 0.85rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 20px;
+      }
+
+      .footer {
+        padding: 30px 25px;
+      }
     }
 
     /* Small mobile breakpoint */
     @media (max-width: 480px) {
-      .mobile-menu-toggle { padding: 10px 14px; font-size: 1rem; }
+      .mobile-menu-toggle {
+        padding: 10px 14px;
+        font-size: 1rem;
+      }
 
       /* FIX: Logo su schermi piccoli */
-      .top-left-logo { width: 80px; height: 80px; }
+      .top-left-logo {
+        width: 80px;
+        height: 80px;
+      }
 
-      .page-header { padding: 90px 20px 30px; }
-      .page-header h1 { font-size: 1.5rem; }
-      .page-header p { font-size: 0.95rem; }
+      .page-header {
+        padding: 90px 20px 30px;
+      }
 
-      .content { padding: 25px 20px; }
-      h2 { font-size: 1.25rem; }
-      p { font-size: 0.95rem; }
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
 
-      .feature-list { gap: 12px; }
-      .feature-item { padding: 12px 16px; }
-      
-      .formula { font-size: 0.8rem; padding: 6px; }
-      .info-box { padding: 15px; }
+      .page-header p {
+        font-size: 0.95rem;
+      }
+
+      .content {
+        padding: 25px 20px;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+      }
+
+      p {
+        font-size: 0.95rem;
+      }
+
+      .feature-list {
+        gap: 12px;
+      }
+
+      .feature-item {
+        padding: 12px 16px;
+      }
+
+      .formula {
+        font-size: 0.8rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 15px;
+      }
     }
   </style>
 </head>
+
 <body>
 
   <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
@@ -539,13 +665,15 @@
     <div class="sidebar-header">
       <div class="top-left-logo">
         <a href="index.html">
-          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Radiomics.jl Logo">
+          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+            alt="Radiomics.jl Logo">
         </a>
       </div>
     </div>
     <nav>
       <a href="index.html">Home</a>
       <a href="installation.html">Getting Started</a>
+      <a href="other_setup.html">Other Setup</a>
       <div class="dropdown active">
         <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
@@ -573,74 +701,87 @@
     <div class="content">
       <div class="section">
         <h2>Overview</h2>
-        <p>The <code>get_shape3d_features</code> function computes comprehensive geometric descriptors of three-dimensional objects in medical images. This analysis extracts quantitative shape characteristics from 3D binary masks, providing essential information for radiomics analysis and image-based biomarker discovery.</p>
-        
+        <p>The <code>get_shape3d_features</code> function computes comprehensive geometric descriptors of
+          three-dimensional objects in medical images. This analysis extracts quantitative shape characteristics from 3D
+          binary masks, providing essential information for radiomics analysis and image-based biomarker discovery.</p>
+
         <div class="info-box">
           <h3>Input Requirements</h3>
-          <p>The function accepts a 3D binary mask and voxel spacing parameters. It can optionally isolate the largest connected component and automatically pads the mask to ensure accurate surface extraction using the Marching Cubes algorithm.</p>
-          
+          <p>The function accepts a 3D binary mask and voxel spacing parameters. It can optionally isolate the largest
+            connected component and automatically pads the mask to ensure accurate surface extraction using the Marching
+            Cubes algorithm.</p>
 
-[Image of Marching Cubes algorithm]
+
+          [Image of Marching Cubes algorithm]
 
         </div>
       </div>
 
       <div class="section">
         <h2>Extracted Features</h2>
-        
+
         <div class="feature-list">
           <div class="feature-item">
             <h3>Surface Area</h3>
-            <p>Total area of the 3D object's surface mesh, calculated using triangular mesh elements from the Marching Cubes reconstruction.</p>
+            <p>Total area of the 3D object's surface mesh, calculated using triangular mesh elements from the Marching
+              Cubes reconstruction.</p>
             <div class="formula">A = Σ A_triangle</div>
           </div>
 
           <div class="feature-item">
             <h3>Mesh Volume</h3>
-            <p>Volume of the object computed from the surface mesh representation, providing a precise measurement of the 3D region.</p>
+            <p>Volume of the object computed from the surface mesh representation, providing a precise measurement of
+              the 3D region.</p>
             <div class="formula">V_mesh = |Σ (p₁ · (p₂ × p₃))/6|</div>
           </div>
 
           <div class="feature-item">
             <h3>Surface-to-Volume Ratio</h3>
-            <p>Normalized ratio quantifying the relationship between surface area and enclosed volume, useful for characterizing shape compactness.</p>
+            <p>Normalized ratio quantifying the relationship between surface area and enclosed volume, useful for
+              characterizing shape compactness.</p>
             <div class="formula">SVR = A / V_mesh</div>
           </div>
 
           <div class="feature-item">
             <h3>Sphericity</h3>
-            <p>Measure of how closely the shape resembles a perfect sphere, with values approaching 1 indicating higher spherical similarity.</p>
+            <p>Measure of how closely the shape resembles a perfect sphere, with values approaching 1 indicating higher
+              spherical similarity.</p>
             <div class="formula">Ψ = (π^(1/3) × (6V)^(2/3)) / A</div>
           </div>
 
           <div class="feature-item">
             <h3>Maximum 3D Diameter</h3>
-            <p>Largest distance between any two points on the object's surface (Feret diameter), representing the maximum spatial extent.</p>
+            <p>Largest distance between any two points on the object's surface (Feret diameter), representing the
+              maximum spatial extent.</p>
             <div class="formula">D_max = max(||p_i - p_j||)</div>
           </div>
 
           <div class="feature-item">
             <h3>Principal Axes Lengths</h3>
-            <p>Major, minor, and least axis lengths derived from eigenvalue decomposition of the voxel coordinate covariance matrix.</p>
+            <p>Major, minor, and least axis lengths derived from eigenvalue decomposition of the voxel coordinate
+              covariance matrix.</p>
             <div class="formula">λ₁, λ₂, λ₃ (eigenvalues of Σ)</div>
           </div>
 
           <div class="feature-item">
             <h3>Elongation</h3>
-            <p>Ratio between the middle and largest principal axes, describing the degree of shape elongation along primary directions.</p>
+            <p>Ratio between the middle and largest principal axes, describing the degree of shape elongation along
+              primary directions.</p>
             <div class="formula">E = √(λ₂ / λ₁)</div>
-            
+
           </div>
 
           <div class="feature-item">
             <h3>Flatness</h3>
-            <p>Ratio between the smallest and largest principal axes, quantifying how flat or thin the object appears in 3D space.</p>
+            <p>Ratio between the smallest and largest principal axes, quantifying how flat or thin the object appears in
+              3D space.</p>
             <div class="formula">F = √(λ₃ / λ₁)</div>
           </div>
 
           <div class="feature-item">
             <h3>Voxel-based Volume</h3>
-            <p>Volume calculated by counting foreground voxels and scaling by the voxel spacing, providing a discrete approximation.</p>
+            <p>Volume calculated by counting foreground voxels and scaling by the voxel spacing, providing a discrete
+              approximation.</p>
             <div class="formula">V_voxel = N × Δx × Δy × Δz</div>
           </div>
         </div>
@@ -668,23 +809,30 @@
       <div class="section">
         <h2>Computational Methodology</h2>
         <p>The extraction of 3D shape features relies on advanced computational geometry techniques:</p>
-        
+
         <ul>
-          <li><strong>Marching Cubes Algorithm:</strong> Generates high-quality surface meshes from the binary mask, enabling accurate surface area and volume calculations</li>
-          <li><strong>Eigenvalue Analysis:</strong> Performs linear algebra operations on voxel coordinate covariance matrices to extract principal axes and shape orientation </li>
-          <li><strong>Feret Diameter Computation:</strong> Calculates maximum inter-point distances on the surface mesh, with optional sampling for computational efficiency on large volumes</li>
-          <li><strong>Connected Component Analysis:</strong> Isolates the largest connected region when multiple disconnected objects are present</li>
+          <li><strong>Marching Cubes Algorithm:</strong> Generates high-quality surface meshes from the binary mask,
+            enabling accurate surface area and volume calculations</li>
+          <li><strong>Eigenvalue Analysis:</strong> Performs linear algebra operations on voxel coordinate covariance
+            matrices to extract principal axes and shape orientation </li>
+          <li><strong>Feret Diameter Computation:</strong> Calculates maximum inter-point distances on the surface mesh,
+            with optional sampling for computational efficiency on large volumes</li>
+          <li><strong>Connected Component Analysis:</strong> Isolates the largest connected region when multiple
+            disconnected objects are present</li>
         </ul>
 
         <div class="info-box">
           <h3>Performance Optimization</h3>
-          <p>For large volumetric datasets, the function supports optional point sampling to approximate the maximum 3D diameter efficiently while maintaining acceptable accuracy. This optimization significantly reduces computation time for high-resolution medical images.</p>
+          <p>For large volumetric datasets, the function supports optional point sampling to approximate the maximum 3D
+            diameter efficiently while maintaining acceptable accuracy. This optimization significantly reduces
+            computation time for high-resolution medical images.</p>
         </div>
       </div>
     </div>
 
     <footer class="footer">
-      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a></p>
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a>
+      </p>
     </footer>
   </main>
 
@@ -727,4 +875,5 @@
   </script>
 
 </body>
+
 </html>
