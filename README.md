@@ -108,7 +108,7 @@ spacing = list(ct_sitk.GetSpacing())
 
 radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))
 ```
-# Generate C shared library
+# Generate C shared library (and use it in Python and C++)
 
 It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++ code or any language that provides a C shared library interface.
 
