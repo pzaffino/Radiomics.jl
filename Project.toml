@@ -4,6 +4,7 @@ version = "1.0.1"
 authors = ["Paolo Zaffino <p.zaffino@unicz.it>", "Ciro Benito Raggio <ciro.raggio@kit.edu>", "Mohammadreza Javadi Namin <mohammadreza.javadi@mail.polimi.it>", "Nastaran Ghaffari Elkhechi <nastaran.ghaffari@mail.polimi.it>", "Aldo Giuliani <aldo.giuliani@studenti.unicz.it>", "Jakub Mitura <jakub.mitura14@gmail.com>"]
 
 [deps]
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 NIfTI = "a3a9e032-41b5-5fc4-967a-a6b7a19844d3"
 Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
@@ -12,6 +13,7 @@ StatsBase = "2913bbd2-ae8a-5f71-8c99-4fb6c76f3a91"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 
 [compat]
+JSON3 = "1.14.3"
 LinearAlgebra = "1"
 NIfTI = "0.6"
 Random = "1"
