@@ -115,7 +115,9 @@ end
     - roi_voxels::Vector{Float32}: Vector containing the voxel values within the region of interest
     """
 function extract_roi_voxels(img::Array{Float32,3}, mask::BitArray{3})::Vector{Float32}
-    return vec(img[mask])
+    v = vec(img[mask])
+    any(isnan, v) && error("Image contains NaN values")
+    return v
 end
 
 """
