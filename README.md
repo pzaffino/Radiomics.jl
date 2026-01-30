@@ -65,6 +65,13 @@ To compute with weighting_norm personalzed
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false, weighting_norm="euclidean");
 ```
+### Multi threading
+Radiomics.jl can be run in multi-threading mode.
+To do this, you can define and set the following environment variable: JULIA_NUM_THREADS=auto
+
+On a Linux system, the .bashrc file can be edited by adding the line:
+export JULIA_NUM_THREADS=auto
+
 ## Using Radiomics.jl from Python
 Radiomics.jl can be used directly from Python in a simple and convenient way.
 
