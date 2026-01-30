@@ -48,11 +48,12 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3}, spacing::Vector{Flo
     end
     # Step 2: Keep only largest component if requested
     processed_mask = mask_bin
+    num_islands = 1
     if keep_largest_only
         if verbose
             println("Checking for multiple connected components...")
         end
-        processed_mask = keep_largest_component(mask_bin)
+        processed_mask, num_islands = keep_largest_component(mask_bin)
         if verbose && sum(processed_mask) < sum(mask_bin)
             removed_voxels = sum(mask_bin) - sum(processed_mask)
             percentage = 100 * removed_voxels / sum(mask_bin)
@@ -85,11 +86,13 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3}, spacing::Vector{Flo
     shape_3d_features["shape3d_mesh_volume"] = meshvol
     shape_3d_features["shape3d_surface_volume_ratio"] = area / meshvol
     shape_3d_features["shape3d_sphericity"] = sphericity(meshvol, area)
+
     # Step 6: Calculate principal axes features
     if verbose
         println("  Calculating principal axes features...")
     end
     coords = get_voxel_coords(processed_mask, spacing)
+
     # Step 7: Maximum 3D Diameter
     maxdiam = maximum_3d_diameter(triangles, sample_rate=sample_rate) # Sample rate for accuracy
     shape_3d_features["shape3d_maximum_3d_diameter"] = maxdiam
@@ -99,8 +102,10 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3}, spacing::Vector{Flo
     shape_3d_features["shape3d_least_axis_length"] = axes_lengths[1]
     shape_3d_features["shape3d_elongation"] = elongation
     shape_3d_features["shape3d_flatness"] = flatness
-    # Step 7: Calculate voxel-based volume
+
+    # Step 8: Calculate voxel-based volume
     shape_3d_features["shape3d_voxel_volume"] = voxel_volume(processed_mask, spacing)
+    shape_3d_features["shape3d_number_of_islands"] = Float32(num_islands)
     return shape_3d_features
 end
 const edge_to_vertex = [
