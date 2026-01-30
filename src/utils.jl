@@ -219,7 +219,7 @@ end
     """
 function keep_largest_component(mask::AbstractArray{Bool})
     if sum(mask) == 0
-        return mask
+        return mask, 0  # Restituisce anche 0 isole
     end
 
     # Label connected components
@@ -229,7 +229,7 @@ function keep_largest_component(mask::AbstractArray{Bool})
     max_label = maximum(labels)
 
     if max_label == 0
-        return mask
+        return mask, 0
     end
 
     # Count voxels in each component using array (much faster than Dict)
@@ -246,7 +246,6 @@ function keep_largest_component(mask::AbstractArray{Bool})
         @warn "Detected $num_islands separate islands in the mask. 3D features will be computed only on the largest island. First order and texture features will consider all islands."
 
         # Optional: print sizes of all islands for debugging
-        # Create pairs and sort
         sorted_pairs = [(i, component_sizes[i]) for i in 1:max_label if component_sizes[i] > 0]
         sort!(sorted_pairs, by=x -> x[2], rev=true)
         println("Island sizes (in voxels):")
@@ -261,9 +260,8 @@ function keep_largest_component(mask::AbstractArray{Bool})
     # Create new mask with only largest component
     largest_component_mask = labels .== largest_label
 
-    return largest_component_mask
+    return largest_component_mask, num_islands
 end
-
 """
     pad_mask(mask::AbstractArray, pad::Int)
     
