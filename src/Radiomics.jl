@@ -1,3 +1,5 @@
+using Base.Threads
+
 module Radiomics
 
 include("utils.jl")
@@ -62,6 +64,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     compute_all = :all in features
 
     if verbose
+        println("Active threads: ", Threads.nthreads())
         println("Extracting radiomic features...")
         if compute_all
             println("Computing ALL features")
@@ -98,32 +101,92 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         println("Sanity check: $(result.time) sec, $(result.bytes / 1024^2) MiB")
     end
 
+    # Run threads
+
+    # Run in a separate thread extraction of first order features (only for 3D images)
+    if ndims(img) == 3 && (compute_all || :first_order in features)
+        t_first_order_features = Threads.@spawn @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, bin_width=bin_width, verbose=verbose)
+    end
+
+    # Run in a separate thread extraction of GLCM features (2D or 3D)
+    if compute_all || :glcm in features
+        t_glcm_features = Threads.@spawn @timed get_glcm_features(img, mask, voxel_spacing;
+            n_bins=n_bins,
+            bin_width=bin_width,
+            weighting_norm=weighting_norm,
+            verbose=verbose)
+    end
+
+    if ndims(mask) == 2
+        # Run in a separate thread extraction of 2D shape features
+        if compute_all || :shape2d in features
+            t_shape2d_features = Threads.@spawn @timed get_shape2d_features(mask, voxel_spacing, verbose)
+        end
+
+    elseif ndims(mask) == 3
+        # Run in a separate thread extraction of 3D shape features
+        if compute_all || :shape3d in features
+            t_sphape3d_features = Threads.@spawn @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate, keep_largest_only=keep_largest_only)
+        end
+
+        # Run in a separate thread extraction of GLSZM features
+        if compute_all || :glszm in features
+            t_glszm_features = Threads.@spawn @timed get_glszm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose)
+        end
+
+        # Run in a separate thread extraction of NGTDM features
+        if compute_all || :ngtdm in features
+            t_ngtdm_features = Threads.@spawn @timed get_ngtdm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose)
+        end
+
+        # Run in a separate thread extraction of GLRLM features
+        if compute_all || :glrlm in features
+            t_glrlm_features = Threads.@spawn @timed get_glrlm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                weighting_norm=weighting_norm,
+                verbose=verbose)
+        end
+
+        # Run in a separate thread extraction of GLDM features
+        if compute_all || :gldm in features
+            t_gldm_features = Threads.@spawn @timed get_gldm_features(img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose)
+        end
+    end
+
+    # Retrieve data from worker threads
+
     # First order features (only for 3D images)
     if ndims(img) == 3 && (compute_all || :first_order in features)
-        result = @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, bin_width=bin_width, verbose=verbose)
-        first_order_features = result.value
+        results_first_order = fetch(t_first_order_features)
+        first_order_features = results_first_order.value
         merge!(radiomic_features, first_order_features)
-        total_time_accumulated += result.time
-        total_bytes_accumulated += result.bytes
+        total_time_accumulated += results_first_order.time
+        total_bytes_accumulated += results_first_order.bytes
         if verbose
-            println("First order: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+            println("First order: $(results_first_order.time) sec, $(results_first_order.bytes / 1024^2) MiB")
             print_features("First Order Features", first_order_features)
         end
     end
 
     # GLCM features (2D or 3D)
     if compute_all || :glcm in features
-        result = @timed get_glcm_features(img, mask, voxel_spacing;
-            n_bins=n_bins,
-            bin_width=bin_width,
-            weighting_norm=weighting_norm,
-            verbose=verbose)
-        glcm_features = result.value
+        results_glcm = fetch(t_glcm_features)
+        glcm_features = results_glcm.value
         merge!(radiomic_features, glcm_features)
-        total_time_accumulated += result.time
-        total_bytes_accumulated += result.bytes
+        total_time_accumulated += results_glcm.time
+        total_bytes_accumulated += results_glcm.bytes
         if verbose
-            println("GLCM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+            println("GLCM: $(results_glcm.time) sec, $(results_glcm.bytes / 1024^2) MiB")
             print_features("GLCM Features", glcm_features)
         end
     end
@@ -131,13 +194,13 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     if ndims(mask) == 2
         # 2D shape features
         if compute_all || :shape2d in features
-            result = @timed get_shape2d_features(mask, voxel_spacing, verbose)
-            shape_2d_features = result.value
+            results_shape2d = fetch(t_shape2d_features)
+            shape_2d_features = results_shape2d.value
             merge!(radiomic_features, shape_2d_features)
-            total_time_accumulated += result.time
-            total_bytes_accumulated += result.bytes
+            total_time_accumulated += results_shape2d.time
+            total_bytes_accumulated += results_shape2d.bytes
             if verbose
-                println("2D shape: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+                println("2D shape: $(results_shape2d.time) sec, $(results_shape2d.bytes / 1024^2) MiB")
                 print_features("2D Shape Features", shape_2d_features)
             end
         end
@@ -145,78 +208,65 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     elseif ndims(mask) == 3
         # 3D shape features
         if compute_all || :shape3d in features
-            result = @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate, keep_largest_only=keep_largest_only)
-            shape_3d_features = result.value
+            results_shape3d = fetch(t_sphape3d_features)
+            shape_3d_features = results_shape3d.value
             merge!(radiomic_features, shape_3d_features)
-            total_time_accumulated += result.time
-            total_bytes_accumulated += result.bytes
+            total_time_accumulated += results_shape3d.time
+            total_bytes_accumulated += results_shape3d.bytes
             if verbose
-                println("3D shape: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+                println("3D shape: $(results_shape3d.time) sec, $(results_shape3d.bytes / 1024^2) MiB")
                 print_features("3D Shape Features", shape_3d_features)
             end
         end
 
         # GLSZM features
         if compute_all || :glszm in features
-            result = @timed get_glszm_features(img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                verbose=verbose)
-            glszm_features = result.value
+            results_glszm = fetch(t_glszm_features)
+            glszm_features = results_glszm.value
             merge!(radiomic_features, glszm_features)
-            total_time_accumulated += result.time
-            total_bytes_accumulated += result.bytes
+            total_time_accumulated += results_glszm.time
+            total_bytes_accumulated += results_glszm.bytes
             if verbose
-                println("GLSZM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+                println("GLSZM: $(results_glszm.time) sec, $(results_glszm.bytes / 1024^2) MiB")
                 print_features("GLSZM Features", glszm_features)
             end
         end
 
         # NGTDM features
         if compute_all || :ngtdm in features
-            result = @timed get_ngtdm_features(img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                verbose=verbose)
-            ngtdm_features = result.value
+            results_ngtdm = fetch(t_ngtdm_features)
+            ngtdm_features = results_ngtdm.value
             merge!(radiomic_features, ngtdm_features)
-            total_time_accumulated += result.time
-            total_bytes_accumulated += result.bytes
+            total_time_accumulated += results_ngtdm.time
+            total_bytes_accumulated += results_ngtdm.bytes
             if verbose
-                println("NGTDM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+                println("NGTDM: $(results_ngtdm.time) sec, $(results_ngtdm.bytes / 1024^2) MiB")
                 print_features("NGTDM Features", ngtdm_features)
             end
         end
 
         # GLRLM features
         if compute_all || :glrlm in features
-            result = @timed get_glrlm_features(img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                weighting_norm=weighting_norm,
-                verbose=verbose)
-            glrlm_features = result.value
+            results_glrlm = fetch(t_glrlm_features)
+            glrlm_features = results_glrlm.value
             merge!(radiomic_features, glrlm_features)
-            total_time_accumulated += result.time
-            total_bytes_accumulated += result.bytes
+            total_time_accumulated += results_glrlm.time
+            total_bytes_accumulated += results_glrlm.bytes
             if verbose
-                println("GLRLM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+                println("GLRLM: $(results_glrlm.time) sec, $(results_glrlm.bytes / 1024^2) MiB")
                 print_features("GLRLM Features", glrlm_features)
             end
         end
 
         # GLDM features
         if compute_all || :gldm in features
-            result = @timed get_gldm_features(img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                verbose=verbose)
-            gldm_features = result.value
+            results_gldm = fetch(t_gldm_features)
+            gldm_features = results_gldm.value
             merge!(radiomic_features, gldm_features)
-            total_time_accumulated += result.time
-            total_bytes_accumulated += result.bytes
+            total_time_accumulated += results_gldm.time
+            total_bytes_accumulated += results_gldm.bytes
             if verbose
-                println("GLDM: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+                println("GLDM: $(results_gldm.time) sec, $(results_gldm.bytes / 1024^2) MiB")
                 print_features("GLDM Features", gldm_features)
             end
         end
