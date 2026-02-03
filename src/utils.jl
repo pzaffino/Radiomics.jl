@@ -108,29 +108,33 @@ end
         # Default (bin_width=25.0f0)
         disc, n_bins, levels, bw = discretize_image(img, mask)
     """
-function discretize_image(img::Array{Float32,3},
+function discretize_image(img::Array{<:Real,3},
     mask::BitArray{3};
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float32,Nothing}=nothing)
+    bin_width::Union{<:Real,Nothing}=nothing)
+
+    # Convert to Float32 for backward compatibility
+    img_f32 = convert(Array{Float32,3}, img)
+    bin_width_f32 = isnothing(bin_width) ? nothing : Float32(bin_width)
 
     # Early check for empty mask
     if sum(mask) == 0
-        return zeros(Int, size(img)), 0, Int[], 0.0f0
+        return zeros(Int, size(img_f32)), 0, Int[], 0.0f0
     end
 
     # Compute min/max from masked values
-    vals = view(img, mask)
+    vals = view(img_f32, mask)
     vmin = minimum(vals)
     vmax = maximum(vals)
 
-    if !isnothing(n_bins) && !isnothing(bin_width)
+    if !isnothing(n_bins) && !isnothing(bin_width_f32)
         error("Specify either n_bins or bin_width, not both.")
 
-    elseif isnothing(n_bins) && isnothing(bin_width)
-        bin_width = 25.0f0
+    elseif isnothing(n_bins) && isnothing(bin_width_f32)
+        bin_width_f32 = 25.0f0
     end
 
-    disc = zeros(Int, size(img))
+    disc = zeros(Int, size(img_f32))
 
     if !isnothing(n_bins)
         bin_width_used = (vmax - vmin) / Float32(n_bins)
@@ -142,19 +146,19 @@ function discretize_image(img::Array{Float32,3},
         # Iterate directly using linear indices without allocating index array
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img[i]
+                v = img_f32[i]
                 b = min(Int(floor((v - vmin) * inv_bin_width)) + 1, n_bins)
                 disc[i] = b
             end
         end
     else
-        bin_width_used = bin_width
+        bin_width_used = bin_width_f32
         inv_bin_width = 1.0f0 / bin_width_used
         bin_offset = Int(floor(vmin * inv_bin_width))
 
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img[i]
+                v = img_f32[i]
                 b = Int(floor(v * inv_bin_width)) - bin_offset + 1
                 disc[i] = b
             end
@@ -309,7 +313,7 @@ end
         # Returns:
         - Nothing. Prints the features to the console.
     """
-function print_features(title::String, features::Dict{String,Float32})
+function print_features(title::String, features::Dict{String,<:Real})
     println("\n--- $title ---")
     sorted_keys = sort(collect(keys(features)))
     for (i, k) in enumerate(sorted_keys)
