@@ -1,118 +1,15 @@
-using LinearAlgebra, Random
-"""
-    get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
-    
-    Extracts 3D shape features from the given mask.
-    
-    # Arguments
-        - `mask`: A 3D mask array (any numeric type). Values > threshold are considered foreground.
-        - `spacing`: A vector containing the voxel spacing in each dimension (x, y, z).
-        - `verbose`: If true, prints progress messages.
-        - `keep_largest_only`: If true, keeps only the largest connected component (default: true).
-        - `pad_width`: Number of layers to pad around the mask for Marching Cubes (default: 1).
-        - `threshold`: Threshold for binarization (default: 0.5). Values > threshold are set to true.
-        
-    # Returns
-        - A dictionary containing the calculated 3D shape features.
-        
-    # Notes
-        - The mask is automatically binarized using the specified threshold.
-        - The mask is automatically padded to ensure correct surface extraction at boundaries.
-        - By default, only the largest connected component is kept to ensure meaningful shape features.
-        
-    """
-function get_shape3d_features(mask::AbstractArray{<:Real,3}, spacing::Vector{Float32};
-    verbose=false,
-    keep_largest_only=true,
-    pad_width=1,
-    threshold=0,
-    sample_rate=0.03)
-    if verbose
-        println("Extracting 3D shape features...")
-        println("Input mask size: $(size(mask))")
-        println("Input mask type: $(eltype(mask))")
-    end
-    # Step 1: Binarize the mask
-    if verbose
-        println("Binarizing mask with threshold=$threshold...")
-    end
-    mask_bin = mask .> threshold
-    n_foreground = sum(mask_bin)
-    if n_foreground == 0
-        error("Mask is empty after binarization (no voxels > $threshold)")
-    end
-    if verbose
-        total_voxels = length(mask_bin)
-        percentage = 100 * n_foreground / total_voxels
-        println("Foreground voxels: $n_foreground / $total_voxels ($(round(percentage, digits=2))%)")
-    end
-    # Step 2: Keep only largest component if requested
-    processed_mask = mask_bin
-    num_islands = 1
-    if keep_largest_only
-        if verbose
-            println("Checking for multiple connected components...")
-        end
-        processed_mask, num_islands = keep_largest_component(mask_bin)
-        if verbose && sum(processed_mask) < sum(mask_bin)
-            removed_voxels = sum(mask_bin) - sum(processed_mask)
-            percentage = 100 * removed_voxels / sum(mask_bin)
-            println("Removed $removed_voxels voxels ($(round(percentage, digits=2))%) from smaller components")
-        end
-    end
-    # Step 3: Pad the mask for Marching Cubes
-    if verbose
-        println("Padding mask with $pad_width layers...")
-    end
-    processed_mask = pad_mask(processed_mask, pad_width)
-    if verbose
-        println("Padded mask size: $(size(processed_mask))")
-    end
-    shape_3d_features = Dict{String,Float32}()
-    # Step 4: Extract surface mesh using Marching Cubes
-    if verbose
-        println("Running Marching Cubes algorithm...")
-    end
-    triangles = marching_cubes_surface(processed_mask, spacing)
-    if verbose
-        println("Generated $(length(triangles)) triangles")
-    end
-    # Step 5: Calculate surface-based features
-    if verbose
-        println("Calculating surface area and volume...")
-    end
-    area, meshvol = surface_and_volume(triangles)
-    shape_3d_features["shape3d_surface_area"] = area
-    shape_3d_features["shape3d_mesh_volume"] = meshvol
-    shape_3d_features["shape3d_surface_volume_ratio"] = area / meshvol
-    shape_3d_features["shape3d_sphericity"] = sphericity(meshvol, area)
+using LinearAlgebra
+using Random
+using Statistics
 
-    # Step 6: Calculate principal axes features
-    if verbose
-        println("  Calculating principal axes features...")
-    end
-    coords = get_voxel_coords(processed_mask, spacing)
+const Point3D = NTuple{3, Float64}
+const Triangle3D = NTuple{3, Point3D}
 
-    # Step 7: Maximum 3D Diameter
-    maxdiam = maximum_3d_diameter(triangles, sample_rate=sample_rate) # Sample rate for accuracy
-    shape_3d_features["shape3d_maximum_3d_diameter"] = maxdiam
-    axes_lengths, elongation, flatness = principal_axes_features(coords)
-    shape_3d_features["shape3d_major_axis_length"] = axes_lengths[3]
-    shape_3d_features["shape3d_minor_axis_length"] = axes_lengths[2]
-    shape_3d_features["shape3d_least_axis_length"] = axes_lengths[1]
-    shape_3d_features["shape3d_elongation"] = elongation
-    shape_3d_features["shape3d_flatness"] = flatness
+const CUBE_OFFSETS = (
+    (0,0,0), (1,0,0), (1,1,0), (0,1,0),
+    (0,0,1), (1,0,1), (1,1,1), (0,1,1)
+)
 
-    # Step 8: Calculate voxel-based volume
-    shape_3d_features["shape3d_voxel_volume"] = voxel_volume(processed_mask, spacing)
-    shape_3d_features["shape3d_number_of_islands"] = Float32(num_islands)
-    return shape_3d_features
-end
-const edge_to_vertex = [
-    (1, 2), (2, 3), (3, 4), (4, 1),
-    (5, 6), (6, 7), (7, 8), (8, 5),
-    (1, 5), (2, 6), (3, 7), (4, 8)
-]
 const edgeTable = UInt16[
     0x0, 0x109, 0x203, 0x30a, 0x406, 0x50f, 0x605, 0x70c,
     0x80c, 0x905, 0xa0f, 0xb06, 0xc0a, 0xd03, 0xe09, 0xf00,
@@ -147,6 +44,7 @@ const edgeTable = UInt16[
     0xf00, 0xe09, 0xd03, 0xc0a, 0xb06, 0xa0f, 0x905, 0x80c,
     0x70c, 0x605, 0x50f, 0x406, 0x30a, 0x203, 0x109, 0x0
 ]
+
 const triTable = [(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
     (0, 8, 3, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
     (0, 1, 9, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
@@ -404,232 +302,402 @@ const triTable = [(-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -
     (0, 3, 8, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1),
     (-1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1)
 ]
-""" 
-    Linearly interpolate the position where an isosurface cuts
-    an edge between two vertices, each with their own scalar value.
-    """
-function vertex_interp(p1, p2, valp1, valp2, isolevel)
-    if abs(valp2 - valp1) < 1e-8
-        return p1
-    end
+"""
+    This function is used to interpolate the position of a vertex on an edge of a cube.
+    It is used by the marching cubes algorithm to create a surface mesh from a 3D binary mask.
+"""
+@inline function vertex_interp_opt(p1::Point3D, p2::Point3D, valp1::Real, valp2::Real, isolevel::Float64)::Point3D
+    if abs(isolevel - valp1) < 1e-5; return p1; end
+    if abs(isolevel - valp2) < 1e-5; return p2; end
+    if abs(valp2 - valp1) < 1e-5; return p1; end
+
     mu = (isolevel - valp1) / (valp2 - valp1)
-    return p1 .+ mu .* (p2 .- p1)
+    return (
+        p1[1] + mu * (p2[1] - p1[1]),
+        p1[2] + mu * (p2[2] - p1[2]),
+        p1[3] + mu * (p2[3] - p1[3])
+    )
 end
 """
     Extract the surface mesh from a 3D binary mask using the Marching Cubes algorithm
     Returns a list of triangles, each represented as a tuple of three 3D points.
-    """
-function marching_cubes_surface(mask::BitArray{3}, spacing::Vector{Float32})
+"""
+function marching_cubes_surface(mask::AbstractArray{Bool, 3}, spacing::Vector{<:Real})
     nx, ny, nz = size(mask)
-    triangles = Vector{NTuple{3,Vector{Float64}}}()
-    # Pre-allocate: estimate ~3-5 triangles per voxel on surface
-    sizehint!(triangles, sum(mask) ÷ 2)
-    corner_offsets = [(0, 0, 0), (1, 0, 0), (1, 1, 0), (0, 1, 0), (0, 0, 1), (1, 0, 1), (1, 1, 1), (0, 1, 1)]
-    for z in 1:nz-1, y in 1:ny-1, x in 1:nx-1
-        vals = [mask[x+dx, y+dy, z+dz] ? 1.0 : 0.0 for (dx, dy, dz) in corner_offsets]
-        coords = [[(x - 1 + dx) * spacing[1], (y - 1 + dy) * spacing[2], (z - 1 + dz) * spacing[3]] for (dx, dy, dz) in corner_offsets]
-        cubeindex = 0
-        for i in 1:8
-            if vals[i] > 0.5
-                cubeindex |= (1 << (i - 1))
+    triangles = Vector{Triangle3D}()
+    sizehint!(triangles, floor(Int, count(mask) * 2))
+
+    sp_x, sp_y, sp_z = Float64(spacing[1]), Float64(spacing[2]), Float64(spacing[3])
+    vertlist = Vector{Point3D}(undef, 12)
+    isolevel = 0.5
+
+    @inbounds for z in 1:nz-1
+        z_coord = (z - 1) * sp_z
+        for y in 1:ny-1
+            y_coord = (y - 1) * sp_y
+            for x in 1:nx-1
+                x_coord = (x - 1) * sp_x
+
+                # Calcolo indice cubo
+                cubeindex = 0
+                if mask[x, y, z]     cubeindex |= 1   end
+                if mask[x+1, y, z]   cubeindex |= 2   end
+                if mask[x+1, y+1, z] cubeindex |= 4   end
+                if mask[x, y+1, z]   cubeindex |= 8   end
+                if mask[x, y, z+1]   cubeindex |= 16  end
+                if mask[x+1, y, z+1] cubeindex |= 32  end
+                if mask[x+1, y+1, z+1] cubeindex |= 64  end
+                if mask[x, y+1, z+1]   cubeindex |= 128 end
+
+                if edgeTable[cubeindex+1] == 0
+                    continue
+                end
+
+                # Coordinate fisiche
+                p0 = (x_coord, y_coord, z_coord)
+                p1 = (x_coord + sp_x, y_coord, z_coord)
+                p2 = (x_coord + sp_x, y_coord + sp_y, z_coord)
+                p3 = (x_coord, y_coord + sp_y, z_coord)
+                p4 = (x_coord, y_coord, z_coord + sp_z)
+                p5 = (x_coord + sp_x, y_coord, z_coord + sp_z)
+                p6 = (x_coord + sp_x, y_coord + sp_y, z_coord + sp_z)
+                p7 = (x_coord, y_coord + sp_y, z_coord + sp_z)
+
+                v0 = mask[x, y, z] ? 1.0 : 0.0
+                v1 = mask[x+1, y, z] ? 1.0 : 0.0
+                v2 = mask[x+1, y+1, z] ? 1.0 : 0.0
+                v3 = mask[x, y+1, z] ? 1.0 : 0.0
+                v4 = mask[x, y, z+1] ? 1.0 : 0.0
+                v5 = mask[x+1, y, z+1] ? 1.0 : 0.0
+                v6 = mask[x+1, y+1, z+1] ? 1.0 : 0.0
+                v7 = mask[x, y+1, z+1] ? 1.0 : 0.0
+
+                edges = edgeTable[cubeindex+1]
+
+                if (edges & 1) != 0; vertlist[1] = vertex_interp_opt(p0, p1, v0, v1, isolevel); end
+                if (edges & 2) != 0; vertlist[2] = vertex_interp_opt(p1, p2, v1, v2, isolevel); end
+                if (edges & 4) != 0; vertlist[3] = vertex_interp_opt(p2, p3, v2, v3, isolevel); end
+                if (edges & 8) != 0; vertlist[4] = vertex_interp_opt(p3, p0, v3, v0, isolevel); end
+                if (edges & 16) != 0; vertlist[5] = vertex_interp_opt(p4, p5, v4, v5, isolevel); end
+                if (edges & 32) != 0; vertlist[6] = vertex_interp_opt(p5, p6, v5, v6, isolevel); end
+                if (edges & 64) != 0; vertlist[7] = vertex_interp_opt(p6, p7, v6, v7, isolevel); end
+                if (edges & 128) != 0; vertlist[8] = vertex_interp_opt(p7, p4, v7, v4, isolevel); end
+                if (edges & 256) != 0; vertlist[9] = vertex_interp_opt(p0, p4, v0, v4, isolevel); end
+                if (edges & 512) != 0; vertlist[10] = vertex_interp_opt(p1, p5, v1, v5, isolevel); end
+                if (edges & 1024) != 0; vertlist[11] = vertex_interp_opt(p2, p6, v2, v6, isolevel); end
+                if (edges & 2048) != 0; vertlist[12] = vertex_interp_opt(p3, p7, v3, v7, isolevel); end
+
+                t_idx = 1
+                while t_idx <= 16
+                    idx1 = triTable[cubeindex+1][t_idx]
+                    if idx1 == -1 break end
+
+                    idx2 = triTable[cubeindex+1][t_idx+1]
+                    idx3 = triTable[cubeindex+1][t_idx+2]
+
+                    push!(triangles, (vertlist[idx1+1], vertlist[idx2+1], vertlist[idx3+1]))
+                    t_idx += 3
+                end
             end
-        end
-        if edgeTable[cubeindex+1] == 0
-            continue
-        end
-        vertlist = Vector{Union{Nothing,Vector{Float64}}}(undef, 12)
-        for e in 1:12
-            if (edgeTable[cubeindex+1] & (1 << (e - 1))) != 0
-                a, b = edge_to_vertex[e]
-                vertlist[e] = vertex_interp(coords[a], coords[b], vals[a], vals[b], 0.5)
-            end
-        end
-        tri = triTable[cubeindex+1]
-        i = 1
-        while i <= 16 && tri[i] != -1
-            a = vertlist[tri[i]+1]
-            b = vertlist[tri[i+1]+1]
-            c = vertlist[tri[i+2]+1]
-            if a !== nothing && b !== nothing && c !== nothing
-                push!(triangles, (a, b, c))
-            end
-            i += 3
         end
     end
     return triangles
 end
 """
-    Calculate surface area and volume from a list of triangles.
-    Each triangle is represented as a tuple of three 3D points.
-    #Arguments
-    - triangles: Vector of triangles, each triangle is a tuple of three 3D points.
-    #Returns
-    - area: Surface area of the shape.
-    - volume: Volume of the shape."""
-function surface_and_volume(triangles)
+    Calculate the surface area and volume of a mesh of triangles.
+    Returns the surface area and volume.
+"""
+function surface_and_volume(triangles::Vector{Triangle3D})
     area = 0.0
     volume = 0.0
+
     @inbounds for (a, b, c) in triangles
-        # Compute cross products inline for better performance
-        ab = b .- a
-        ac = c .- a
-        cross_ab_ac = [ab[2] * ac[3] - ab[3] * ac[2],
-            ab[3] * ac[1] - ab[1] * ac[3],
-            ab[1] * ac[2] - ab[2] * ac[1]]
-        area += 0.5 * sqrt(cross_ab_ac[1]^2 + cross_ab_ac[2]^2 + cross_ab_ac[3]^2)
-        # Volume calculation using triple product
-        cross_b_c = [b[2] * c[3] - b[3] * c[2],
-            b[3] * c[1] - b[1] * c[3],
-            b[1] * c[2] - b[2] * c[1]]
-        volume += (a[1] * cross_b_c[1] + a[2] * cross_b_c[2] + a[3] * cross_b_c[3]) / 6
+        # Lati
+        ab_x, ab_y, ab_z = b[1]-a[1], b[2]-a[2], b[3]-a[3]
+        ac_x, ac_y, ac_z = c[1]-a[1], c[2]-a[2], c[3]-a[3]
+
+        # Cross product per area
+        cp_x = ab_y * ac_z - ab_z * ac_y
+        cp_y = ab_z * ac_x - ab_x * ac_z
+        cp_z = ab_x * ac_y - ab_y * ac_x
+
+        area += 0.5 * sqrt(cp_x^2 + cp_y^2 + cp_z^2)
+
+        # Cross product per volume
+        bc_x = b[2]*c[3] - b[3]*c[2]
+        bc_y = b[3]*c[1] - b[1]*c[3]
+        bc_z = b[1]*c[2] - b[2]*c[1]
+
+        volume += (a[1]*bc_x + a[2]*bc_y + a[3]*bc_z) / 6.0
     end
-    return Float32(area), Float32(abs(volume))
+    return Float64(area), Float64(abs(volume))
 end
-"""Calculate the sphericity given volume and surface area.
-    Sphericity = (36π * V²)^(1/3) / A
+"""
+    Calculate the sphericity of the shape represented by the binary mask.
     # Arguments
-    - volume: Volume of the shape.
-    - area: Surface area of the shape.
+        - volume: Float32 representing the volume of the shape.
+        - area: Float32 representing the surface area of the shape.
     # Returns
-    - sphericity: The sphericity value.
-    """
+        - sphericity: Float32 representing the sphericity of the shape. 
+"""
 function sphericity(volume, area)
+    if area == 0 return 0.0 end
     return (36 * pi * volume^2)^(1 / 3) / area
 end
 """
-    Get the 3D coordinates of all voxels set to true in the binary mask.
-    # Returns a vector of 3D points.
-    #Arguments
-    - mask: 3D BitArray representing the binary mask.
-    - spacing: Vector of Float32 representing the voxel spacing in each dimension.
-    #Returns
-    - coords: Vector of 3D points (each point is a Vector{Float64"""
-function get_voxel_coords(mask::BitArray{3}, spacing::Vector{Float32})
-    # Pre-allocate based on number of true voxels
-    n = count(mask)
-    coords = Vector{Vector{Float64}}(undef, n)
-    idx_counter = 1
-    @inbounds for I in CartesianIndices(mask)
-        if mask[I]
-            idx = Tuple(I)
-            coords[idx_counter] = [(idx[1] - 1 + 0.5) * spacing[1],
-                (idx[2] - 1 + 0.5) * spacing[2],
-                (idx[3] - 1 + 0.5) * spacing[3]]
-            idx_counter += 1
-        end
-    end
-    coords
-end
+    Calculate the maximum 3D diameter of the shape represented by the binary mask.
+    # Arguments
+        - triangles: Vector of Triangle3D representing the mesh of the shape.
+        - sample_rate: Float32 representing the sampling rate of the vertices.
+        - min_samples: Int representing the minimum number of samples.
+    # Returns
+        - maximum_3d_diameter: Float32 representing the maximum 3D diameter of the shape.
 """
-    Calculate the principal axes lengths, elongation, and flatness from a set of 3D coordinates.
-    # Arguments
-    - coords: Vector of 3D points (each point is a Vector{Float64}).
-    # Returns
-    - axes_lengths: Vector of Float32 containing the lengths of the principal axes.
-    - elongation: Float32 representing the elongation (sqrt(lambda2/lambda3)).
-    - flatness: Float32 representing the flatness (sqrt(lambda1/lambda3))."""
-function principal_axes_features(coords)
-    n = length(coords)
-    if n == 0
-        return zeros(Float32, 3), NaN32, NaN32
+function maximum_3d_diameter(triangles::Vector{Triangle3D}; 
+                            sample_rate::Float64=0.03, 
+                            min_samples::Int=100)
+    if isempty(triangles) 
+        return Float64(0.0) 
     end
-    # Build matrix directly instead of reduce(hcat) for better performance
-    M = Matrix{Float64}(undef, 3, n)
-    @inbounds for i in 1:n
-        M[1, i] = coords[i][1]
-        M[2, i] = coords[i][2]
-        M[3, i] = coords[i][3]
-    end
-    mu = mean(M, dims=2)
-    centered = M .- mu
-    covmat = (centered * centered') / n
-    eigvals = sort(eigen(Symmetric(covmat)).values)
-    lambda1, lambda2, lambda3 = eigvals
-    axes_lengths = Float32.([4 * sqrt(lambda) for lambda in eigvals])
-    elongation = lambda3 > 0 && lambda2 > 0 ? sqrt(lambda2 / lambda3) : NaN32
-    flatness = lambda3 > 0 && lambda1 > 0 ? sqrt(lambda1 / lambda3) : NaN32
-    return axes_lengths, Float32(elongation), Float32(flatness)
-end
-"""Calculate the volume of the shape represented by the binary mask.
-    # Arguments
-    - mask: 3D BitArray representing the binary mask.
-    - spacing: Vector of Float32 representing the voxel spacing in each dimension.
-    # Returns
-    - volume: Float32 representing the volume of the shape.
-    """
-function voxel_volume(mask, spacing)
-    return Float32(count(mask) * spacing[1] * spacing[2] * spacing[3])
-end
-"""
-    Calculate the maximum 3D diameter from surface mesh vertices.
-    Maximum 3D diameter is defined as the largest pairwise Euclidean distance 
-    between tumor surface mesh vertices (also known as Feret Diameter).
+
+    unique_verts_set = Set{Point3D}()
+    sizehint!(unique_verts_set, length(triangles) * 3)
     
-    # Arguments
-    - triangles: Vector of triangles from Marching Cubes, each triangle is a tuple of three 3D points.
-    - sample_rate: Fraction of vertices to sample (0.0 to 1.0). Default 1.0 uses all vertices.
-    - min_samples: Minimum number of vertices to use, regardless of sample_rate. Default 100.
-    
-    # Returns
-    - max_diameter: Float32 representing the maximum 3D diameter.
-    
-    # Notes
-    - sample_rate = 1.0: exact calculation (slow for large meshes)
-    - sample_rate = 0.1-0.3: good approximation with significant speedup, default 0.05
-    - sample_rate = 0.05: fast approximation, may underestimate slightly
-    """
-function maximum_3d_diameter(triangles::Vector{NTuple{3,Vector{Float64}}};
-    sample_rate::Float64=0.03,
-    min_samples::Int=100)
-    if isempty(triangles)
-        return Float32(0.0)
-    end
-    # Extract unique vertices from triangles with pre-allocation
-    n_triangles = length(triangles)
-    vertices = Vector{Vector{Float64}}(undef, 3 * n_triangles)
-    idx = 1
     @inbounds for (a, b, c) in triangles
-        vertices[idx] = a
-        vertices[idx+1] = b
-        vertices[idx+2] = c
-        idx += 3
+        push!(unique_verts_set, a)
+        push!(unique_verts_set, b)
+        push!(unique_verts_set, c)
     end
-    # Remove duplicates (vertices shared by multiple triangles)
-    unique_vertices = unique(vertices)
+    
+    unique_vertices = collect(unique_verts_set)
     n = length(unique_vertices)
-    if n < 2
-        return Float32(0.0)
+
+    if n < 2 
+        return Float64(0.0) 
     end
-    # Determine number of vertices to use
+
     n_sample = n
     if sample_rate < 1.0
         n_sample = max(min_samples, Int(ceil(n * sample_rate)))
-        n_sample = min(n_sample, n)  # Can't sample more than available
+        n_sample = min(n_sample, n)  
     end
-    # Sample vertices if needed
+
     sampled_vertices = unique_vertices
     if n_sample < n
-        Random.seed!(42)  # For reproducibility
+        Random.seed!(42)  # Riproducibilità
         indices = randperm(n)[1:n_sample]
         sampled_vertices = unique_vertices[indices]
     end
-    max_dist = 0.0
+
+    max_dist_sq = 0.0
     n_used = length(sampled_vertices)
-    # Calculate maximum pairwise distance between sampled vertices
-    # Using @inbounds for better performance
+
     @inbounds for i in 1:n_used-1
-        vi = sampled_vertices[i]
+        p1 = sampled_vertices[i]
         for j in i+1:n_used
-            vj = sampled_vertices[j]
-            # Inline distance calculation to avoid allocations
-            dx = vi[1] - vj[1]
-            dy = vi[2] - vj[2]
-            dz = vi[3] - vj[3]
-            dist = sqrt(dx * dx + dy * dy + dz * dz)
-            if dist > max_dist
-                max_dist = dist
+            p2 = sampled_vertices[j]
+            dx = p1[1] - p2[1]
+            dy = p1[2] - p2[2]
+            dz = p1[3] - p2[3]
+            d_sq = dx*dx + dy*dy + dz*dz
+            
+            if d_sq > max_dist_sq
+                max_dist_sq = d_sq
             end
         end
     end
-    return Float32(max_dist)
+
+    return Float64(sqrt(max_dist_sq))
+end
+"""
+    Calculate the voxel coordinates of the shape represented by the binary mask.
+    # Arguments
+        - mask: 3D BitArray representing the binary mask.
+        - spacing: Vector of Float32 representing the voxel spacing in each dimension.
+    # Returns
+        - coords: Vector of Point3D representing the coordinates of the shape.
+"""
+function get_voxel_coords(mask::AbstractArray{Bool, 3}, spacing::Vector{<:Real})
+    n = count(mask)
+    coords = Vector{Point3D}(undef, n)
+    idx_counter = 1
+    
+    @inbounds for I in CartesianIndices(mask)
+        if mask[I]
+            coords[idx_counter] = (
+                (I[1] - 1 + 0.5) * Float64(spacing[1]),
+                (I[2] - 1 + 0.5) * Float64(spacing[2]),
+                (I[3] - 1 + 0.5) * Float64(spacing[3])
+            )
+            idx_counter += 1
+        end
+    end
+    return coords
+end
+"""
+    Calculate the principal axes features of the shape represented by the binary mask.
+    # Arguments
+        - coords: Vector of Point3D representing the coordinates of the shape.
+    # Returns
+        - axes_lengths: Vector of Float32 representing the lengths of the principal axes.
+        - elongation: Float32 representing the elongation of the shape.
+        - flatness: Float32 representing the flatness of the shape.
+"""
+function principal_axes_features(coords::Vector{Point3D})
+    n = length(coords)
+    if n < 2
+        return zeros(Float64, 3), NaN, NaN
+    end
+
+    # 1. Calcola media
+    mx, my, mz = 0.0, 0.0, 0.0
+    @inbounds for p in coords
+        mx += p[1]
+        my += p[2]
+        mz += p[3]
+    end
+    mx /= n
+    my /= n
+    mz /= n
+
+    # 2. Calcola covarianza NORMALIZZATA per sqrt(N) (come PyRadiomics!)
+    sqrt_n = sqrt(Float64(n))
+    c11, c12, c13 = 0.0, 0.0, 0.0
+    c22, c23, c33 = 0.0, 0.0, 0.0
+
+    @inbounds for p in coords
+        # CRITICO: Dividi per sqrt(n) durante la centratura
+        dx = (p[1] - mx) / sqrt_n
+        dy = (p[2] - my) / sqrt_n
+        dz = (p[3] - mz) / sqrt_n
+        
+        c11 += dx*dx
+        c12 += dx*dy
+        c13 += dx*dz
+        c22 += dy*dy
+        c23 += dy*dz
+        c33 += dz*dz
+    end
+
+    # Matrice covarianza (già normalizzata sopra)
+    covmat = [c11 c12 c13; c12 c22 c23; c13 c23 c33]
+
+    # 3. Autovalori
+    eigvals = sort(eigen(Symmetric(covmat)).values)
+
+    # Assicura non-negativi (errori numerici)
+    l1 = max(0.0, eigvals[1])
+    l2 = max(0.0, eigvals[2])
+    l3 = max(0.0, eigvals[3])
+
+    # 4. Calcola lunghezze assi e ratios
+    axes_lengths = [4 * sqrt(l) for l in (l1, l2, l3)]
+    
+    elongation = (l3 > 0 && l2 > 0) ? sqrt(l2 / l3) : NaN
+    flatness = (l3 > 0 && l1 > 0) ? sqrt(l1 / l3) : NaN
+
+    return axes_lengths, Float64(elongation), Float64(flatness)
+end
+"""
+    Calculate the volume of the shape represented by the binary mask.
+    # Arguments
+        - mask: 3D BitArray representing the binary mask.
+        - spacing: Vector of Float32 representing the voxel spacing in each dimension.
+    # Returns
+        - volume: Float32 representing the volume of the shape.
+"""
+function voxel_volume(mask, spacing::Vector{<:Real})
+    return Float64(count(mask) * Float64(spacing[1]) * Float64(spacing[2]) * Float64(spacing[3]))
+end
+"""
+    get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
+    
+    Extracts 3D shape features from the given mask.
+    
+    # Arguments
+        - `mask`: A 3D mask array (any numeric type). Values > threshold are considered foreground.
+        - `spacing`: A vector containing the voxel spacing in each dimension (x, y, z).
+        - `verbose`: If true, prints progress messages.
+        - `keep_largest_only`: If true, keeps only the largest connected component (default: true).
+        - `pad_width`: Number of layers to pad around the mask for Marching Cubes (default: 1).
+        - `threshold`: Threshold for binarization (default: 0.5). Values > threshold are set to true.
+        
+    # Returns
+        - A dictionary containing the calculated 3D shape features.
+        
+    # Notes
+        - The mask is automatically binarized using the specified threshold.
+        - The mask is automatically padded to ensure correct surface extraction at boundaries.
+        - By default, only the largest connected component is kept to ensure meaningful shape features.
+        
+"""
+function get_shape3d_features(mask::AbstractArray{<:Real,3}, 
+                              spacing::Vector{<:Real};
+                              verbose=false,
+                              keep_largest_only=true,
+                              pad_width=1,
+                              threshold=0.5,
+                              sample_rate=0.03)
+
+    # Convert spacing to Float64 explicitly
+    spacing_f64 = convert(Vector{Float64}, spacing)
+    
+    if verbose
+        println("Extracting 3D shape features...")
+        println("Input mask size: $(size(mask))")
+        println("Sample rate for diameter: $sample_rate")
+    end
+
+    mask_bin = mask .> threshold
+    if sum(mask_bin) == 0
+        error("Mask is empty after binarization")
+    end
+
+    processed_mask = mask_bin
+    num_islands = 1
+    if keep_largest_only
+        if verbose
+            println("Checking for multiple connected components...")
+        end
+        processed_mask, num_islands = keep_largest_component(mask_bin)
+        if verbose && sum(processed_mask) < sum(mask_bin)
+            removed_voxels = sum(mask_bin) - sum(processed_mask)
+            percentage = 100 * removed_voxels / sum(mask_bin)
+            println("Removed $removed_voxels voxels ($(round(percentage, digits=2))%) from smaller components")
+        end
+    end
+
+    processed_mask = pad_mask(processed_mask, pad_width)
+
+    shape_3d_features = Dict{String,Float64}()
+
+    if verbose println("Running Marching Cubes...") end
+    triangles = marching_cubes_surface(processed_mask, spacing_f64)
+    if verbose println("Generated $(length(triangles)) triangles") end
+
+    if verbose println("Calculating surface features...") end
+    area, meshvol = surface_and_volume(triangles)
+    shape_3d_features["shape3d_surface_area"] = area
+    shape_3d_features["shape3d_mesh_volume"] = meshvol
+    shape_3d_features["shape3d_surface_volume_ratio"] = (meshvol > 0) ? area / meshvol : 0.0
+    shape_3d_features["shape3d_sphericity"] = sphericity(meshvol, area)
+
+    if verbose println("Calculating maximum diameter (sample_rate=$sample_rate)...") end
+    maxdiam = maximum_3d_diameter(triangles, sample_rate=sample_rate)
+    shape_3d_features["shape3d_maximum_3d_diameter"] = maxdiam
+
+    if verbose println("Calculating principal axes...") end
+    coords = get_voxel_coords(processed_mask, spacing_f64)
+    axes_lengths, elongation, flatness = principal_axes_features(coords)
+
+    shape_3d_features["shape3d_least_axis_length"] = axes_lengths[1]
+    shape_3d_features["shape3d_minor_axis_length"] = axes_lengths[2]
+    shape_3d_features["shape3d_major_axis_length"] = axes_lengths[3]
+    shape_3d_features["shape3d_elongation"] = elongation
+    shape_3d_features["shape3d_flatness"] = flatness
+
+    shape_3d_features["shape3d_voxel_volume"] = voxel_volume(processed_mask, spacing_f64)
+    shape_3d_features["shape3d_number_of_islands"] = Float64(num_islands)
+
+    return shape_3d_features
 end

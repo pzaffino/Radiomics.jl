@@ -11,6 +11,7 @@ include("glszm_features.jl")
 include("ngtdm_features.jl")
 include("glrlm_features.jl")
 include("gldm_features.jl")
+include("diagnosis.jl")
 
 using JSON3
 
@@ -54,10 +55,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     verbose::Bool=false,
     sample_rate::Float64=0.03,
     keep_largest_only::Bool=true,
-    features::Vector{Symbol}=[:all])::Dict{String,Float32}
+    features::Vector{Symbol}=[:all])::Dict{String,Any}
 
     total_start_time = time()
-    total_time_accumulated = 0.0
+    total_time_accumulated = 0.0 
     total_bytes_accumulated = 0
 
     # If features contains :all, compute all features
@@ -87,7 +88,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         control(img_input, mask_input, bin_width)
     end
 
-    radiomic_features = Dict{String,Float32}()
+    radiomic_features = Dict{String,Any}()
 
     # Cast and prepare inputs
     img, mask, voxel_spacing = prepare_inputs(img_input, mask_input, voxel_spacing_input,
@@ -103,9 +104,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # Run threads
 
-    # Run in a separate thread extraction of first order features (only for 3D images)
-    if ndims(img) == 3 && (compute_all || :first_order in features)
-        t_first_order_features = Threads.@spawn @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, bin_width=bin_width, verbose=verbose)
+    if ndims(img) == 3 && (compute_all || :shape3d in features)
+        t_sphape3d_features = Threads.@spawn @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate, keep_largest_only=keep_largest_only)
     end
 
     # Run in a separate thread extraction of GLCM features (2D or 3D)
@@ -125,8 +125,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     elseif ndims(mask) == 3
         # Run in a separate thread extraction of 3D shape features
-        if compute_all || :shape3d in features
-            t_sphape3d_features = Threads.@spawn @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate, keep_largest_only=keep_largest_only)
+        if compute_all || :first_order in features
+            t_first_order_features = Threads.@spawn @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, bin_width=bin_width, verbose=verbose)
         end
 
         # Run in a separate thread extraction of GLSZM features
@@ -206,19 +206,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         end
 
     elseif ndims(mask) == 3
-        # 3D shape features
-        if compute_all || :shape3d in features
-            results_shape3d = fetch(t_sphape3d_features)
-            shape_3d_features = results_shape3d.value
-            merge!(radiomic_features, shape_3d_features)
-            total_time_accumulated += results_shape3d.time
-            total_bytes_accumulated += results_shape3d.bytes
-            if verbose
-                println("3D shape: $(results_shape3d.time) sec, $(results_shape3d.bytes / 1024^2) MiB")
-                print_features("3D Shape Features", shape_3d_features)
-            end
-        end
-
         # GLSZM features
         if compute_all || :glszm in features
             results_glszm = fetch(t_glszm_features)
@@ -268,6 +255,27 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             if verbose
                 println("GLDM: $(results_gldm.time) sec, $(results_gldm.bytes / 1024^2) MiB")
                 print_features("GLDM Features", gldm_features)
+            end
+        end
+
+        # 3D shape features
+        if compute_all || :shape3d in features
+            results_shape3d = fetch(t_sphape3d_features)
+            shape_3d_features = results_shape3d.value
+            merge!(radiomic_features, shape_3d_features)
+            total_time_accumulated += results_shape3d.time
+            total_bytes_accumulated += results_shape3d.bytes
+            if verbose
+                println("3D shape: $(results_shape3d.time) sec, $(results_shape3d.bytes / 1024^2) MiB")
+                print_features("3D Shape Features", shape_3d_features)
+            end
+        end
+
+        if compute_all || :diagnosis in features
+            diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing)
+            merge!(radiomic_features, diagnosis_features)
+            if verbose
+                print_features_diagnosis("Diagnosis Features", diagnosis_features)
             end
         end
     end
