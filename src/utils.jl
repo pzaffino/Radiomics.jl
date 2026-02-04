@@ -249,7 +249,6 @@ function keep_largest_component(mask::AbstractArray{Bool})
     if num_islands > 1
         @warn "Detected $num_islands separate islands in the mask. 3D features will be computed only on the largest island. First order and texture features will consider all islands."
 
-        # Optional: print sizes of all islands for debugging
         sorted_pairs = [(i, component_sizes[i]) for i in 1:max_label if component_sizes[i] > 0]
         sort!(sorted_pairs, by=x -> x[2], rev=true)
         println("Island sizes (in voxels):")
