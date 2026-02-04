@@ -651,22 +651,24 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
         error("Mask is empty after binarization")
     end
 
-    processed_mask = mask_bin
-    num_islands = 1
     if keep_largest_only
         if verbose
             println("Checking for multiple connected components...")
         end
+        
         processed_mask, num_islands = keep_largest_component(mask_bin)
+
         if verbose && sum(processed_mask) < sum(mask_bin)
-            removed_voxels = sum(mask_bin) - sum(processed_mask)
-            percentage = 100 * removed_voxels / sum(mask_bin)
-            println("Removed $removed_voxels voxels ($(round(percentage, digits=2))%) from smaller components")
+            removed = sum(mask_bin) - sum(processed_mask)
+            pct = 100 * removed / sum(mask_bin)
+            println("Removed $removed voxels ($(round(pct, digits=2))%) from smaller components")
         end
+    else
+        processed_mask = mask_bin
+        num_islands = 1
     end
 
     processed_mask = pad_mask(processed_mask, pad_width)
-    
     
     shape_3d_features = Dict{String,Float64}()
 
