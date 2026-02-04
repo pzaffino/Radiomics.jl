@@ -644,8 +644,6 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
     
     if verbose
         println("Extracting 3D shape features...")
-        println("Input mask size: $(size(mask))")
-        println("Sample rate for diameter: $sample_rate")
     end
 
     mask_bin = mask .> threshold
@@ -668,35 +666,52 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
     end
 
     processed_mask = pad_mask(processed_mask, pad_width)
-
+    
+    
     shape_3d_features = Dict{String,Float64}()
 
-    if verbose println("Running Marching Cubes...") end
-    triangles = marching_cubes_surface(processed_mask, spacing_f64)
-    if verbose println("Generated $(length(triangles)) triangles") end
+    task_axes = Threads.@spawn begin
+        if verbose println("[Thread 1] Calculating principal axes...") end
+        coords = get_voxel_coords(processed_mask, spacing_f64)
+        return principal_axes_features(coords) 
+    end
 
-    if verbose println("Calculating surface features...") end
-    area, meshvol = surface_and_volume(triangles)
+    if verbose println("[Main Thread] Running Marching Cubes...") end
+    triangles = marching_cubes_surface(processed_mask, spacing_f64)
+    
+    task_geom = Threads.@spawn begin
+        if verbose println("[Thread 2] Calculating surface features...") end
+        local_area, local_vol = surface_and_volume(triangles)
+        local_ratio = (local_vol > 0) ? local_area / local_vol : 0.0
+        local_sph = sphericity(local_vol, local_area)
+        return (local_area, local_vol, local_ratio, local_sph)
+    end
+
+    task_diam = Threads.@spawn begin
+        if verbose println("[Thread 3] Calculating maximum diameter...") end
+        return maximum_3d_diameter(triangles, sample_rate=sample_rate)
+    end
+
+    vol_voxel = voxel_volume(processed_mask, spacing_f64)
+
+    axes_lengths, elongation, flatness = fetch(task_axes)
+    area, meshvol, vol_ratio, sph = fetch(task_geom)
+    maxdiam = fetch(task_diam)
+    
     shape_3d_features["shape3d_surface_area"] = area
     shape_3d_features["shape3d_mesh_volume"] = meshvol
-    shape_3d_features["shape3d_surface_volume_ratio"] = (meshvol > 0) ? area / meshvol : 0.0
-    shape_3d_features["shape3d_sphericity"] = sphericity(meshvol, area)
-
-    if verbose println("Calculating maximum diameter (sample_rate=$sample_rate)...") end
-    maxdiam = maximum_3d_diameter(triangles, sample_rate=sample_rate)
+    shape_3d_features["shape3d_surface_volume_ratio"] = vol_ratio
+    shape_3d_features["shape3d_sphericity"] = sph
+    
     shape_3d_features["shape3d_maximum_3d_diameter"] = maxdiam
-
-    if verbose println("Calculating principal axes...") end
-    coords = get_voxel_coords(processed_mask, spacing_f64)
-    axes_lengths, elongation, flatness = principal_axes_features(coords)
-
+    
     shape_3d_features["shape3d_least_axis_length"] = axes_lengths[1]
     shape_3d_features["shape3d_minor_axis_length"] = axes_lengths[2]
     shape_3d_features["shape3d_major_axis_length"] = axes_lengths[3]
     shape_3d_features["shape3d_elongation"] = elongation
     shape_3d_features["shape3d_flatness"] = flatness
-
-    shape_3d_features["shape3d_voxel_volume"] = voxel_volume(processed_mask, spacing_f64)
+    
+    shape_3d_features["shape3d_voxel_volume"] = vol_voxel
     shape_3d_features["shape3d_number_of_islands"] = Float64(num_islands)
 
     return shape_3d_features
