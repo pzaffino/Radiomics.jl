@@ -1,4 +1,4 @@
-function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_time_real, total_bytes_accumulated, weighting_norm, n_bins)
+function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_time_real, total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only, image_size, mask_size)
 
     diagnosis_features = Dict{String, Any}()
 
@@ -20,11 +20,14 @@ function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_tim
     #parameters of the image processing
     diagnosis_features["diagnosis_Sample_rate"] = !isnothing(sample_rate) ? sample_rate : 0.03
     diagnosis_features["diagnosis_Bin_width"] = !isnothing(bin_width) ? bin_width : 25.0
+    diagnosis_features["diagnosis_Number_of_bins"] = !isnothing(n_bins) ? n_bins : 32
+    diagnosis_features["diagnosis_Weighting_norm"] = !isnothing(weighting_norm) ? weighting_norm : "no_weighting"
+    diagnosis_features["diagnosis_Keep_largest_only"] = !isnothing(keep_largest_only) ? keep_largest_only : true
     
     #parameters of the image
     diagnosis_features["diagnosis_Voxel_spacing"] = [voxel_spacing[1], voxel_spacing[2], voxel_spacing[3]]
-    diagnosis_features["diagnosis_Weighting_norm"] = !isnothing(weighting_norm) ? weighting_norm : "no_weighting"
-    diagnosis_features["diagnosis_Number_of_bins"] = !isnothing(n_bins) ? n_bins : 32
+    diagnosis_features["diagnosis_Image_size"] = collect(image_size)
+    diagnosis_features["diagnosis_Mask_size"] = collect(mask_size)
     
     #parameters of the system
     diagnosis_features["diagnosis_Number_of_threads"] = Threads.nthreads()
