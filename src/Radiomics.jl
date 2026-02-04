@@ -14,6 +14,7 @@ include("gldm_features.jl")
 include("diagnosis.jl")
 
 using JSON3
+using Pkg
 
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
@@ -270,27 +271,24 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 print_features("3D Shape Features", shape_3d_features)
             end
         end
-
-        if compute_all || :diagnosis in features
-            diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing)
-            merge!(radiomic_features, diagnosis_features)
-            if verbose
-                print_features_diagnosis("Diagnosis Features", diagnosis_features)
-            end
-        end
+        
     end
 
     total_time_real = time() - total_start_time
 
     if verbose
         println("\n======================")
-        println("Total features extracted: $(length(radiomic_features))")
         println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
         println("Real time (end-to-end): $(total_time_real) sec")
         println("Overhead: $(total_time_real - total_time_accumulated) sec")
         println("Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
-        println("======================\n")
+        diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing,total_time_real, total_bytes_accumulated, weighting_norm, n_bins)
+        merge!(radiomic_features, diagnosis_features)
+        print_features_diagnosis("Diagnosis Features", diagnosis_features)
+        println("---------------------")
+        println("Total features extracted: $(length(radiomic_features))")
         println("Radiomic features extraction completed.")
+        println("======================")
     end
 
     return radiomic_features
