@@ -448,7 +448,7 @@ end
     Calculate the maximum 3D diameter of the shape represented by the binary mask.
     # Arguments
         - triangles: Vector of Triangle3D representing the mesh of the shape.
-        - sample_rate: Float32 representing the sampling rate of the vertices.
+        - sample_rate: Float64 representing the sampling rate of the vertices.
         - min_samples: Int representing the minimum number of samples.
     # Returns
         - maximum_3d_diameter: Float32 representing the maximum 3D diameter of the shape.
@@ -646,25 +646,21 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
         println("Extracting 3D shape features...")
     end
 
-    mask_bin = mask .> threshold
-    if sum(mask_bin) == 0
-        error("Mask is empty after binarization")
-    end
-
     if keep_largest_only
         if verbose
             println("Checking for multiple connected components...")
         end
         
-        processed_mask, num_islands = keep_largest_component(mask_bin)
+        #This function returns the largest connected component of the binarized mask.
+        processed_mask, num_islands = keep_largest_component(mask)
 
-        if verbose && sum(processed_mask) < sum(mask_bin)
-            removed = sum(mask_bin) - sum(processed_mask)
-            pct = 100 * removed / sum(mask_bin)
+        if verbose && sum(processed_mask) < sum(mask)
+            removed = sum(mask) - sum(processed_mask)
+            pct = 100 * removed / sum(mask)
             println("Removed $removed voxels ($(round(pct, digits=2))%) from smaller components")
         end
     else
-        processed_mask = mask_bin
+        processed_mask = mask
         num_islands = 1
     end
 

@@ -25,7 +25,7 @@ using Pkg
                               weighting_norm=nothing,
                               verbose=false,
                               keep_largest_only=true,
-                              features=[:all])
+                              features=[])
     
     Extracts radiomic features from the given image and mask.
     
@@ -41,8 +41,7 @@ using Pkg
     - `sample_rate`: The sample rate for feature extraction (optional).
     - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
     - `features`: Array of symbols specifying which features to compute. 
-                 Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm, :all
-                 Use [:all] to compute all features (default).
+                 Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
     
     # Returns:
     - A dictionary where keys are the feature names and values are the calculated feature values.
@@ -51,20 +50,22 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     force_2d::Bool=false,
     force_2d_dimension::Int=1,
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float32,Nothing}=nothing,
+    bin_width::Union{Int, Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false,
     sample_rate::Float64=0.03,
     keep_largest_only::Bool=true,
-    features::Vector{Symbol}=[:all])::Dict{String,Any}
+    features::Vector{Symbol}=Symbol[])::Dict{String,Any} 
 
     total_start_time = time()
     total_time_accumulated = 0.0 
     total_bytes_accumulated = 0
 
-    # If features contains :all, compute all features
-    compute_all = :all in features
+    bin_width_f32 = isnothing(bin_width) ? nothing : Float32(bin_width)
+    bin_width_f64 = isnothing(bin_width) ? nothing : Float64(bin_width)
 
+    compute_all = isempty(features)
+    
     if verbose
         println("Active threads: ", Threads.nthreads())
         println("Extracting radiomic features...")
@@ -86,7 +87,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     if isnothing(n_bins) && sum(mask_input) > 0
-        control(img_input, mask_input, bin_width)
+         validate_binning_parameters(img_input, mask_input, bin_width)
     end
 
     radiomic_features = Dict{String,Any}()
@@ -104,16 +105,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     # Run threads
-
     if ndims(img) == 3 && (compute_all || :shape3d in features)
-        t_sphape3d_features = Threads.@spawn @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, sample_rate=sample_rate, keep_largest_only=keep_largest_only)
+        t_sphape3d_features = Threads.@spawn @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, 
+            sample_rate=sample_rate, keep_largest_only=keep_largest_only)
     end
 
     # Run in a separate thread extraction of GLCM features (2D or 3D)
     if compute_all || :glcm in features
         t_glcm_features = Threads.@spawn @timed get_glcm_features(img, mask, voxel_spacing;
             n_bins=n_bins,
-            bin_width=bin_width,
+            bin_width=bin_width_f32,
             weighting_norm=weighting_norm,
             verbose=verbose)
     end
@@ -127,14 +128,15 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     elseif ndims(mask) == 3
         # Run in a separate thread extraction of 3D shape features
         if compute_all || :first_order in features
-            t_first_order_features = Threads.@spawn @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, bin_width=bin_width, verbose=verbose)
+            t_first_order_features = Threads.@spawn @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, 
+                bin_width=bin_width_f64, verbose=verbose)
         end
 
         # Run in a separate thread extraction of GLSZM features
         if compute_all || :glszm in features
             t_glszm_features = Threads.@spawn @timed get_glszm_features(img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=bin_width,
+                bin_width=bin_width_f32,
                 verbose=verbose)
         end
 
@@ -142,7 +144,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         if compute_all || :ngtdm in features
             t_ngtdm_features = Threads.@spawn @timed get_ngtdm_features(img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=bin_width,
+                bin_width=bin_width_f32,
                 verbose=verbose)
         end
 
@@ -150,7 +152,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         if compute_all || :glrlm in features
             t_glrlm_features = Threads.@spawn @timed get_glrlm_features(img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=bin_width,
+                bin_width=bin_width_f32,
                 weighting_norm=weighting_norm,
                 verbose=verbose)
         end
@@ -159,7 +161,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         if compute_all || :gldm in features
             t_gldm_features = Threads.@spawn @timed get_gldm_features(img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=bin_width,
+                bin_width=bin_width_f32,
                 verbose=verbose)
         end
     end
@@ -350,13 +352,8 @@ end
     # Compute GLCM and GLSZM with specific bin_width
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm], 
-                                        bin_width=25.0f0, 
+                                        bin_width=25, 
                                         verbose=true);
-    
-    # Compute all features (default behavior)
-    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:all], verbose=true);
-    # or simply:
-    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing, verbose=true);
     
     # Compute all texture features
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 

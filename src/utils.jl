@@ -364,7 +364,7 @@ function prepare_inputs(img_input::AbstractArray,
     return img, mask, voxel_spacing
 end
 
-function control(img_input, mask_input, bin_width)
+function  validate_binning_parameters(img_input, mask_input, bin_width)
     # Determine effective bin_width
     effective_bin_width = isnothing(bin_width) ? 25.0f0 : bin_width
 
