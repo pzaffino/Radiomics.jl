@@ -52,7 +52,6 @@ function get_glszm_features(img, mask, voxel_spacing;
 
     if verbose
         println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilized: $(bin_width_used)")
         println("Effective Gray level utilized: $(n_bins_actual)")
     end
 

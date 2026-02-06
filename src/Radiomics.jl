@@ -50,7 +50,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     force_2d::Bool=false,
     force_2d_dimension::Int=1,
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Int, Nothing}=nothing,
+    bin_width::Union{Real, Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false,
     sample_rate::Float64=0.03,

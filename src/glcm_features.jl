@@ -33,7 +33,6 @@ function calculate_glcm_3d(img::Array{Float32,3},
 
     if verbose
         println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilized: $(bin_width_used)")
         println("Effective gray level utilized: $(n_levels)")
         if weighting_norm !== nothing
             println("Weighting norm applied: $(weighting_norm)")
