@@ -220,29 +220,18 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     σx = sqrt(sum((gray_levels_f32[i] - μx)^2 * px[i] for i in 1:n_levels))
     σy = sqrt(sum((gray_levels_f32[j] - μy)^2 * py[j] for j in 1:n_levels))
 
-    # Pre-allocate marginal distributions
-    p_xminusy = zeros(Float32, n_levels)
-    p_xplusy = zeros(Float32, 2 * n_levels)
-
-    # Pre-compute marginal distributions
-    @inbounds for i in 1:n_levels, j in 1:n_levels
-        p = glcm[i, j]
-        if p > 0
-            p_xminusy[abs(i - j)+1] += p
-            p_xplusy[i+j] += p
-        end
-    end
-
-    kValuesDiff = Float32.(0:(n_levels-1))
-    kValuesSum = Float32.(2:(2*n_levels))
+    # Pre-allocate marginal distributions using actual gray level values
+    max_gray_level = maximum(gray_levels)
+    min_gray_level = minimum(gray_levels)
+    gray_level_range = Float32(max_gray_level - min_gray_level)
+    
+    p_xminusy = zeros(Float32, max_gray_level - min_gray_level + 1)
+    p_xplusy = zeros(Float32, 2 * max_gray_level + 1)
 
     # Pre-compute correlation denominator
     corr_denom = σx * σy
     use_corr = corr_denom > 0
     inv_corr_denom = use_corr ? 1.0f0 / corr_denom : 0.0f0
-
-    # Pre-compute inverse of n_levels
-    inv_n_levels = 1.0f0 / Float32(n_levels)
 
     # Initialize feature accumulators
     autocorr = 0.0f0
@@ -300,9 +289,16 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
                 # Inverse difference features
                 absd = abs(d)
                 idm += p / (1.0f0 + d2)
-                idmn += p / (1.0f0 + (d * inv_n_levels)^2)
                 id += p / (1.0f0 + absd)
-                idn += p / (1.0f0 + absd * inv_n_levels)
+                
+                # Per Idmn e Idn, usa il range effettivo dei gray levels
+                if gray_level_range > 0
+                    idmn += p / (1.0f0 + (d / gray_level_range)^2)
+                    idn += p / (1.0f0 + absd / gray_level_range)
+                else
+                    idmn += p
+                    idn += p
+                end
 
                 # Inverse variance
                 if i != j
@@ -311,6 +307,12 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
 
                 # Maximum probability
                 max_prob = max(max_prob, p)
+                
+                # Populate marginal distributions using gray level VALUES
+                diff_val = abs(gray_levels[i] - gray_levels[j])
+                sum_val = gray_levels[i] + gray_levels[j]
+                p_xminusy[diff_val + 1] += p
+                p_xplusy[sum_val] += p
             end
         end
     end
@@ -330,32 +332,50 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     features["glcm_InverseVariance"] = inv_var
     features["glcm_MaximumProbability"] = max_prob
 
-    # Difference features - optimized loops
+    # Difference features - calcolo diretto dalla GLCM per evitare problemi con gli indici
     diff_avg = 0.0f0
+    diff_var = 0.0f0
     diff_entropy = 0.0f0
-    @inbounds for k in 1:n_levels
+
+    # Calcola diff_avg direttamente dalla GLCM
+    @inbounds for i in 1:n_levels, j in 1:n_levels
+        p = glcm[i, j]
+        if p > 0
+            diff_val = abs(gray_levels_f32[i] - gray_levels_f32[j])
+            diff_avg += diff_val * p
+        end
+    end
+
+    # Entropy dalla distribuzione p_xminusy
+    @inbounds for k in 1:length(p_xminusy)
         pk = p_xminusy[k]
-        diff_avg += kValuesDiff[k] * pk
         if pk > 0
             diff_entropy -= pk * log2(pk + eps)
         end
     end
 
-    diff_var = 0.0f0
-    @inbounds for k in 1:n_levels
-        diff_var += (kValuesDiff[k] - diff_avg)^2 * p_xminusy[k]
+    # Variance
+    @inbounds for i in 1:n_levels, j in 1:n_levels
+        p = glcm[i, j]
+        if p > 0
+            diff_val = abs(gray_levels_f32[i] - gray_levels_f32[j])
+            diff_var += (diff_val - diff_avg)^2 * p
+        end
     end
 
     features["glcm_DifferenceAverage"] = diff_avg
     features["glcm_DifferenceEntropy"] = diff_entropy
     features["glcm_DifferenceVariance"] = diff_var
 
-    # Sum features - optimized loops
+    # Sum features - usando i valori effettivi dei gray levels
+    kValuesSum = Float32.(2*min_gray_level : 2*max_gray_level)
+    
     sum_avg = 0.0f0
     sum_entropy = 0.0f0
-    @inbounds for k in 2:(2*n_levels)
-        pk = p_xplusy[k]
-        sum_avg += kValuesSum[k-1] * pk
+    @inbounds for k_idx in 1:length(kValuesSum)
+        sum_k = Int(kValuesSum[k_idx])
+        pk = p_xplusy[sum_k]
+        sum_avg += kValuesSum[k_idx] * pk
         if pk > 0
             sum_entropy -= pk * log2(pk + eps)
         end
