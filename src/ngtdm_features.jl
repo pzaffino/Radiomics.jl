@@ -52,7 +52,6 @@ function get_ngtdm_features(img, mask, voxel_spacing;
 
     if verbose
         println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Bin width utilized: $(bin_width_used)")
         println("Effective gray level: $(n_bins_actual)")
     end
 
