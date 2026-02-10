@@ -46,7 +46,7 @@ using Pkg
     # Returns:
     - A dictionary where keys are the feature names and values are the calculated feature values.
 """
-function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=nothing;
+function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     force_2d::Bool=false,
     force_2d_dimension::Int=1,
     n_bins::Union{Int,Nothing}=nothing,
@@ -66,8 +66,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
 
     compute_all = isempty(features)
 
-    img_array, mask_array, voxel_spacing_input = process_input_data(img_input, mask_input, voxel_spacing_input, verbose)
-    
     if verbose
         println("Active threads: ", Threads.nthreads())
         println("Extracting radiomic features...")
@@ -88,14 +86,14 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         end
     end
 
-    if isnothing(n_bins) && sum(mask_array) > 0
-         validate_binning_parameters(img_array, mask_array, bin_width)
+    if isnothing(n_bins) && sum(mask_input) > 0
+         validate_binning_parameters(img_input, mask_input, bin_width)
     end
 
     radiomic_features = Dict{String,Any}()
 
     # Cast and prepare inputs
-    img, mask, voxel_spacing = prepare_inputs(img_array, mask_array, voxel_spacing_input,
+    img, mask, voxel_spacing = prepare_inputs(img_input, mask_input, voxel_spacing_input,
         force_2d, force_2d_dimension)
 
     # Sanity check
