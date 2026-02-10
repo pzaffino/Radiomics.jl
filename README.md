@@ -98,6 +98,13 @@ from juliacall import Main as jl
 jl.seval('import Pkg; Pkg.add("Radiomics")')
 ```
 
+To update the Radiomics.jl package, execute:
+
+```python
+from juliacall import Main as jl
+jl.seval('import Pkg; Pkg.update("Radiomics")')
+```
+
 ### Feature extraction
 
 Once the environment is set up, you can extract radiomic features as shown below:
@@ -117,8 +124,21 @@ mask = sitk.GetArrayFromImage(mask_sitk)
 
 spacing = list(ct_sitk.GetSpacing())
 
-radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
+
+If you want to extract only one subset of features, you can use:
+
+```python
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, features=jl.Symbol("first_order"))
+```
+
+To extract two or more subsets (e.g. first order and glcm), you can run:
+
+```python
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, features=[jl.Symbol(s) for s in ["first_order", "glcm"]])
+```
+
 # Generate C shared library (and use it in Python and C++)
 
 It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++ code or any language that provides a C shared library interface.
