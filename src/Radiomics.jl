@@ -25,9 +25,11 @@ using Pkg
                               weighting_norm=nothing,
                               verbose=false,
                               keep_largest_only=true,
-                              features=[])
+                              features=[],
+                              labels=nothing)
     
     Extracts radiomic features from the given image and mask.
+    Supports both single and multiple label extraction with parallel processing.
     
     # Parameters:
     - `img_input`: The input image (Array).
@@ -42,9 +44,11 @@ using Pkg
     - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
     - `features`: Array of symbols specifying which features to compute. 
                  Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
+    - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for all mask voxels.
     
     # Returns:
-    - A dictionary where keys are the feature names and values are the calculated feature values.
+    - Single label or nothing: Dict{String,Any} with feature names as keys
+    - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
 """
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     force_2d::Bool=false,
@@ -55,7 +59,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     verbose::Bool=false,
     sample_rate::Float64=0.03,
     keep_largest_only::Bool=true,
-    features::Vector{Symbol}=Symbol[])::Dict{String,Any} 
+    features::Vector{Symbol}=Symbol[],
+    labels::Union{Int,Vector{Int},Nothing}=nothing)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}}} 
 
     total_start_time = time()
     total_time_accumulated = 0.0 
@@ -65,6 +70,94 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     bin_width_f64 = isnothing(bin_width) ? nothing : Float64(bin_width)
 
     compute_all = isempty(features)
+
+    # Handle multi-label processing
+    if labels isa Vector{Int}
+        if verbose
+            println("Processing multiple labels in parallel: ", labels)
+        end
+        
+        # Spawn parallel tasks for each label
+        tasks = Dict{Int, Task}()
+        for label in labels
+            tasks[label] = Threads.@spawn extract_radiomic_features(
+                img_input, mask_input, voxel_spacing_input;
+                force_2d=force_2d,
+                force_2d_dimension=force_2d_dimension,
+                n_bins=n_bins,
+                bin_width=bin_width,
+                weighting_norm=weighting_norm,
+                verbose=verbose,
+                sample_rate=sample_rate,
+                keep_largest_only=keep_largest_only,
+                features=features,
+                labels=label  # Pass single label for recursive call
+            )
+        end
+        
+        # Collect results
+        results = Dict{Int, Dict{String,Any}}()
+        skipped_labels = Int[]
+        
+        for (label, task) in tasks
+            try
+                results[label] = fetch(task)
+            catch e
+                # Extract the actual error from TaskFailedException
+                actual_error = e
+                if e isa TaskFailedException && e.task.result !== nothing
+                    actual_error = e.task.result
+                end
+                
+                # Check if the error is due to missing label
+                error_msg = string(actual_error)
+                if occursin("not found in mask", error_msg)
+                    @warn "Label $label does not exist in the mask (no voxels with this value). Skipping."
+                    push!(skipped_labels, label)
+                else
+                    @warn "Error processing label $label: $actual_error"
+                    push!(skipped_labels, label)
+                end
+            end
+        end
+        
+        if verbose
+            println("\n======================")
+            println("Multi-label processing completed")
+            println("Labels requested: ", labels)
+            println("Labels successfully processed: ", sort(collect(keys(results))))
+            if !isempty(skipped_labels)
+                println("Labels skipped (not found in mask): ", sort(skipped_labels))
+            end
+            println("======================")
+        end
+        
+        return results
+    end
+
+    # Single label or no label processing continues below
+    label = labels  # For backward compatibility with existing code
+
+    # Handle label extraction
+    mask_to_use = mask_input
+    if !isnothing(label)
+        if verbose
+            println("EXTRACTING FEATURES FOR LABEL: $label")
+        end
+        
+        # Create binary mask for the specified label
+        mask_to_use = (mask_input .== label)
+        
+        # Check if label exists in mask
+        voxel_count = sum(mask_to_use)
+        if voxel_count == 0
+            error("Label $label not found in mask (no voxels with this value)")
+        end
+        
+        if verbose
+            println("Label $label contains $voxel_count voxels")
+        end
+    end
 
     if verbose
         println("Active threads: ", Threads.nthreads())
@@ -86,14 +179,14 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         end
     end
 
-    if isnothing(n_bins) && sum(mask_input) > 0
-         validate_binning_parameters(img_input, mask_input, bin_width)
+    if isnothing(n_bins) && sum(mask_to_use) > 0
+         validate_binning_parameters(img_input, mask_to_use, bin_width)
     end
 
     radiomic_features = Dict{String,Any}()
 
-    # Cast and prepare inputs
-    img, mask, voxel_spacing = prepare_inputs(img_input, mask_input, voxel_spacing_input,
+    # Cast and prepare inputs (using mask_to_use instead of mask_input)
+    img, mask, voxel_spacing = prepare_inputs(img_input, mask_to_use, voxel_spacing_input,
         force_2d, force_2d_dimension)
 
     # Sanity check
@@ -291,8 +384,19 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         print_features_diagnosis("Diagnosis Features", diagnosis_features)
         println("---------------------")
         println("Total features extracted: $(length(radiomic_features))")
-        println("Radiomic features extraction completed.")
+        
+        # Add label-specific completion message if processing a specific label
+        if !isnothing(label)
+            println("Features extraction completed for LABEL $label")
+        else
+            println("Radiomic features extraction completed.")
+        end
         println("======================")
+    end
+
+    # Add label identifier if processing a specific label
+    if !isnothing(label)
+        radiomic_features["label_id"] = label
     end
 
     return radiomic_features
@@ -359,14 +463,27 @@ end
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm, :glrlm, :gldm, :ngtdm], verbose=true);
     
-    # Compute with sample_rate personalzed 
+    # Compute with sample_rate personalized 
     features = Radiomics.extract_radiomic_features(img, mask, spacing; sample_rate=1.0, verbose=true)
 
-    # Compute with keep_largest_only personalzed 
+    # Compute with keep_largest_only personalized 
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
 
-    # Compute with weighting_norm personalzed 
+    # Compute with weighting_norm personalized 
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, weighting_norm="euclidean");
+    
+    # Extract features for a single label
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; labels=1, verbose=true);
+    
+    # Extract features for multiple labels in parallel
+    results = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
+                                        labels=[1, 2, 30], 
+                                        sample_rate=1.0, 
+                                        verbose=true, 
+                                        keep_largest_only=false);
+    # Access features for label 1: results[1]
+    # Access features for label 2: results[2]
+    # Access features for label 30: results[30]
 """
 
 end
