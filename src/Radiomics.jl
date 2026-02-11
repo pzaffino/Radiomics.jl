@@ -69,7 +69,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     bin_width_f32 = isnothing(bin_width) ? nothing : Float32(bin_width)
     bin_width_f64 = isnothing(bin_width) ? nothing : Float64(bin_width)
 
-    compute_all = isempty(features)
+    compute_all = isempty(features) || :all in features
 
     # Handle multi-label processing
     if labels isa Vector{Int}
