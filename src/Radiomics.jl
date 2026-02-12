@@ -42,9 +42,10 @@ using Pkg
     - `verbose`: If true, prints progress messages.
     - `sample_rate`: The sample rate for feature extraction (optional).
     - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
+                          Applied AFTER label selection.
     - `features`: Array of symbols specifying which features to compute. 
                  Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
-    - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for all mask voxels.
+    - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for default (label 1).
     
     # Returns:
     - Single label or nothing: Dict{String,Any} with feature names as keys
@@ -62,62 +63,122 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     features::Vector{Symbol}=Symbol[],
     labels::Union{Int,Vector{Int},Nothing}=nothing)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}}} 
 
-    total_start_time = time()
-    total_time_accumulated = 0.0 
-    total_bytes_accumulated = 0
-
     bin_width_f32 = isnothing(bin_width) ? nothing : Float32(bin_width)
     bin_width_f64 = isnothing(bin_width) ? nothing : Float64(bin_width)
 
-    compute_all = isempty(features)
+    compute_all = isempty(features) || :all in features
 
     # Handle multi-label processing
     if labels isa Vector{Int}
         if verbose
-            println("Processing multiple labels in parallel: ", labels)
+            println("Processing multiple labels: ", labels)
+            println("Active threads: ", Threads.nthreads())
         end
         
-        # Spawn parallel tasks for each label
-        tasks = Dict{Int, Task}()
-        for label in labels
-            tasks[label] = Threads.@spawn extract_radiomic_features(
-                img_input, mask_input, voxel_spacing_input;
-                force_2d=force_2d,
-                force_2d_dimension=force_2d_dimension,
-                n_bins=n_bins,
-                bin_width=bin_width,
-                weighting_norm=weighting_norm,
-                verbose=verbose,
-                sample_rate=sample_rate,
-                keep_largest_only=keep_largest_only,
-                features=features,
-                labels=label  # Pass single label for recursive call
-            )
-        end
-        
-        # Collect results
         results = Dict{Int, Dict{String,Any}}()
         skipped_labels = Int[]
         
-        for (label, task) in tasks
-            try
-                results[label] = fetch(task)
-            catch e
-                # Extract the actual error from TaskFailedException
-                actual_error = e
-                if e isa TaskFailedException && e.task.result !== nothing
-                    actual_error = e.task.result
-                end
-                
-                # Check if the error is due to missing label
-                error_msg = string(actual_error)
-                if occursin("not found in mask", error_msg)
-                    @warn "Label $label does not exist in the mask (no voxels with this value). Skipping."
-                    push!(skipped_labels, label)
+        for label in labels
+            if verbose
+                println("\n=== Processing LABEL $label ===")
+            end
+            
+            # Create binary mask for this label
+            mask_to_use = (mask_input .== label)
+            
+            # Check if label exists
+            voxel_count = sum(mask_to_use)
+            if voxel_count == 0
+                @warn "Label $label not found in mask (no voxels with this value). Skipping."
+                push!(skipped_labels, label)
+                continue
+            end
+            
+            if verbose
+                println("Label $label contains $voxel_count voxels")
+                if compute_all
+                    println("Computing ALL features")
                 else
-                    @warn "Error processing label $label: $actual_error"
-                    push!(skipped_labels, label)
+                    println("Computing selected features: ", join(string.(features), ", "))
                 end
+                if !isnothing(n_bins)
+                    println("Using n_bins = $n_bins")
+                elseif !isnothing(bin_width)
+                    println("Using bin_width = $bin_width")
+                else
+                    println("Using default bin_width = 25.0")
+                end
+                if sample_rate != 0.03
+                    println("Using explicit sample_rate = $sample_rate")
+                end
+                if keep_largest_only
+                    println("keep_largest_only = true (will be applied to selected label)")
+                end
+            end
+            
+            try
+                total_start_time = time()
+                total_time_accumulated = 0.0 
+                total_bytes_accumulated = 0
+
+                if isnothing(n_bins) && sum(mask_to_use) > 0
+                    validate_binning_parameters(img_input, mask_to_use, bin_width)
+                end
+
+                # Cast and prepare inputs
+                img, mask, voxel_spacing = prepare_inputs(img_input, mask_to_use, voxel_spacing_input,
+                    force_2d, force_2d_dimension)
+
+                # Sanity check
+                result = @timed input_sanity_check(img, mask, verbose)
+                total_time_accumulated += result.time
+                total_bytes_accumulated += result.bytes
+                if verbose
+                    println("Sanity check: $(result.time) sec, $(result.bytes / 1024^2) MiB")
+                end
+
+                # Compute radiomic features
+                radiomic_features, time_acc, bytes_acc = _compute_radiomics_impl(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width_f32=bin_width_f32,
+                    bin_width_f64=bin_width_f64,
+                    weighting_norm=weighting_norm,
+                    verbose=verbose,
+                    sample_rate=sample_rate,
+                    keep_largest_only=keep_largest_only,
+                    compute_all=compute_all,
+                    features=features
+                )
+                
+                total_time_accumulated += time_acc
+                total_bytes_accumulated += bytes_acc
+
+                total_time_real = time() - total_start_time
+
+                if verbose
+                    println("\n--- Label $label Summary ---")
+                    println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
+                    println("Real time (end-to-end): $(total_time_real) sec")
+                    println("Overhead: $(total_time_real - total_time_accumulated) sec")
+                    println("Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
+                    diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_time_real, 
+                                                                total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only,
+                                                                img, mask)
+                    merge!(radiomic_features, diagnosis_features)
+                    print_features_diagnosis("Diagnosis Features", diagnosis_features)
+                    println("---------------------")
+                    println("Total features extracted: $(length(radiomic_features))")
+                    println("Features extraction completed for LABEL $label")
+                end
+
+                # Add label identifier
+                radiomic_features["label_id"] = label
+                results[label] = radiomic_features
+                
+            catch e
+                @warn "Error processing label $label: $e"
+                push!(skipped_labels, label)
             end
         end
         
@@ -127,7 +188,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             println("Labels requested: ", labels)
             println("Labels successfully processed: ", sort(collect(keys(results))))
             if !isempty(skipped_labels)
-                println("Labels skipped (not found in mask): ", sort(skipped_labels))
+                println("Labels skipped (not found or error): ", sort(skipped_labels))
             end
             println("======================")
         end
@@ -135,33 +196,54 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         return results
     end
 
-    # Single label or no label processing continues below
-    label = labels  # For backward compatibility with existing code
-
-    # Handle label extraction
-    mask_to_use = mask_input
-    if !isnothing(label)
+    # Single label or default processing
+    local mask_to_use
+    local label_id::Int
+    
+    if labels isa Int
+        # Explicit label specified by user
         if verbose
-            println("EXTRACTING FEATURES FOR LABEL: $label")
+            println("Extracting LABEL $labels")
         end
+        mask_to_use = (mask_input .== labels)
         
-        # Create binary mask for the specified label
-        mask_to_use = (mask_input .== label)
-        
-        # Check if label exists in mask
         voxel_count = sum(mask_to_use)
         if voxel_count == 0
-            error("Label $label not found in mask (no voxels with this value)")
+            error("Label $labels not found in mask (no voxels with this value)")
         end
         
         if verbose
-            println("Label $label contains $voxel_count voxels")
+            println("Label $labels contains $voxel_count voxels")
         end
+        
+        label_id = labels
+    else
+        # No label specified: DEFAULT = 1
+        if verbose
+            println("No label specified - defaulting to LABEL 1")
+        end
+        mask_to_use = (mask_input .== 1)
+        
+        voxel_count = sum(mask_to_use)
+        if voxel_count == 0
+            error("Label 1 not found in mask (default label)")
+        end
+        
+        if verbose
+            println("Label 1 contains $voxel_count voxels")
+        end
+        
+        label_id = 1
     end
+
+    total_start_time = time()
+    total_time_accumulated = 0.0 
+    total_bytes_accumulated = 0
 
     if verbose
         println("Active threads: ", Threads.nthreads())
         println("Extracting radiomic features...")
+        println("Processing LABEL: $label_id")
         if compute_all
             println("Computing ALL features")
         else
@@ -177,15 +259,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         if sample_rate != 0.03
             println("Using explicit sample_rate = $sample_rate")
         end
+        if keep_largest_only
+            println("keep_largest_only = true (will be applied to selected label)")
+        end
     end
 
     if isnothing(n_bins) && sum(mask_to_use) > 0
          validate_binning_parameters(img_input, mask_to_use, bin_width)
     end
 
-    radiomic_features = Dict{String,Any}()
-
-    # Cast and prepare inputs (using mask_to_use instead of mask_input)
+    # Cast and prepare inputs - keep_largest_only is applied AFTER label selection
     img, mask, voxel_spacing = prepare_inputs(img_input, mask_to_use, voxel_spacing_input,
         force_2d, force_2d_dimension)
 
@@ -197,111 +280,201 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         println("Sanity check: $(result.time) sec, $(result.bytes / 1024^2) MiB")
     end
 
-    # Run threads
-    if ndims(img) == 3 && (compute_all || :shape3d in features)
-        t_sphape3d_features = Threads.@spawn @timed get_shape3d_features(mask, voxel_spacing; verbose=verbose, 
-            sample_rate=sample_rate, keep_largest_only=keep_largest_only)
+    # Compute radiomic features using the internal implementation
+    radiomic_features, time_acc, bytes_acc = _compute_radiomics_impl(
+        img, mask, voxel_spacing;
+        n_bins=n_bins,
+        bin_width_f32=bin_width_f32,
+        bin_width_f64=bin_width_f64,
+        weighting_norm=weighting_norm,
+        verbose=verbose,
+        sample_rate=sample_rate,
+        keep_largest_only=keep_largest_only,
+        compute_all=compute_all,
+        features=features
+    )
+    
+    total_time_accumulated += time_acc
+    total_bytes_accumulated += bytes_acc
+
+    total_time_real = time() - total_start_time
+
+    if verbose
+        println("\n======================")
+        println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
+        println("Real time (end-to-end): $(total_time_real) sec")
+        println("Overhead: $(total_time_real - total_time_accumulated) sec")
+        println("Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
+        diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing,total_time_real, 
+                                                    total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only,
+                                                    img, mask)
+        merge!(radiomic_features, diagnosis_features)
+        print_features_diagnosis("Diagnosis Features", diagnosis_features)
+        println("---------------------")
+        println("Total features extracted: $(length(radiomic_features))")
+        println("Features extraction completed for LABEL $label_id")
+        println("======================")
     end
 
-    # Run in a separate thread extraction of GLCM features (2D or 3D)
-    if compute_all || :glcm in features
-        t_glcm_features = Threads.@spawn @timed get_glcm_features(img, mask, voxel_spacing;
-            n_bins=n_bins,
-            bin_width=bin_width_f32,
-            weighting_norm=weighting_norm,
-            verbose=verbose)
-    end
+    # Add label identifier
+    radiomic_features["label_id"] = label_id
 
-    if ndims(mask) == 2
-        # Run in a separate thread extraction of 2D shape features
-        if compute_all || :shape2d in features
-            t_shape2d_features = Threads.@spawn @timed get_shape2d_features(mask, voxel_spacing, verbose)
+    return radiomic_features
+end
+
+"""
+    _compute_radiomics_impl(img, mask, voxel_spacing; 
+                           n_bins, bin_width_f32, bin_width_f64, 
+                           weighting_norm, verbose, sample_rate, 
+                           keep_largest_only, compute_all, features)
+    
+    Internal function that handles parallel computation of radiomic features.
+    Spawns separate threads for each feature category and collects results.
+    
+    # Parameters:
+    - `img`: Preprocessed image array
+    - `mask`: Preprocessed mask array  
+    - `voxel_spacing`: Voxel spacing array
+    - `n_bins`: Number of bins for discretization
+    - `bin_width_f32`: Bin width as Float32
+    - `bin_width_f64`: Bin width as Float64
+    - `weighting_norm`: Weighting norm for features
+    - `verbose`: Print progress messages
+    - `sample_rate`: Sample rate for shape features
+    - `keep_largest_only`: Keep only largest connected component
+    - `compute_all`: Compute all features or only selected ones
+    - `features`: Vector of feature symbols to compute
+    
+    # Returns:
+    - Tuple of (radiomic_features::Dict, total_time_accumulated::Float64, total_bytes_accumulated::Int)
+"""
+function _compute_radiomics_impl(img, mask, voxel_spacing;
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width_f32::Union{Float32,Nothing}=nothing,
+    bin_width_f64::Union{Float64,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
+    verbose::Bool=false,
+    sample_rate::Float64=0.03,
+    keep_largest_only::Bool=true,
+    compute_all::Bool=true,
+    features::Vector{Symbol}=Symbol[])
+    
+    radiomic_features = Dict{String,Any}()
+    total_time_accumulated = 0.0
+    total_bytes_accumulated = 0
+    
+    # Launch parallel threads for 3D features
+    if ndims(img) == 3
+        # 3D shape features
+        if compute_all || :shape3d in features 
+            t_shape3d_features = Threads.@spawn @timed get_shape3d_features(
+                mask, voxel_spacing; 
+                verbose=verbose, 
+                sample_rate=sample_rate, 
+                keep_largest_only=keep_largest_only
+            )
         end
 
-    elseif ndims(mask) == 3
-        # Run in a separate thread extraction of 3D shape features
-        if compute_all || :first_order in features
-            t_first_order_features = Threads.@spawn @timed get_first_order_features(img, mask, voxel_spacing; n_bins=n_bins, 
-                bin_width=bin_width_f64, verbose=verbose)
-        end
-
-        # Run in a separate thread extraction of GLSZM features
-        if compute_all || :glszm in features
-            t_glszm_features = Threads.@spawn @timed get_glszm_features(img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width_f32,
-                verbose=verbose)
-        end
-
-        # Run in a separate thread extraction of NGTDM features
-        if compute_all || :ngtdm in features
-            t_ngtdm_features = Threads.@spawn @timed get_ngtdm_features(img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width_f32,
-                verbose=verbose)
-        end
-
-        # Run in a separate thread extraction of GLRLM features
-        if compute_all || :glrlm in features
-            t_glrlm_features = Threads.@spawn @timed get_glrlm_features(img, mask, voxel_spacing;
+        # GLCM features
+        if compute_all || :glcm in features
+            t_glcm_features = Threads.@spawn @timed get_glcm_features(
+                img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width_f32,
                 weighting_norm=weighting_norm,
-                verbose=verbose)
+                verbose=verbose
+            )
+        end
+        
+        # First order features
+        if compute_all || :first_order in features
+            t_first_order_features = Threads.@spawn @timed get_first_order_features(
+                img, mask, voxel_spacing; 
+                n_bins=n_bins, 
+                bin_width=bin_width_f64, 
+                verbose=verbose
+            )
         end
 
-        # Run in a separate thread extraction of GLDM features
-        if compute_all || :gldm in features
-            t_gldm_features = Threads.@spawn @timed get_gldm_features(img, mask, voxel_spacing;
+        # GLSZM features
+        if compute_all || :glszm in features
+            t_glszm_features = Threads.@spawn @timed get_glszm_features(
+                img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width_f32,
-                verbose=verbose)
+                verbose=verbose
+            )
+        end
+
+        # NGTDM features
+        if compute_all || :ngtdm in features
+            t_ngtdm_features = Threads.@spawn @timed get_ngtdm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width_f32,
+                verbose=verbose
+            )
+        end
+
+        # GLRLM features
+        if compute_all || :glrlm in features
+            t_glrlm_features = Threads.@spawn @timed get_glrlm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width_f32,
+                weighting_norm=weighting_norm,
+                verbose=verbose
+            )
+        end
+
+        # GLDM features
+        if compute_all || :gldm in features
+            t_gldm_features = Threads.@spawn @timed get_gldm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width_f32,
+                verbose=verbose
+            )
         end
     end
 
-    # Retrieve data from worker threads
-
-    # First order features (only for 3D images)
-    if ndims(img) == 3 && (compute_all || :first_order in features)
-        results_first_order = fetch(t_first_order_features)
-        first_order_features = results_first_order.value
-        merge!(radiomic_features, first_order_features)
-        total_time_accumulated += results_first_order.time
-        total_bytes_accumulated += results_first_order.bytes
-        if verbose
-            println("First order: $(results_first_order.time) sec, $(results_first_order.bytes / 1024^2) MiB")
-            print_features("First Order Features", first_order_features)
-        end
-    end
-
-    # GLCM features (2D or 3D)
-    if compute_all || :glcm in features
-        results_glcm = fetch(t_glcm_features)
-        glcm_features = results_glcm.value
-        merge!(radiomic_features, glcm_features)
-        total_time_accumulated += results_glcm.time
-        total_bytes_accumulated += results_glcm.bytes
-        if verbose
-            println("GLCM: $(results_glcm.time) sec, $(results_glcm.bytes / 1024^2) MiB")
-            print_features("GLCM Features", glcm_features)
-        end
-    end
-
+    # Launch parallel threads for 2D features
     if ndims(mask) == 2
-        # 2D shape features
         if compute_all || :shape2d in features
-            results_shape2d = fetch(t_shape2d_features)
-            shape_2d_features = results_shape2d.value
-            merge!(radiomic_features, shape_2d_features)
-            total_time_accumulated += results_shape2d.time
-            total_bytes_accumulated += results_shape2d.bytes
+            t_shape2d_features = Threads.@spawn @timed get_shape2d_features(
+                mask, voxel_spacing, verbose
+            )
+        end
+    end
+
+    # Collect results from 3D features
+    if ndims(img) == 3
+        # First order features
+        if compute_all || :first_order in features
+            results_first_order = fetch(t_first_order_features)
+            first_order_features = results_first_order.value
+            merge!(radiomic_features, first_order_features)
+            total_time_accumulated += results_first_order.time
+            total_bytes_accumulated += results_first_order.bytes
             if verbose
-                println("2D shape: $(results_shape2d.time) sec, $(results_shape2d.bytes / 1024^2) MiB")
-                print_features("2D Shape Features", shape_2d_features)
+                println("First order: $(results_first_order.time) sec, $(results_first_order.bytes / 1024^2) MiB")
+                print_features("First Order Features", first_order_features)
             end
         end
 
-    elseif ndims(mask) == 3
+        # GLCM features
+        if compute_all || :glcm in features
+            results_glcm = fetch(t_glcm_features)
+            glcm_features = results_glcm.value
+            merge!(radiomic_features, glcm_features)
+            total_time_accumulated += results_glcm.time
+            total_bytes_accumulated += results_glcm.bytes
+            if verbose
+                println("GLCM: $(results_glcm.time) sec, $(results_glcm.bytes / 1024^2) MiB")
+                print_features("GLCM Features", glcm_features)
+            end
+        end
+        
         # GLSZM features
         if compute_all || :glszm in features
             results_glszm = fetch(t_glszm_features)
@@ -356,7 +529,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         # 3D shape features
         if compute_all || :shape3d in features
-            results_shape3d = fetch(t_sphape3d_features)
+            results_shape3d = fetch(t_shape3d_features)
             shape_3d_features = results_shape3d.value
             merge!(radiomic_features, shape_3d_features)
             total_time_accumulated += results_shape3d.time
@@ -366,40 +539,24 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 print_features("3D Shape Features", shape_3d_features)
             end
         end
-        
     end
 
-    total_time_real = time() - total_start_time
-
-    if verbose
-        println("\n======================")
-        println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
-        println("Real time (end-to-end): $(total_time_real) sec")
-        println("Overhead: $(total_time_real - total_time_accumulated) sec")
-        println("Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
-        diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing,total_time_real, 
-                                                    total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only,
-                                                    img, mask)
-        merge!(radiomic_features, diagnosis_features)
-        print_features_diagnosis("Diagnosis Features", diagnosis_features)
-        println("---------------------")
-        println("Total features extracted: $(length(radiomic_features))")
-        
-        # Add label-specific completion message if processing a specific label
-        if !isnothing(label)
-            println("Features extraction completed for LABEL $label")
-        else
-            println("Radiomic features extraction completed.")
+    # Collect results from 2D features
+    if ndims(mask) == 2
+        if compute_all || :shape2d in features
+            results_shape2d = fetch(t_shape2d_features)
+            shape_2d_features = results_shape2d.value
+            merge!(radiomic_features, shape_2d_features)
+            total_time_accumulated += results_shape2d.time
+            total_bytes_accumulated += results_shape2d.bytes
+            if verbose
+                println("2D shape: $(results_shape2d.time) sec, $(results_shape2d.bytes / 1024^2) MiB")
+                print_features("2D Shape Features", shape_2d_features)
+            end
         end
-        println("======================")
     end
-
-    # Add label identifier if processing a specific label
-    if !isnothing(label)
-        radiomic_features["label_id"] = label
-    end
-
-    return radiomic_features
+    
+    return (radiomic_features, total_time_accumulated, total_bytes_accumulated)
 end
 
 """
@@ -447,43 +604,48 @@ end
 
 """
 # Examples:
-    # Compute only GLCM features
+    # Compute all features with default label=1
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=true);
+    
+    # Compute only GLCM features (uses default label=1)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm], verbose=true);
     
-    # Compute only first_order and shape3d
+    # Compute only first_order and shape3d (uses default label=1)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:first_order, :shape3d], verbose=true);
     
-    # Compute GLCM and GLSZM with specific bin_width
+    # Compute GLCM and GLSZM with specific bin_width (uses default label=1)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm], 
                                         bin_width=25, 
                                         verbose=true);
     
-    # Compute all texture features
+    # Compute all texture features (uses default label=1)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm, :glrlm, :gldm, :ngtdm], verbose=true);
     
-    # Compute with sample_rate personalized 
+    # Compute with sample_rate personalized (uses default label=1)
     features = Radiomics.extract_radiomic_features(img, mask, spacing; sample_rate=1.0, verbose=true)
 
-    # Compute with keep_largest_only personalized 
+    # Compute with keep_largest_only personalized (uses default label=1)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
 
-    # Compute with weighting_norm personalized 
+    # Compute with weighting_norm personalized (uses default label=1)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, weighting_norm="euclidean");
     
-    # Extract features for a single label
-    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; labels=1, verbose=true);
+    # Extract features for a specific label (e.g., label 2)
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; labels=2, verbose=true);
     
     # Extract features for multiple labels in parallel
     results = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         labels=[1, 2, 30], 
                                         sample_rate=1.0, 
                                         verbose=true, 
-                                        keep_largest_only=false);
+                                        keep_largest_only=true);
     # Access features for label 1: results[1]
     # Access features for label 2: results[2]
     # Access features for label 30: results[30]
+    
+    # Note: If no label is specified, the function defaults to label=1
 """
 
 end

@@ -80,7 +80,7 @@ function get_glszm_features(img, mask, voxel_spacing;
     glszm_features["glszm_LargeAreaHighGrayLevelEmphasis"] = large_area_high_gray_level_emphasis(P_glszm, ivector, jvector, Nz)
 
     if verbose
-        println("Completato! Estratte $(length(glszm_features)) features.")
+        println("Completed! $(length(glszm_features)) features esxtacted.")
     end
 
     return glszm_features
