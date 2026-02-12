@@ -74,7 +74,7 @@ end
 """
     discretize_image(img::Array{Float32,3}, mask::BitArray{3}; 
                         n_bins::Union{Int,Nothing}=nothing,
-                        bin_width::Union{Float32,Nothing}=nothing)
+                        bin_width::Union{Float64,Nothing}=nothing)
 
     Discretizes the input image for radiomics feature calculation. 
     Takes into account only the voxels within the provided mask.
@@ -365,31 +365,32 @@ function prepare_inputs(img_input::AbstractArray,
 end
 
 function  validate_binning_parameters(img_input, mask_input, bin_width)
-    # Determine effective bin_width
-    effective_bin_width = isnothing(bin_width) ? 25.0f0 : bin_width
 
     # Calculate range and estimated number of bins
     roi_vals = img_input[mask_input.!=0]
     val_min = minimum(roi_vals)
     val_max = maximum(roi_vals)
     val_range = val_max - val_min
-    estimated_bins = Int(ceil(val_range / effective_bin_width))
+    estimated_bins = Int(ceil(val_range / bin_width))
 
     if estimated_bins < 3
-        if isnothing(bin_width)
-            @warn """
-            The default bin_width (25.0), the current image range ($val_min, $val_max) is included in only $estimated_bins bin(s).
-            This may produce unreliable features.
-            Consider specifying a smaller bin_width (or using n_bins instead) 
-            or to properly scale the image intensity range.
-            """
-        else
-            @warn """
-            With the current bin_width ($bin_width), the current image range ($val_min, $val_max) is included in only $estimated_bins bin(s).
-            This may produce unreliable features.
-            Consider specifying a smaller bin_width (or using n_bins instead) 
-            or to properly scale the image intensity range.
-            """
-        end
+        @warn """
+        With the current bin_width ($bin_width), the current image range ($val_min, $val_max) is included in only $estimated_bins bin(s).
+        This may produce unreliable features.
+        Consider specifying a smaller bin_width (or using n_bins instead) 
+        or to properly scale the image intensity range.
+        """
     end
+end
+
+function extract_and_check_mask(mask_input, label::Int)
+    mask_to_use = (mask_input .== label)
+    # Check if label exists
+    voxel_count = sum(mask_to_use)
+    if voxel_count == 0
+        @warn "Label $label not found in mask (no voxels with this value). Skipping."
+    end
+    
+    return mask_to_use, voxel_count
+
 end
