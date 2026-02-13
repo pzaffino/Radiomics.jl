@@ -78,11 +78,13 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         features = Symbol[Symbol(lowercase(string(f))) for f in features]
     end
     
-    # Convert labels (supports Int, Vector{Int}, or Python equivalents)
+    # Convert labels (supports Int, Vector{Int})
     if labels isa AbstractVector
         labels = Int[Int(l) for l in labels]
     elseif !isnothing(labels) && !(labels isa Int)
         labels = Int(labels)
+    elseif isnothing(labels) # No label given, default is 1
+        labels = Int(1)
     end
     
     # Convert spacing (supports any numeric vector/list)
@@ -245,15 +247,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     # Single label or default processing
-    if labels isa Int # Explicit single label specified by user
+    if labels isa Int # Explicit single label specified by user or the default value (1)
         label = labels
         if verbose
             println("Extracting LABEL $labels")
-        end
-    elseif isnothing(labels) # No label given, default is 1
-        label = 1
-        if verbose
-            println("No label specified - defaulting to LABEL 1")
         end
     end
         
