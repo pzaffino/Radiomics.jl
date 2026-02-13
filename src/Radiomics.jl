@@ -77,87 +77,123 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         results = Dict{Int, Dict{String,Any}}()
         skipped_labels = Int[]
         
-        for label in labels
-            if verbose
-                println("\n=== Processing LABEL $label ===")
-            end
-            
-            # Create binary mask for the current label
-            mask_to_use, voxel_count = extract_and_check_mask(mask_input, label)
-            # Check if label exists
-            if voxel_count == 0
-                push!(skipped_labels, label)
-                continue
-            end
-            
-            if verbose
-                println("Label $label contains $voxel_count voxels")
+        # Create a lock to synchronize access to shared dictionaries
+        results_lock = ReentrantLock()
+        
+        # Parallelize label processing with log buffering
+        tasks = map(labels) do label
+            Threads.@spawn begin
+                # Buffer for logs of this label
+                log_buffer = String[]
+                
+                push!(log_buffer, "\n=== Processing LABEL $label ===")
+                
+                # Create binary mask for the current label
+                mask_to_use, voxel_count = extract_and_check_mask(mask_input, label)
+                # Check if label exists
+                if voxel_count == 0
+                    lock(results_lock) do
+                        push!(skipped_labels, label)
+                    end
+                    return nothing
+                end
+                
+                push!(log_buffer, "Label $label contains $voxel_count voxels")
                 if compute_all
-                    println("Computing ALL features")
+                    push!(log_buffer, "Computing ALL features")
                 else
-                    println("Computing selected features: ", join(string.(features), ", "))
+                    push!(log_buffer, "Computing selected features: $(join(string.(features), ", "))")
                 end
                 if !isnothing(n_bins)
-                    println("Using n_bins = $n_bins")
+                    push!(log_buffer, "Using n_bins = $n_bins")
                 else
-                    println("Using bin_width = $bin_width")
+                    push!(log_buffer, "Using bin_width = $bin_width")
                 end
                 if sample_rate != 0.03
-                    println("Using explicit sample_rate = $sample_rate")
+                    push!(log_buffer, "Using explicit sample_rate = $sample_rate")
                 end
                 if keep_largest_only
-                    println("keep_largest_only = true (will be applied to selected label)")
+                    push!(log_buffer, "keep_largest_only = true (will be applied to selected label)")
                 end
-            end
-            
-            try
-                total_start_time = time()
-                total_time_accumulated = 0.0 
-                total_bytes_accumulated = 0
-
-                # Compute radiomic features
-                radiomic_features, time_acc, bytes_acc = _compute_radiomics_impl(
-                    img_input, mask_to_use, voxel_spacing_input, voxel_count;
-                    n_bins=n_bins,
-                    bin_width=bin_width,
-                    weighting_norm=weighting_norm,
-                    verbose=verbose,
-                    sample_rate=sample_rate,
-                    keep_largest_only=keep_largest_only,
-                    force_2d=force_2d,
-                    force_2d_dimension=force_2d_dimension,
-                    compute_all=compute_all,
-                    features=features
-                )
                 
-                total_time_accumulated += time_acc
-                total_bytes_accumulated += bytes_acc
+                try
+                    total_start_time = time()
+                    total_time_accumulated = 0.0 
+                    total_bytes_accumulated = 0
 
-                total_time_real = time() - total_start_time
+                    # Compute radiomic features passing the log_buffer
+                    radiomic_features, time_acc, bytes_acc = _compute_radiomics_impl(
+                        img_input, mask_to_use, voxel_spacing_input, voxel_count;
+                        n_bins=n_bins,
+                        bin_width=bin_width,
+                        weighting_norm=weighting_norm,
+                        verbose=verbose,
+                        sample_rate=sample_rate,
+                        keep_largest_only=keep_largest_only,
+                        force_2d=force_2d,
+                        force_2d_dimension=force_2d_dimension,
+                        compute_all=compute_all,
+                        features=features,
+                        log_buffer=log_buffer
+                    )
+                    
+                    total_time_accumulated += time_acc
+                    total_bytes_accumulated += bytes_acc
 
-                if verbose
-                    println("\n--- Label $label Summary ---")
-                    println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
-                    println("Real time (end-to-end): $(total_time_real) sec")
-                    println("Overhead: $(total_time_real - total_time_accumulated) sec")
-                    println("Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
+                    total_time_real = time() - total_start_time
+
+                    # Add summary to buffer
+                    push!(log_buffer, "\n--- Label $label Summary ---")
+                    push!(log_buffer, "Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
+                    push!(log_buffer, "Real time (end-to-end): $(total_time_real) sec")
+                    push!(log_buffer, "Overhead: $(total_time_real - total_time_accumulated) sec")
+                    push!(log_buffer, "Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
+                    
                     diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real, 
                                             total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only,
                                             img_input, mask_to_use)
                     merge!(radiomic_features, diagnosis_features)
-                    print_features_diagnosis("Diagnosis Features", diagnosis_features)
-                    println("---------------------")
-                    println("Total features extracted: $(length(radiomic_features))")
-                    println("Features extraction completed for LABEL $label")
-                end
+                    
+                    # Print diagnosis features to buffer
+                    print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
+                    
+                    push!(log_buffer, "Total features extracted: $(length(radiomic_features))")
+                    push!(log_buffer, "Features extraction completed for LABEL $label")
 
-                # Add label identifier
-                radiomic_features["label_id"] = label
-                results[label] = radiomic_features
+                    # Add label identifier
+                    radiomic_features["label_id"] = label
+                    
+                    return (label, radiomic_features, log_buffer)
+                    
+                catch e
+                    error_msg = "Error processing label $label: $e"
+                    push!(log_buffer, error_msg)
+                    @warn error_msg
+                    lock(results_lock) do
+                        push!(skipped_labels, label)
+                    end
+                    return (label, nothing, log_buffer)
+                end
+            end
+        end
+        
+        # Collect results from tasks and print in order
+        for task in tasks
+            result = fetch(task)
+            if !isnothing(result)
+                label, features_dict, logs = result
                 
-            catch e
-                @warn "Error processing label $label: $e"
-                push!(skipped_labels, label)
+                # Print logs in order
+                if verbose
+                    for line in logs
+                        println(line)
+                    end
+                end
+                
+                # Save results if processing was successful
+                if !isnothing(features_dict)
+                    results[label] = features_dict
+                end
             end
         end
         
@@ -186,16 +222,15 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         if verbose
             println("No label specified - defaulting to LABEL 1")
         end
-
     end
         
     mask_to_use, voxel_count = extract_and_check_mask(mask_input, label)
     if voxel_count == 0
-        error("Label $labels not found in mask (no voxels with this value)")
+        error("Label $label not found in mask (no voxels with this value)")
     end
         
     if verbose
-        println("Label $labels contains $voxel_count voxels")
+        println("Label $label contains $voxel_count voxels")
     end
         
     total_start_time = time()
@@ -225,6 +260,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     # Compute radiomic features using the internal implementation
+    # Do NOT pass log_buffer here (uses default =nothing for direct printing)
     radiomic_features, time_acc, bytes_acc = _compute_radiomics_impl(
         img_input, mask_to_use, voxel_spacing_input, voxel_count;
         n_bins=n_bins,
@@ -271,7 +307,7 @@ end
     _compute_radiomics_impl(img, mask, voxel_spacing; 
                            n_bins, bin_width,
                            weighting_norm, verbose, sample_rate, 
-                           keep_largest_only, compute_all, features)
+                           keep_largest_only, compute_all, features, log_buffer)
     
     Internal function that handles parallel computation of radiomic features.
     Spawns separate threads for each feature category and collects results.
@@ -280,7 +316,7 @@ end
     - `img`: Preprocessed image array
     - `mask`: Preprocessed mask array  
     - `voxel_spacing`: Voxel spacing array
-    - voxel_count:
+    - `voxel_count`: Number of voxels in the mask
     - `n_bins`: Number of bins for discretization
     - `bin_width`: Bin width
     - `weighting_norm`: Weighting norm for features
@@ -291,6 +327,7 @@ end
     - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
     - `compute_all`: Compute all features or only selected ones
     - `features`: Vector of feature symbols to compute
+    - `log_buffer`: Optional buffer for collecting log messages (for multi-label parallel processing)
     
     # Returns:
     - Tuple of (radiomic_features::Dict, total_time_accumulated::Float64, total_bytes_accumulated::Int)
@@ -305,11 +342,21 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     force_2d::Bool=false,
     force_2d_dimension::Int=1,
     compute_all::Bool=true,
-    features::Vector{Symbol}=Symbol[])
+    features::Vector{Symbol}=Symbol[],
+    log_buffer::Union{Vector{String}, Nothing}=nothing)
     
     radiomic_features = Dict{String,Any}()
     total_time_accumulated = 0.0
     total_bytes_accumulated = 0
+    
+    # Helper function to print or buffer log messages
+    function log_println(msg::String)
+        if isnothing(log_buffer)
+            println(msg)
+        else
+            push!(log_buffer, msg)
+        end
+    end
     
     # Sanity check
     input_sanity_check(img, mask, verbose)
@@ -417,8 +464,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_first_order.time
             total_bytes_accumulated += results_first_order.bytes
             if verbose
-                println("First order: $(results_first_order.time) sec, $(results_first_order.bytes / 1024^2) MiB")
-                print_features("First Order Features", first_order_features)
+                log_println("First order: $(results_first_order.time) sec, $(results_first_order.bytes / 1024^2) MiB")
+                print_features("First Order Features", first_order_features; log_buffer=log_buffer)
             end
         end
 
@@ -430,8 +477,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_glcm.time
             total_bytes_accumulated += results_glcm.bytes
             if verbose
-                println("GLCM: $(results_glcm.time) sec, $(results_glcm.bytes / 1024^2) MiB")
-                print_features("GLCM Features", glcm_features)
+                log_println("GLCM: $(results_glcm.time) sec, $(results_glcm.bytes / 1024^2) MiB")
+                print_features("GLCM Features", glcm_features; log_buffer=log_buffer)
             end
         end
         
@@ -443,8 +490,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_glszm.time
             total_bytes_accumulated += results_glszm.bytes
             if verbose
-                println("GLSZM: $(results_glszm.time) sec, $(results_glszm.bytes / 1024^2) MiB")
-                print_features("GLSZM Features", glszm_features)
+                log_println("GLSZM: $(results_glszm.time) sec, $(results_glszm.bytes / 1024^2) MiB")
+                print_features("GLSZM Features", glszm_features; log_buffer=log_buffer)
             end
         end
 
@@ -456,8 +503,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_ngtdm.time
             total_bytes_accumulated += results_ngtdm.bytes
             if verbose
-                println("NGTDM: $(results_ngtdm.time) sec, $(results_ngtdm.bytes / 1024^2) MiB")
-                print_features("NGTDM Features", ngtdm_features)
+                log_println("NGTDM: $(results_ngtdm.time) sec, $(results_ngtdm.bytes / 1024^2) MiB")
+                print_features("NGTDM Features", ngtdm_features; log_buffer=log_buffer)
             end
         end
 
@@ -469,8 +516,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_glrlm.time
             total_bytes_accumulated += results_glrlm.bytes
             if verbose
-                println("GLRLM: $(results_glrlm.time) sec, $(results_glrlm.bytes / 1024^2) MiB")
-                print_features("GLRLM Features", glrlm_features)
+                log_println("GLRLM: $(results_glrlm.time) sec, $(results_glrlm.bytes / 1024^2) MiB")
+                print_features("GLRLM Features", glrlm_features; log_buffer=log_buffer)
             end
         end
 
@@ -482,8 +529,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_gldm.time
             total_bytes_accumulated += results_gldm.bytes
             if verbose
-                println("GLDM: $(results_gldm.time) sec, $(results_gldm.bytes / 1024^2) MiB")
-                print_features("GLDM Features", gldm_features)
+                log_println("GLDM: $(results_gldm.time) sec, $(results_gldm.bytes / 1024^2) MiB")
+                print_features("GLDM Features", gldm_features; log_buffer=log_buffer)
             end
         end
 
@@ -495,8 +542,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_shape3d.time
             total_bytes_accumulated += results_shape3d.bytes
             if verbose
-                println("3D shape: $(results_shape3d.time) sec, $(results_shape3d.bytes / 1024^2) MiB")
-                print_features("3D Shape Features", shape_3d_features)
+                log_println("3D shape: $(results_shape3d.time) sec, $(results_shape3d.bytes / 1024^2) MiB")
+                print_features("3D Shape Features", shape_3d_features; log_buffer=log_buffer)
             end
         end
     end
@@ -510,8 +557,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             total_time_accumulated += results_shape2d.time
             total_bytes_accumulated += results_shape2d.bytes
             if verbose
-                println("2D shape: $(results_shape2d.time) sec, $(results_shape2d.bytes / 1024^2) MiB")
-                print_features("2D Shape Features", shape_2d_features)
+                log_println("2D shape: $(results_shape2d.time) sec, $(results_shape2d.bytes / 1024^2) MiB")
+                print_features("2D Shape Features", shape_2d_features; log_buffer=log_buffer)
             end
         end
     end
@@ -522,7 +569,7 @@ end
 """
     Wrapper function to be exposed in the C shared library
 """
-# Global Buffer globale to avoid the garbage collector (for shared library)
+# Global buffer to avoid the garbage collector (for shared library)
 const LAST_JSON_RESULT = Ref{String}("")
 
 Base.@ccallable function c_extract_radiomic_features(
@@ -554,7 +601,7 @@ Base.@ccallable function c_extract_radiomic_features(
         return pointer(LAST_JSON_RESULT[])
 
     catch e
-        @error "Error during feature extration step" exception=(e, catch_backtrace())
+        @error "Error during feature extraction step" exception=(e, catch_backtrace())
 
         err_msg = "{\"error\": \"$e\"}\0"
         LAST_JSON_RESULT[] = err_msg

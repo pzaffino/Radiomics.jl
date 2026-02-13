@@ -311,15 +311,25 @@ end
         - `features`: A dictionary of features to print.
         # Returns:
         - Nothing. Prints the features to the console.
-    """
-function print_features(title::String, features::Dict{String,<:Real})
-    println("\n--- $title ---")
+"""
+function print_features(title::String, features::Dict{String,<:Real}; log_buffer::Union{Vector{String}, Nothing}=nothing)
+    output = String[]
+    
+    push!(output, "\n--- $title ---")
     sorted_keys = sort(collect(keys(features)))
     for (i, k) in enumerate(sorted_keys)
-        println("  $i. $(rpad(k, 35)) => $(features[k])")
+        push!(output, "  $i. $(rpad(k, 35)) => $(features[k])")
     end
-    println("Subtotal: $(length(features)) features")
-    println("---------------------\n")
+    push!(output, "Subtotal: $(length(features)) features")
+    push!(output, "---------------------\n")
+    
+    if isnothing(log_buffer)
+        for line in output
+            println(line)
+        end
+    else
+        append!(log_buffer, output)
+    end
 end
 
 """
