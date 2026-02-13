@@ -141,9 +141,9 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     println("Real time (end-to-end): $(total_time_real) sec")
                     println("Overhead: $(total_time_real - total_time_accumulated) sec")
                     println("Total memory allocated: $(total_bytes_accumulated / 1024^2) MiB")
-                    diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_time_real, 
-                                                                total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only,
-                                                                img, mask)
+                    diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real, 
+                                            total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only,
+                                            img_input, mask_to_use)
                     merge!(radiomic_features, diagnosis_features)
                     print_features_diagnosis("Diagnosis Features", diagnosis_features)
                     println("---------------------")
