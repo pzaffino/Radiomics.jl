@@ -18,18 +18,19 @@ using Pkg
 
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-                              force_2d=false,
-                              force_2d_dimension=1,
+                              features=Symbol[],
+                              labels=nothing,
                               n_bins=nothing,
                               bin_width=nothing,
                               weighting_norm=nothing,
-                              verbose=false,
-                              keep_largest_only=true,
-                              features=[],
-                              labels=nothing)
+                              force_2d::Bool=false,
+                              force_2d_dimension::Int=1,
+                              keep_largest_only::Bool=true,
+                              sample_rate=0.03,
+                              verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
-    Supports both single and multiple label extraction with parallel processing.
+    Supports both single and multiple label extraction with parallel processing (if enabled. see below).
     
     # Parameters:
     - `img_input`: The input image (Array).
