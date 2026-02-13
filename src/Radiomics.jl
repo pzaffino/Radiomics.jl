@@ -45,6 +45,7 @@ using Pkg
                           Applied AFTER label selection.
     - `features`: Array of symbols specifying which features to compute. 
                  Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
+                 Can also accept strings: "glcm", ["glcm", "first_order"], etc.
     - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for default (label 1).
     
     # Returns:
@@ -54,16 +55,48 @@ using Pkg
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     force_2d::Bool=false,
     force_2d_dimension::Int=1,
-    n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Real, Nothing}=nothing,
-    weighting_norm::Union{String,Nothing}=nothing,
+    n_bins=nothing,
+    bin_width=nothing,
+    weighting_norm=nothing,
     verbose::Bool=false,
-    sample_rate::Float64=0.03,
+    sample_rate=0.03,
     keep_largest_only::Bool=true,
-    features::Vector{Symbol}=Symbol[],
-    labels::Union{Int,Vector{Int},Nothing}=nothing)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}}} 
+    features=Symbol[],
+    labels=nothing)
 
+    # Convert parameters to correct types
     bin_width = isnothing(bin_width) ? Float64(25.0) : Float64(bin_width)
+    sample_rate = Float64(sample_rate)
+    
+    # Convert features (supports String, Vector{String}, Symbol, Vector{Symbol})
+    if features isa String
+        features = lowercase(features) == "all" ? Symbol[] : [Symbol(lowercase(features))]
+    elseif features isa AbstractVector && !isempty(features) && eltype(features) <: AbstractString
+        features = Symbol[Symbol(lowercase(string(f))) for f in features]
+    elseif features isa AbstractVector && !isempty(features) && !(eltype(features) <: Symbol)
+        # Handle case where features might be a mix or other types
+        features = Symbol[Symbol(lowercase(string(f))) for f in features]
+    end
+    
+    # Convert labels (supports Int, Vector{Int}, or Python equivalents)
+    if labels isa AbstractVector
+        labels = Int[Int(l) for l in labels]
+    elseif !isnothing(labels) && !(labels isa Int)
+        labels = Int(labels)
+    end
+    
+    # Convert spacing (supports any numeric vector/list)
+    voxel_spacing_input = Float64[Float64(s) for s in voxel_spacing_input]
+    
+    # Convert n_bins if provided
+    if !isnothing(n_bins)
+        n_bins = Int(n_bins)
+    end
+    
+    # Convert weighting_norm if provided
+    if !isnothing(weighting_norm)
+        weighting_norm = String(weighting_norm)
+    end
 
     compute_all = isempty(features) || :all in features
 
@@ -333,17 +366,17 @@ end
     - Tuple of (radiomic_features::Dict, total_time_accumulated::Float64, total_bytes_accumulated::Int)
 """
 function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
-    n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float64,Nothing}=nothing,
-    weighting_norm::Union{String,Nothing}=nothing,
+    n_bins=nothing,
+    bin_width=nothing,
+    weighting_norm=nothing,
     verbose::Bool=false,
-    sample_rate::Float64=0.03,
+    sample_rate=0.03,
     keep_largest_only::Bool=true,
     force_2d::Bool=false,
     force_2d_dimension::Int=1,
     compute_all::Bool=true,
-    features::Vector{Symbol}=Symbol[],
-    log_buffer::Union{Vector{String}, Nothing}=nothing)
+    features=Symbol[],
+    log_buffer=nothing)
     
     radiomic_features = Dict{String,Any}()
     total_time_accumulated = 0.0
