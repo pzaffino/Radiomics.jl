@@ -48,17 +48,38 @@ radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacin
 
 The signature of the main function is:
 ```julia
-extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-    force_2d::Bool=false,
-    force_2d_dimension::Int=1,
-    n_bins=nothing,
-    bin_width=nothing,
-    weighting_norm=nothing,
-    verbose::Bool=false,
-    sample_rate=0.03,
-    keep_largest_only::Bool=true,
-    features=Symbol[],
-    labels=nothing)
+    extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
+                              features=Symbol[],
+                              labels=nothing,
+                              n_bins=nothing,
+                              bin_width=nothing,
+                              weighting_norm=nothing,
+                              force_2d::Bool=false,
+                              force_2d_dimension::Int=1,
+                              keep_largest_only::Bool=true,
+                              sample_rate=0.03,
+                              verbose::Bool=false)
+        
+    # Parameters:
+    - `img_input`: The input image (Array).
+    - `mask_input`: The mask defining the region of interest (Array).
+    - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
+    - `features`: Array of symbols specifying which features to compute. 
+                 Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
+    - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for default (label 1).
+    - `n_bins`: The number of bins for discretizing intensity values (optional).
+    - `bin_width`: The width of each bin (optional).
+    - `weighting_norm`: Performs weight-normalized radiomic feature extraction on the input image and mask (optional).
+                        Options: "infinity", "euclidean", "manhattan", and "no_weighting".
+    - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
+    - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
+    - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
+    - `sample_rate`: The sample rate for feature extraction (optional).
+    - `verbose`: If true, prints progress messages.
+        
+    # Returns:
+    - Single label or nothing: Dict{String,Any} with feature names as keys
+    - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
 ```
 
 ### Specific cases
