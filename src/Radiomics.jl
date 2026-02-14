@@ -14,7 +14,7 @@ include("gldm_features.jl")
 include("diagnosis.jl")
 
 using JSON3
-using Pkg
+using TOML
 
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
