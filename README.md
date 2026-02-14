@@ -133,6 +133,12 @@ On a Linux system, the .bashrc file can be edited by adding the line:
 export JULIA_NUM_THREADS=auto
 ```
 
+If you want to use Radiomics.jl from Python by using Juliacall (see below), add also this line:
+
+```bash
+export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
+```
+
 ## Using Radiomics.jl from Python
 Radiomics.jl can be used directly from Python in a simple and convenient way.
 
