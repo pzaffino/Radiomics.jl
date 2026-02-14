@@ -18,51 +18,52 @@ using Pkg
 
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-                              force_2d=false,
-                              force_2d_dimension=1,
+                              features=Symbol[],
+                              labels=nothing,
                               n_bins=nothing,
                               bin_width=nothing,
                               weighting_norm=nothing,
-                              verbose=false,
-                              keep_largest_only=true,
-                              features=[],
-                              labels=nothing)
+                              force_2d::Bool=false,
+                              force_2d_dimension::Int=1,
+                              keep_largest_only::Bool=true,
+                              sample_rate=0.03,
+                              verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
-    Supports both single and multiple label extraction with parallel processing.
+    Supports both single and multiple label extraction with parallel processing (if enabled. see below).
     
     # Parameters:
     - `img_input`: The input image (Array).
     - `mask_input`: The mask defining the region of interest (Array).
     - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
-    - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
-    - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
-    - `n_bins`: The number of bins for discretizing intensity values (optional).
-    - `bin_width`: The width of each bin (optional).
-    - `verbose`: If true, prints progress messages.
-    - `sample_rate`: The sample rate for feature extraction (optional).
-    - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
-                          Applied AFTER label selection.
     - `features`: Array of symbols specifying which features to compute. 
                  Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
-                 Can also accept strings: "glcm", ["glcm", "first_order"], etc.
     - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for default (label 1).
-    
+    - `n_bins`: The number of bins for discretizing intensity values (optional).
+    - `bin_width`: The width of each bin (optional).
+    - `weighting_norm`: Performs weight-normalized radiomic feature extraction on the input image and mask (optional).
+                        Options: "infinity", "euclidean", "manhattan", and "no_weighting".
+    - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
+    - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
+    - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
+    - `sample_rate`: The sample rate for feature extraction (optional).
+    - `verbose`: If true, prints progress messages.
+        
     # Returns:
     - Single label or nothing: Dict{String,Any} with feature names as keys
     - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
 """
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-    force_2d::Bool=false,
-    force_2d_dimension::Int=1,
+    features=Symbol[],
+    labels=nothing,
     n_bins=nothing,
     bin_width=nothing,
     weighting_norm=nothing,
-    verbose::Bool=false,
-    sample_rate=0.03,
+    force_2d::Bool=false,
+    force_2d_dimension::Int=1,
     keep_largest_only::Bool=true,
-    features=Symbol[],
-    labels=nothing)
+    sample_rate=0.03,
+    verbose::Bool=false)
 
     # Convert parameters to correct types
     bin_width = isnothing(bin_width) ? Float64(25.0) : Float64(bin_width)
@@ -78,11 +79,13 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         features = Symbol[Symbol(lowercase(string(f))) for f in features]
     end
     
-    # Convert labels (supports Int, Vector{Int}, or Python equivalents)
+    # Convert labels (supports Int, Vector{Int})
     if labels isa AbstractVector
         labels = Int[Int(l) for l in labels]
     elseif !isnothing(labels) && !(labels isa Int)
         labels = Int(labels)
+    elseif isnothing(labels) # No label given, default is 1
+        labels = Int(1)
     end
     
     # Convert spacing (supports any numeric vector/list)
@@ -245,15 +248,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     # Single label or default processing
-    if labels isa Int # Explicit single label specified by user
+    if labels isa Int # Explicit single label specified by user or the default value (1)
         label = labels
         if verbose
             println("Extracting LABEL $labels")
-        end
-    elseif isnothing(labels) # No label given, default is 1
-        label = 1
-        if verbose
-            println("No label specified - defaulting to LABEL 1")
         end
     end
         

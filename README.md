@@ -45,28 +45,85 @@ spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing)
 ```
-To compute only a subset of features, specify the desired ones using the features flag.
+
+The signature of the main function is:
+```julia
+    extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
+                              features=Symbol[],
+                              labels=nothing,
+                              n_bins=nothing,
+                              bin_width=nothing,
+                              weighting_norm=nothing,
+                              force_2d::Bool=false,
+                              force_2d_dimension::Int=1,
+                              keep_largest_only::Bool=true,
+                              sample_rate=0.03,
+                              verbose::Bool=false)
+        
+    # Parameters:
+    - `img_input`: The input image (Array).
+    - `mask_input`: The mask defining the region of interest (Array).
+    - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
+    - `features`: Array of symbols specifying which features to compute. 
+                 Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
+    - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for default (label 1).
+    - `n_bins`: The number of bins for discretizing intensity values (optional).
+    - `bin_width`: The width of each bin (optional).
+    - `weighting_norm`: Performs weight-normalized radiomic feature extraction on the input image and mask (optional).
+                        Options: "infinity", "euclidean", "manhattan", and "no_weighting".
+    - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
+    - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
+    - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
+    - `sample_rate`: The sample rate for feature extraction (optional).
+    - `verbose`: If true, prints progress messages.
+        
+    # Returns:
+    - Single label or nothing: Dict{String,Any} with feature names as keys
+    - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
+```
+
+### Specific cases
+
+To compute only a subset of features, specify the desired ones using the features flags:
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features = [:glcm, :gldm])
 ```
-To compute more features with a specific bin_width
+
+To extract features from a specific label (default is 1), execute:
+
 ```julia
-radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], bin_width=25.0f0);
+radiomic_features = Radiomics.extract_radiomic_features(ct, mask, spacing, labels=4)
 ```
-To compute with a specific number of bins
+
+To extract features just from a list of labels, execute:
+
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct, mask, spacing, labels=[3, 5, 11])
+```
+Please note that, in this case, the function returns a dictionary with integer keys (e.g., 3, 5, and 11).
+
+To compute more features with a specific bin_width (by default it is 25.0):
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], bin_width=35.0);
+```
+
+To compute with a specific number of bins:
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; features=[:glcm, :glszm], n_bins=16);
 ```
+
 To compute features from the entire mask regardless of fragmentation, set keep_largest_only to false; set it to true to isolate and analyze only the largest connected component
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
 ```
-To compute with weighting_norm personalzed 
+
+To compute with a specific weighting_norm 
 ```julia
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false, weighting_norm="euclidean");
 ```
-### Multi threading
-Radiomics.jl can be run in multi-threading mode.
+
+## Multi threading
+Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
 
 To do this, you can define and set the following environment variable: JULIA_NUM_THREADS=auto
 
@@ -122,22 +179,37 @@ mask_sitk = sitk.ReadImage('DATA_PATH/mask.nii.gz')
 ct = sitk.GetArrayFromImage(ct_sitk)
 mask = sitk.GetArrayFromImage(mask_sitk)
 
-spacing = list(ct_sitk.GetSpacing())
+spacing = ct_sitk.GetSpacing()
 
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
 
+### Specific cases
+
 If you want to extract only one subset of features, you can use:
 
 ```python
-radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, features=jl.Symbol("first_order"))
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, features="first_order")
 ```
 
 To extract two or more subsets (e.g. first order and glcm), you can run:
 
 ```python
-radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, features=[jl.Symbol(s) for s in ["first_order", "glcm"]])
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, features=["first_order", "glcm"])
 ```
+
+To extract features from a specific label (default is 1), execute:
+
+```python
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, labels=4)
+```
+
+To extract features just from a list of labels, execute:
+
+```python
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing, labels=[3, 5, 11])
+```
+Please note that, in this case, the function returns a dictionary with integer keys (e.g., 3, 5, and 11).
 
 # Generate C shared library (and use it in Python and C++)
 
