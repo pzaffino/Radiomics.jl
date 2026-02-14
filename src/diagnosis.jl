@@ -6,7 +6,7 @@ function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_tim
     # Read version from Project.toml
     project_file = joinpath(dirname(dirname(@__FILE__)), "Project.toml")
     if isfile(project_file)
-        project_data = TOML.parsefile(project_file)  # <-- CAMBIATO QUI!
+        project_data = TOML.parsefile(project_file) 
         version = get(project_data, "version", "unknown")
         julia_version = get(get(project_data, "compat", Dict()), "julia", "unknown")
     else
