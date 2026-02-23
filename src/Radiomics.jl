@@ -608,14 +608,13 @@ Base.@ccallable function c_extract_radiomic_features(
     img_size_x::Int64, img_size_y::Int64, img_size_z::Int64,
     mask_ptr::Ptr{Float32},
     spacing_x::Float64, spacing_y::Float64, spacing_z::Float64,
-    n_bins::Int64
+    binWidth::Float64
 )::Cstring
     global LAST_JSON_RESULT
     try
         # Prepare inputs for the main function
         dims = (Int(img_size_x), Int(img_size_y), Int(img_size_z))
         spacing = [spacing_x, spacing_y, spacing_z]
-        bins_val = n_bins <= 0 ? nothing : Int(n_bins)
 
         img = unsafe_wrap(Array, img_ptr, dims)
         mask = unsafe_wrap(Array, mask_ptr, dims)
@@ -623,7 +622,7 @@ Base.@ccallable function c_extract_radiomic_features(
         # Call the main function
         c_features_dict = extract_radiomic_features(
             img, mask, spacing;
-            n_bins = bins_val,
+            bin_width = binWidth,
             verbose = false
         )
 

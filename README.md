@@ -259,7 +259,7 @@ lib.c_extract_radiomic_features.argtypes = [
     ctypes.c_double,                 # spacing_x (Float64)
     ctypes.c_double,                 # spacing_y (Float64)
     ctypes.c_double,                 # spacing_z (Float64)
-    ctypes.c_int64                   # n_bins    (Int64)
+    ctypes.c_double                  # bin_width (Float64)
 ]
 
 lib.c_extract_radiomic_features.restype = ctypes.c_char_p
@@ -275,16 +275,16 @@ ptr_mask = mask.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 
 sx, sy, sz = ct.shape
 spacing = ct_sitk.GetSpacing()
-bin_width = 25
+bin_width = 25.0
 
 raw_json = lib.c_extract_radiomic_features(
         ptr_ct,
         sx, sy, sz,
         ptr_mask,
         float(spacing[0]), float(spacing[1]), float(spacing[2]),
-        int(bin_width))
+        bin_width)
 
-readiomic_features = json.loads(raw_json.decode('utf-8'))
+radiomic_features = json.loads(raw_json.decode('utf-8'))
 ```
 
 ## Call the C shared library from C++
@@ -324,7 +324,7 @@ typedef const char* (*ExtractFeaturesFunc)(
     int64_t, int64_t, int64_t,   // size_x, size_y, size_z (c_int64)
     float*,                      // mask_ptr (c_float)
     double, double, double,      // spacing_x, spacing_y, spacing_z (c_double)
-    int64_t                      // n_bins (c_int64)
+    double                      // bin_width (c_double)
 );
 
 
@@ -375,8 +375,6 @@ int main(int argc, char* argv[]) {
     float* imgPtr = img->GetBufferPointer();
     float* maskPtr = mask->GetBufferPointer();
 
-    int64_t nBins = static_cast<int64_t>(binWidth);
-
     // Load and initialize shared library
     void* handle = dlopen("SHARED_LIB_PATH/radiomicsjl_build/lib/libradiomicsjl.so", RTLD_LAZY);
     if (!handle) {
@@ -400,13 +398,13 @@ int main(int argc, char* argv[]) {
     }
 
     // Run feature extraction
-    std::cout << "Running feature extraction with bin_width = " << binWidth << "..." << std::endl;
+    std::cout << "Running feature extraction with bin_width = " << binWidth << " ..." << std::endl;
     const char* json_result = extract_features(
         imgPtr,
         nx, ny, nz,
         maskPtr,
         sx, sy, sz,
-        nBins); 
+        binWidth);
 
     if (json_result) {
         std::cout << "Features (JSON):\n" << json_result << std::endl;
