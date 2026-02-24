@@ -738,7 +738,7 @@ features = <span class="julia-type">Radiomics</span>.<span class="julia-function
             </div>
             <!-- SNIPPET 7 -->
             <div class="section">
-                <h2>Extraction with a specific number of bins</h2>
+                <h2>Extraction with a specific n_bins</h2>
                 <p>To compute with a specific number of bins:</p>
 
                 <div class="code-container">
@@ -781,7 +781,7 @@ features = <span class="julia-type">Radiomics</span>.<span class="julia-function
             </div>
             <!-- SNIPPET 7 -->
             <div class="section">
-                <h2>Extraction with a specific weighting norm</h2>
+                <h2>Extraction with a specific weighting_norm</h2>
                 <p>To compute with a specific weighting_norm</p>
 
                 <div class="code-container">
@@ -797,7 +797,7 @@ ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sa
 mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
 spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
 
-features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false, <span class="julia-literal">weighting_norm="euclidean</span>);</code></pre>
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false, <span class="julia-literal">weighting_norm="euclidean"</span>);</code></pre>
                 </div>
             </div>
 
