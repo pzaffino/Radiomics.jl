@@ -777,6 +777,19 @@ spacing = ct_sitk.GetSpacing()
 radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing)</code></pre>
                     </div>
 
+                    <p>If you want activate threads in Radiomics.jl from Python by using Juliacall, add also this line
+                        in .bashrc file:
+                    </p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-string">export </span>PYTHON_JULIACALL_HANDLE_SIGNALS=yes</code></pre>
+                    </div>
+
                     <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Specific cases</h4>
                     <p>If you want to extract only one subset of features, you can use:</p>
                     <div class="code-container">
@@ -917,6 +930,35 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
 
                 <!-- C++ Method -->
                 <div id="cpp-method" class="method-content">
+
+                    <h3>Generate C Shared Library</h3>
+                    <p>It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++
+                        code or any language that provides a C shared library interface.</p>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Building the Library</h4>
+                    <p>To generate the library, navigate to the Radiomics.jl source folder and run the following in
+                        Julia (this will take a few minutes):</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">using</span> <span class="julia-type">PackageCompiler</span>
+
+<span class="julia-function">create_library</span>(<span class="julia-string">"."</span>, <span class="julia-string">"radiomicsjl_build"</span>;
+               lib_name=<span class="julia-string">"libradiomicsjl"</span>,
+               force=<span class="julia-literal">true</span>,
+               incremental=<span class="julia-literal">true</span>,
+               filter_stdlibs=<span class="julia-literal">true</span>)</code></pre>
+                    </div>
+
+                    <div class="info-box">
+                        <p><strong>Note:</strong> The folder <code>radiomicsjl_build</code> will contain the shared
+                            libraries after compilation.</p>
+                    </div>
+
                     <h3>Call the C Shared Library from C++</h3>
                     <p>Here is a C++ code snippet to extract radiomic features using the shared library on Linux:</p>
 

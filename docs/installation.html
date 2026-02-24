@@ -818,6 +818,22 @@
         </div>
       </div>
 
+      <div class="code-container">
+        <h2>Multi threading</h2>
+        <p>Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
+          To do this, you can define and set the following environment variable: <code>JULIA_NUM_THREADS=auto</code>
+          On a Linux system, the .bashrc file can be edited by adding the line:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="prompt">export </span>JULIA_NUM_THREADS=auto</code></pre>
+        </div>
+      </div>
+
       <div class="section">
         <h2>Supported Platforms</h2>
         <p>Radiomics.jl can be installed and used on multiple platforms:</p>
