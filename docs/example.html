@@ -7,7 +7,7 @@
     <link rel="icon"
         href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
         type="image/png">
-    <title>Other Setup- Radiomics.jl</title>
+    <title>Examples - Radiomics.jl</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
@@ -26,8 +26,6 @@
             --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
             --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
             --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
-
-            /* Colori base per la sintassi */
             --syntax-keyword: #ff79c6;
             --syntax-function: #50fa7b;
             --syntax-type: #8be9fd;
@@ -53,9 +51,6 @@
             width: 100%;
         }
 
-        /* --- LAYOUT & SIDEBAR --- */
-
-        /* Mobile Menu Toggle */
         .mobile-menu-toggle {
             display: none;
             position: fixed;
@@ -82,7 +77,6 @@
             background: #ef4444;
         }
 
-        /* Sidebar Styling */
         .sidebar {
             position: fixed;
             top: 0;
@@ -101,21 +95,16 @@
             transition: transform 0.3s ease;
         }
 
-        /* FIX LOGO: Layout Header Sidebar */
         .sidebar-header {
-            /* Flexbox per centrare il contenuto (il logo) */
             display: flex;
             justify-content: center;
             align-items: center;
             padding: 40px 20px;
-            /* Spazio attorno al logo */
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(0, 0, 0, 0.2);
         }
 
-        /* FIX LOGO: Stile del quadrato bianco */
         .top-left-logo {
-            /* Rimosso position: fixed per farlo fluire nella sidebar */
             position: relative;
             width: 160px;
             height: 160px;
@@ -124,7 +113,6 @@
             padding: 10px;
             box-shadow: var(--shadow-lg);
             transition: transform 0.3s ease;
-            /* Assicura che non venga schiacciato */
             flex-shrink: 0;
         }
 
@@ -132,12 +120,10 @@
             transform: scale(1.05);
         }
 
-        /* FIX LOGO: Link interno al logo */
         .top-left-logo a {
             display: block;
             width: 100%;
             height: 100%;
-            /* Reset stili link sidebar per evitare evidenziazioni indesiderate */
             padding: 0 !important;
             background: transparent !important;
             border: none !important;
@@ -157,7 +143,6 @@
             gap: 4px;
         }
 
-        /* Stili generali per i link della sidebar */
         .sidebar nav>a,
         .sidebar .dropdown-btn,
         .sidebar .dropdown-content a {
@@ -169,7 +154,6 @@
             font-size: 0.95rem;
             border-left: 3px solid transparent;
             display: block;
-            /* Assicura che si comportino bene */
         }
 
         .sidebar nav>a:hover,
@@ -241,7 +225,6 @@
             max-height: 500px;
         }
 
-        /* Main Container */
         .main {
             flex: 1;
             padding: 0;
@@ -250,11 +233,9 @@
             min-width: 0;
         }
 
-        /* --- PAGE HEADER --- */
-
         .page-header {
             background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            padding: 60px 60px;
+            padding: 60px;
             color: white;
             position: relative;
             overflow: hidden;
@@ -267,7 +248,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+            background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%25" height="100%25" fill="url(%23grid)"/></svg>');
             opacity: 0.3;
         }
 
@@ -321,14 +302,6 @@
             border-radius: 2px;
         }
 
-        h3 {
-            font-size: 1.3rem;
-            font-weight: 600;
-            color: var(--text-primary);
-            margin-top: 32px;
-            margin-bottom: 16px;
-        }
-
         p {
             color: var(--text-secondary);
             line-height: 1.8;
@@ -336,7 +309,6 @@
             margin-bottom: 16px;
         }
 
-        /* Code Block */
         .code-container {
             position: relative;
             margin-top: 24px;
@@ -414,79 +386,6 @@
             color: var(--syntax-literal);
         }
 
-        /* Info Box */
-        .info-box {
-            background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
-            border-left: 4px solid var(--primary);
-            padding: 20px 24px;
-            border-radius: 8px;
-            margin: 24px 0;
-        }
-
-        .info-box p {
-            color: var(--text-primary);
-            margin-bottom: 0;
-        }
-
-        /* Toggle Buttons */
-        .method-toggle {
-            display: flex;
-            gap: 12px;
-            margin: 32px 0 24px;
-            flex-wrap: wrap;
-        }
-
-        .toggle-btn {
-            flex: 1;
-            min-width: 200px;
-            padding: 16px 24px;
-            background: white;
-            border: 2px solid var(--border);
-            color: var(--text-primary);
-            font-size: 1rem;
-            font-weight: 600;
-            border-radius: 12px;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            box-shadow: var(--shadow-sm);
-            font-family: 'Inter', sans-serif;
-        }
-
-        .toggle-btn:hover {
-            border-color: var(--primary-light);
-            transform: translateY(-2px);
-            box-shadow: var(--shadow-md);
-        }
-
-        .toggle-btn.active {
-            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
-            color: white;
-            border-color: var(--primary);
-            box-shadow: var(--shadow-lg);
-        }
-
-        .method-content {
-            display: none;
-            animation: fadeIn 0.4s ease-in-out;
-        }
-
-        .method-content.active {
-            display: block;
-        }
-
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(10px);
-            }
-
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
-        }
-
-        /* Footer */
         .footer {
             background: var(--secondary);
             color: rgba(255, 255, 255, 0.7);
@@ -504,7 +403,6 @@
             text-decoration: underline;
         }
 
-        /* Overlay */
         .overlay {
             display: none;
             position: fixed;
@@ -522,8 +420,6 @@
             display: block;
             opacity: 1;
         }
-
-        /* --- RESPONSIVE MEDIA QUERIES --- */
 
         @media (max-width: 1024px) {
             .top-left-logo {
@@ -577,7 +473,6 @@
                 width: 100%;
             }
 
-            /* Su mobile il logo sta dentro il menu, quindi resettiamo eventuali stili legacy */
             .top-left-logo {
                 width: 100px;
                 height: 100px;
@@ -609,14 +504,12 @@
             }
         }
 
-        /* Small mobile breakpoint */
         @media (max-width: 480px) {
             .mobile-menu-toggle {
                 padding: 10px 14px;
                 font-size: 1rem;
             }
 
-            /* FIX: Logo su schermi piccoli */
             .top-left-logo {
                 width: 80px;
                 height: 80px;
@@ -673,24 +566,284 @@
     </aside>
 
     <main class="main">
+
         <section class="page-header">
             <div class="page-header-content">
-                <h1>page under construction</h1>
-                <p>Coming soon
-                </p>
+                <h1>Examples</h1>
+                <p>Code snippets showing how to use Radiomics.jl in different scenarios.</p>
             </div>
         </section>
 
+        <div class="content">
 
+            <!-- SNIPPET 1 -->
+            <div class="section">
+                <h2>Function Signature</h2>
+                <p>The complete signature of the main function with all available parameters:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-function">extract_radiomic_features</span>(img_input, mask_input, voxel_spacing_input;
+                          features<span class="julia-keyword">=</span><span class="julia-type">Symbol</span>[],
+                          labels<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
+                          n_bins<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
+                          bin_width<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
+                          weighting_norm<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
+                          force_2d<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
+                          force_2d_dimension<span class="julia-keyword">::</span><span class="julia-type">Int</span><span class="julia-keyword">=</span><span class="julia-literal">1</span>,
+                          keep_largest_only<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">true</span>,
+                          sample_rate<span class="julia-keyword">=</span><span class="julia-literal">0.03</span>,
+                          verbose<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>)
+
+<span class="julia-comment"># Parameters:</span>
+<span class="julia-comment">#  img_input           – Input image (Array).</span>
+<span class="julia-comment">#  mask_input          – Mask defining the region of interest (Array).</span>
+<span class="julia-comment">#  voxel_spacing_input – Voxel spacing in mm, e.g. [1.0, 1.0, 2.5] (Array).</span>
+<span class="julia-comment">#  features            – Symbols selecting which groups to compute.</span>
+<span class="julia-comment">#                        Options: :first_order, :glcm, :shape2d, :shape3d,</span>
+<span class="julia-comment">#                                 :glszm, :ngtdm, :glrlm, :gldm.</span>
+<span class="julia-comment">#                        Default Symbol[] computes all groups.</span>
+<span class="julia-comment">#  labels              – Int, Vector{Int}, or nothing (defaults to label 1).</span>
+<span class="julia-comment">#  n_bins              – Number of histogram bins for discretisation.</span>
+<span class="julia-comment">#  bin_width           – Fixed bin width for discretisation (alternative to n_bins).</span>
+<span class="julia-comment">#  weighting_norm      – Norm used for GLCM distance weighting.</span>
+<span class="julia-comment">#  force_2d            – If true, features are computed slice-by-slice.</span>
+<span class="julia-comment">#  force_2d_dimension  – Axis along which 2-D slicing is performed (default: 1).</span>
+<span class="julia-comment">#  keep_largest_only   – If true, only the largest connected component is used.</span>
+<span class="julia-comment">#  sample_rate         – Fraction of voxel pairs sampled for GLCM (0–1).</span>
+<span class="julia-comment">#  verbose             – Print progress information during extraction.</span>
+
+<span class="julia-comment"># Returns:</span>
+<span class="julia-comment"># Single label or nothing: Dict{String,Any} with feature names as keys</span>
+<span class="julia-comment"># Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values</span></code></pre>
+                </div>
+            </div>
+
+            <!-- SNIPPET 2 -->
+            <div class="section">
+                <h2>Basic Usage</h2>
+                <p>Load a NIfTI image and mask, then extract all radiomic features with default settings:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+<span class="julia-comment"># Load image and mask</span>
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+
+<span class="julia-comment"># Extract voxel spacing from header (x, y, z in mm)</span>
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing)</code></pre>
+                </div>
+            </div>
+
+            <!-- SNIPPET 3 -->
+            <div class="section">
+                <h2>Select Specific Feature Groups</h2>
+                <p>To compute only a subset of features, specify the desired ones using the features flags:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-string"></span>features=[:first_order, :glcm]</span>);</code></pre>
+                </div>
+            </div>
+
+            <!-- SNIPPET 4 -->
+            <div class="section">
+                <h2>Select Specific label</h2>
+                <p>To extract features from a specific label (default is 1), execute:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-literal">labels=1</span>);</code></pre>
+                </div>
+            </div>
+            <!-- SNIPPET 5 -->
+            <div class="section">
+                <h2>Select list of labels</h2>
+                <p>To extract features from a list of labels, execute:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-literal">labels=[1,2]</span>);</code></pre>
+                </div>
+                <p>Please note that, in this case, the function returns a dictionary with integer keys (e.g., 3, 5, and
+                    11).
+                </p>
+            </div>
+            <!-- SNIPPET 6 -->
+            <div class="section">
+                <h2>Extraction with a specific bin_width </h2>
+                <p>To compute more features with a specific bin_width (by default it is 25.0):</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; features=[:first_order, :glcm], <span class="julia-literal">bin_width=35</span>);</code></pre>
+                </div>
+            </div>
+            <!-- SNIPPET 7 -->
+            <div class="section">
+                <h2>Extraction with a specific number of bins</h2>
+                <p>To compute with a specific number of bins:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; features=[:first_order, :glcm], <span class="julia-literal">n_bins=16</span>);</code></pre>
+                </div>
+            </div>
+            <!-- SNIPPET 7 -->
+            <div class="section">
+                <h2>Extraction all islands</h2>
+                <p>To compute features from the entire mask regardless of fragmentation, set keep_largest_only to false;
+                    set it to true to isolate and analyze only the largest connected component:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, <span class="julia-literal">keep_largest_only=false</span>)</code></pre>
+                </div>
+            </div>
+            <!-- SNIPPET 7 -->
+            <div class="section">
+                <h2>Extraction with a specific weighting norm</h2>
+                <p>To compute with a specific weighting_norm</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false, <span class="julia-literal">weighting_norm="euclidean</span>);</code></pre>
+                </div>
+            </div>
+
+        </div><!-- /content -->
 
         <footer class="footer">
             <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on
-                    GitHub</a>
-            </p>
+                    GitHub</a></p>
         </footer>
+
     </main>
 
+    <script>
+        document.querySelectorAll('.dropdown-btn').forEach(btn => {
+            btn.addEventListener('click', () => btn.parentElement.classList.toggle('active'));
+        });
 
+        const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+        const sidebar = document.getElementById('sidebar');
+        const overlay = document.getElementById('overlay');
+
+        mobileMenuToggle.addEventListener('click', () => {
+            sidebar.classList.toggle('mobile-open');
+            overlay.classList.toggle('active');
+            mobileMenuToggle.classList.toggle('active');
+            mobileMenuToggle.textContent = mobileMenuToggle.classList.contains('active') ? '✕' : '☰';
+        });
+
+        overlay.addEventListener('click', () => {
+            sidebar.classList.remove('mobile-open');
+            overlay.classList.remove('active');
+            mobileMenuToggle.classList.remove('active');
+            mobileMenuToggle.textContent = '☰';
+        });
+
+        document.querySelectorAll('.sidebar a').forEach(link => {
+            link.addEventListener('click', () => {
+                if (window.innerWidth <= 768) {
+                    sidebar.classList.remove('mobile-open');
+                    overlay.classList.remove('active');
+                    mobileMenuToggle.classList.remove('active');
+                    mobileMenuToggle.textContent = '☰';
+                }
+            });
+        });
+    </script>
 
 </body>
 
