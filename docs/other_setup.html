@@ -774,7 +774,48 @@ mask = sitk.GetArrayFromImage(mask_sitk)
 spacing = ct_sitk.GetSpacing()
 
 <span class="julia-comment"># Extract radiomic features</span>
-radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)</code></pre>
+radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing)</code></pre>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Specific cases</h4>
+                    <p>If you want to extract only one subset of features, you can use:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing, features=<span class="julia-string">"first_order"</span>)</code></pre>
+                    </div>
+
+                    <p>To extract two or more subsets (e.g. first order and glcm), you can run:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing, features=[<span class="julia-string">"first_order","glcm"]</span>)</code></pre>
+                    </div>
+
+                    <p>To extract features from a specific label (default is 1), execute:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing, labels=<span class="julia-string">4</span>)</code></pre>
+                    </div>
+
+                    <p>To extract features just from a list of labels, execute:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing, labels=<span class="julia-string">[3, 5, 11]</span>)</code></pre>
                     </div>
                 </div>
 
