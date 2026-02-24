@@ -771,10 +771,10 @@ ct = sitk.GetArrayFromImage(ct_sitk)
 mask = sitk.GetArrayFromImage(mask_sitk)
 
 <span class="julia-comment"># Extract spacing information</span>
-spacing = list(ct_sitk.GetSpacing())
+spacing = ct_sitk.GetSpacing()
 
 <span class="julia-comment"># Extract radiomic features</span>
-radiomic_features = dict(jl.Radiomics.extract_radiomic_features(ct, mask, spacing))</code></pre>
+radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)</code></pre>
                     </div>
                 </div>
 
