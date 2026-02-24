@@ -748,7 +748,7 @@
     <nav>
       <a href="index.html">Home</a>
       <a href="installation.html">Getting Started</a>
-      <a href="other_setup.html">Other Setup</a>
+      <a href="cross_languages.html">Cross languages</a>
       <div class="dropdown active">
         <button class="dropdown-btn">Features</button>
         <div class="dropdown-content">
@@ -895,30 +895,6 @@
           <li><strong>L_major, L_minor</strong> = Major and minor axis lengths</li>
           <li><strong>||·||</strong> = Euclidean distance</li>
         </ul>
-      </div>
-
-      <div class="section">
-        <h2>Usage Example</h2>
-        <div class="code-container">
-          <div class="code-header">
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-          </div>
-          <pre><code>using Radiomics
-
-# Load your 2D binary mask and define pixel spacing
-mask = load_binary_mask("path/to/mask.nii")
-spacing = [1.0f0, 1.0f0]  # pixel spacing in mm
-
-# Extract 2D shape features
-features = get_shape2d_features(mask, spacing, verbose=true)
-
-# Access individual features
-println("Perimeter: ", features["Perimeter"])
-println("Sphericity: ", features["Sphericity"])
-println("Elongation: ", features["Elongation"])</code></pre>
-        </div>
       </div>
 
       <div class="section">
