@@ -898,30 +898,6 @@
       </div>
 
       <div class="section">
-        <h2>Usage Example</h2>
-        <div class="code-container">
-          <div class="code-header">
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-            <span class="code-dot"></span>
-          </div>
-          <pre><code>using Radiomics
-
-# Load your 2D binary mask and define pixel spacing
-mask = load_binary_mask("path/to/mask.nii")
-spacing = [1.0f0, 1.0f0]  # pixel spacing in mm
-
-# Extract 2D shape features
-features = get_shape2d_features(mask, spacing, verbose=true)
-
-# Access individual features
-println("Perimeter: ", features["Perimeter"])
-println("Sphericity: ", features["Sphericity"])
-println("Elongation: ", features["Elongation"])</code></pre>
-        </div>
-      </div>
-
-      <div class="section">
         <h2>Clinical Applications</h2>
         <p>2D shape features are valuable in various medical imaging scenarios:</p>
         <ul>
