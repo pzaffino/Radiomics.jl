@@ -690,10 +690,10 @@
                         📦 Using Juliacall (Recommended)
                     </button>
                     <button class="toggle-btn" onclick="showMethod('clib')">
-                        ⚙️ Using C Shared Library
+                        ⚙️ Using C
                     </button>
                     <button class="toggle-btn" onclick="showMethod('cpp')">
-                        💻 C++ Usage
+                        💻 Using C++
                     </button>
                 </div>
 
@@ -864,8 +864,7 @@ radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_fea
                             libraries after compilation.</p>
                     </div>
 
-                    <h4 style="font-size: 1.1rem; margin-top: 32px; margin-bottom: 12px;">Using the Shared Library from
-                        Python</h4>
+                    <h2>Using the Shared Library from Python</h2>
                     <p>To extract features in Python using the shared library (in a Linux environment), run:</p>
 
                     <div class="code-container">
@@ -895,7 +894,7 @@ lib.c_extract_radiomic_features.argtypes = [
     ctypes.c_double,                 <span class="julia-comment"># spacing_x (Float64)</span>
     ctypes.c_double,                 <span class="julia-comment"># spacing_y (Float64)</span>
     ctypes.c_double,                 <span class="julia-comment"># spacing_z (Float64)</span>
-    ctypes.c_int64                   <span class="julia-comment"># n_bins    (Int64)</span>
+    ctypes.c_double                  <span class="julia-comment"># bin_width (Float64)</span>
 ]
 
 lib.c_extract_radiomic_features.restype = ctypes.c_char_p
@@ -915,7 +914,7 @@ ptr_mask = mask.ctypes.data_as(ctypes.POINTER(ctypes.c_float))
 <span class="julia-comment"># Extract parameters</span>
 sx, sy, sz = ct.shape
 spacing = ct_sitk.GetSpacing()
-bin_width = <span class="julia-literal">25</span>
+bin_width = <span class="julia-literal">25.0</span>
 
 <span class="julia-comment"># Extract features</span>
 raw_json = lib.c_extract_radiomic_features(
@@ -923,7 +922,7 @@ raw_json = lib.c_extract_radiomic_features(
         sx, sy, sz,
         ptr_mask,
         float(spacing[<span class="julia-literal">0</span>]), float(spacing[<span class="julia-literal">1</span>]), float(spacing[<span class="julia-literal">2</span>]),
-        int(bin_width))
+        bin_width)
 
 <span class="julia-comment"># Parse results</span>
 radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8'</span>))</code></pre>
@@ -933,7 +932,7 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
                 <!-- C++ Method -->
                 <div id="cpp-method" class="method-content">
 
-                    <h3>Generate C Shared Library</h3>
+                    <h2>Generate C Shared Library</h2>
                     <p>It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++
                         code or any language that provides a C shared library interface.</p>
 
@@ -961,7 +960,7 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
                             libraries after compilation.</p>
                     </div>
 
-                    <h3>Call the C Shared Library from C++</h3>
+                    <h2>Call the C Shared Library from C++</h2>
                     <p>Here is a C++ code snippet to extract radiomic features using the shared library on Linux:</p>
 
                     <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">CMakeLists.txt</h4>
@@ -1008,7 +1007,7 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
     <span class="julia-type">int64_t</span>, <span class="julia-type">int64_t</span>, <span class="julia-type">int64_t</span>,   <span class="julia-comment">// size_x, size_y, size_z (c_int64)</span>
     <span class="julia-type">float</span>*,                      <span class="julia-comment">// mask_ptr (c_float)</span>
     <span class="julia-type">double</span>, <span class="julia-type">double</span>, <span class="julia-type">double</span>,      <span class="julia-comment">// spacing_x, spacing_y, spacing_z (c_double)</span>
-    <span class="julia-type">int64_t</span>                      <span class="julia-comment">// n_bins (c_int64)</span>
+    <span class="julia-type">double </span>                      <span class="julia-comment">// bin_width (c_double)</span>
 );
 
 
@@ -1059,8 +1058,6 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
     <span class="julia-type">float</span>* imgPtr = img-&gt;GetBufferPointer();
     <span class="julia-type">float</span>* maskPtr = mask-&gt;GetBufferPointer();
 
-    <span class="julia-type">int64_t</span> nBins = <span class="julia-keyword">static_cast</span>&lt;<span class="julia-type">int64_t</span>&gt;(binWidth);
-
     <span class="julia-comment">// Load and initialize shared library</span>
     <span class="julia-type">void</span>* handle = <span class="julia-function">dlopen</span>(<span class="julia-string">"SHARED_LIB_PATH/radiomicsjl_build/lib/libradiomicsjl.so"</span>, RTLD_LAZY);
     <span class="julia-keyword">if</span> (!handle) {
@@ -1090,7 +1087,7 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
         nx, ny, nz,
         maskPtr,
         sx, sy, sz,
-        nBins); 
+        binWidth); 
 
     <span class="julia-keyword">if</span> (json_result) {
         std::cout &lt;&lt; <span class="julia-string">"Features (JSON):\n"</span> &lt;&lt; json_result &lt;&lt; std::endl;
