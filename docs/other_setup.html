@@ -713,7 +713,7 @@
                             <span class="code-dot"></span>
                             <span class="code-dot"></span>
                         </div>
-                        <pre><code>pip install juliacall</code></pre>
+                        <pre><code>pip install <span class="julia-keyword">juliacall</span></code></pre>
                     </div>
 
                     <div class="info-box">
@@ -746,6 +746,8 @@ jl.seval(<span class="julia-string">'import Pkg; Pkg.add("Radiomics")'</span>)</
                         <pre><code><span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
 jl.seval(<span class="julia-string">'import Pkg; Pkg.update("Radiomics")'</span>)</code></pre>
                     </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Multi Threading</h4>
 
                     <p>If you want activate threads in Radiomics.jl from Python by using Juliacall, add also this line
                         in .bashrc file:
@@ -834,7 +836,7 @@ radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_fea
 
                 <!-- C Shared Library Method -->
                 <div id="clib-method" class="method-content">
-                    <h3>Generate C Shared Library</h3>
+                    <h2>Generate C Shared Library</h2>
                     <p>It is also possible to generate a C shared library (.dll, .so, or .dylib) and call it from C/C++
                         code or any language that provides a C shared library interface.</p>
 
