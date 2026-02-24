@@ -699,7 +699,7 @@
 
                 <!-- Juliacall Method -->
                 <div id="juliacall-method" class="method-content active">
-                    <h3>Setup</h3>
+                    <h2>Installation</h2>
                     <p>Juliacall acts as a bridge between Python and Julia, enabling you to call Julia functions
                         directly from
                         Python code.</p>
@@ -747,7 +747,20 @@ jl.seval(<span class="julia-string">'import Pkg; Pkg.add("Radiomics")'</span>)</
 jl.seval(<span class="julia-string">'import Pkg; Pkg.update("Radiomics")'</span>)</code></pre>
                     </div>
 
-                    <h3 style="margin-top: 40px;">Feature Extraction with Juliacall</h3>
+                    <p>If you want activate threads in Radiomics.jl from Python by using Juliacall, add also this line
+                        in .bashrc file:
+                    </p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-string">export </span>PYTHON_JULIACALL_HANDLE_SIGNALS=yes</code></pre>
+                    </div>
+
+                    <h2>Feature Extraction with Juliacall</h2>
                     <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
 
                     <div class="code-container">
@@ -777,20 +790,7 @@ spacing = ct_sitk.GetSpacing()
 radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing)</code></pre>
                     </div>
 
-                    <p>If you want activate threads in Radiomics.jl from Python by using Juliacall, add also this line
-                        in .bashrc file:
-                    </p>
-
-                    <div class="code-container">
-                        <div class="code-header">
-                            <span class="code-dot"></span>
-                            <span class="code-dot"></span>
-                            <span class="code-dot"></span>
-                        </div>
-                        <pre><code><span class="julia-string">export </span>PYTHON_JULIACALL_HANDLE_SIGNALS=yes</code></pre>
-                    </div>
-
-                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Specific cases</h4>
+                    <h2>Specific cases</h2>
                     <p>If you want to extract only one subset of features, you can use:</p>
                     <div class="code-container">
                         <div class="code-header">
