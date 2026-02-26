@@ -17,6 +17,7 @@ using StatsBase
     - `voxel_spacing`: The spacing of the voxels in the image.
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
+    - `get_raw_matrices`: If true, returns the raw GLDM matrix.
     - `gldm_a`: The alpha parameter for the GLDM calculation.
     - `verbose`: If true, prints progress messages.
 
@@ -37,6 +38,7 @@ function get_gldm_features(img, mask, voxel_spacing;
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
     gldm_a=0,
+    get_raw_matrices::Bool=false,
     verbose=false)
     if verbose
         if !isnothing(n_bins)
@@ -58,6 +60,10 @@ function get_gldm_features(img, mask, voxel_spacing;
     end
 
     P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
+
+    if get_raw_matrices
+        return P_gldm
+    end
 
     Nz, pd, pg, ivector, jvector = calculate_gldm_coefficients(P_gldm, gray_levels)
 
