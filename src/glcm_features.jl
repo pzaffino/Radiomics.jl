@@ -14,6 +14,7 @@ using Statistics
         - `n_bins`: The number of bins for discretizing intensity values (optional).
         - `bin_width`: The width of each bin (optional).
         - `weighting_norm`: The norm used for weighting the GLCM (optional), Weighting method ("infinity (Chebyshev)", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
+        - `raw_matrices`: If true, returns one raw (unnormalized, unweighted) GLCM matrix per direction instead of the standard aggregated result.
         - `verbose`: If true, enables verbose output for debugging or detailed processing information.
 
     # Returns:
@@ -27,6 +28,7 @@ function calculate_glcm_3d(img::Array{Float32,3},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
+    raw_matrices::Bool=false,
     verbose::Bool=false)
 
     disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
@@ -107,7 +109,12 @@ function calculate_glcm_3d(img::Array{Float32,3},
         end
 
         # Handle normalization based on weighting
-        if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
+        if raw_matrices
+            # Raw mode: keep unnormalized matrix per direction (skip empty ones)
+            if sum(G) > 0
+                push!(glcm_matrices, G)
+            end
+        elseif !isnothing(weighting_norm) && weighting_norm != "no_weighting"
             # Apply weight WITHOUT normalizing
             if sum(G) > 0
                 @. G *= weights[dir_idx]
@@ -123,8 +130,8 @@ function calculate_glcm_3d(img::Array{Float32,3},
         end
     end
 
-    # If weighting is applied, sum all weighted matrices and normalize ONCE
-    if !isnothing(weighting_norm) && weighting_norm != "no_weighting" && !isempty(glcm_matrices)
+    # If weighting is applied (and NOT raw mode), sum all weighted matrices and normalize ONCE
+    if !raw_matrices && !isnothing(weighting_norm) && weighting_norm != "no_weighting" && !isempty(glcm_matrices)
         summed_glcm = sum(glcm_matrices)
         total = sum(summed_glcm)
         if total > 0

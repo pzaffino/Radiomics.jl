@@ -17,6 +17,7 @@ using StatsBase
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
     - `weighting_norm`: Weighting method ("infinity", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
+    - `get_raw_matrices`: If true, returns the raw GLRLM matrix.
     - `verbose`: If true, prints progress messages.
 
     # Returns
@@ -36,6 +37,7 @@ function get_glrlm_features(img, mask, voxel_spacing;
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
+    get_raw_matrices::Bool=false,
     verbose=false)
     
     if verbose
@@ -61,6 +63,10 @@ function get_glrlm_features(img, mask, voxel_spacing;
     end
 
     P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, verbose)
+
+    if get_raw_matrices
+        return P_glrlm
+    end
 
     feature_names = [
         "ShortRunEmphasis", "LongRunEmphasis", "GrayLevelNonUniformity",

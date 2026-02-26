@@ -16,6 +16,7 @@ using StatsBase
     - `voxel_spacing`: The spacing of the voxels in the image.
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
+    - `get_raw_matrices`: If true, returns the raw NGTDM matrix.
     - `verbose`: If true, prints progress messages.
 
     # Returns
@@ -34,6 +35,7 @@ using StatsBase
 function get_ngtdm_features(img, mask, voxel_spacing; 
                            n_bins::Union{Int,Nothing}=nothing,
                            bin_width::Union{Float32,Nothing}=nothing,
+                           get_raw_matrices::Bool=false,
                            verbose=false)
     if verbose
         if !isnothing(n_bins)
@@ -57,6 +59,10 @@ function get_ngtdm_features(img, mask, voxel_spacing;
 
     # 2. Calculate the NGTDM matrix
     P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, verbose)
+
+    if get_raw_matrices
+        return P_ngtdm  
+    end
 
     # 3. Calculate coefficients
     Nvp, p_i, s_i, ivector, Ngp = calculate_ngtdm_coefficients(P_ngtdm, gray_levels)

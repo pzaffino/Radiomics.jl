@@ -27,6 +27,7 @@ using TOML
                               force_2d_dimension::Int=1,
                               keep_largest_only::Bool=true,
                               sample_rate=0.03,
+                              get_raw_matrices::Bool=false,
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -47,6 +48,8 @@ using TOML
     - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
     - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
     - `sample_rate`: The sample rate for feature extraction (optional).
+    - `get_raw_matrices`: If true, computes raw (unnormalized, unweighted) GLCM matrices along all directions
+                           and stores them in the result as `"get_raw_matrices"` (Vector of Matrix{Float32}).
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -63,6 +66,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     force_2d_dimension::Int=1,
     keep_largest_only::Bool=true,
     sample_rate=0.03,
+    get_raw_matrices::Bool=false,
     verbose::Bool=false)
 
     # Convert parameters to correct types
@@ -170,6 +174,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         force_2d_dimension=force_2d_dimension,
                         compute_all=compute_all,
                         features=features,
+                        get_raw_matrices=get_raw_matrices,
                         log_buffer=log_buffer
                     )
                     
@@ -303,7 +308,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         force_2d=force_2d,
         force_2d_dimension=force_2d_dimension,
         compute_all=compute_all,
-        features=features
+        features=features,
+        get_raw_matrices=get_raw_matrices
     )
     
     total_time_accumulated += time_acc
@@ -374,6 +380,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     force_2d_dimension::Int=1,
     compute_all::Bool=true,
     features=Symbol[],
+    get_raw_matrices::Bool=false,
     log_buffer=nothing)
     
     radiomic_features = Dict{String,Any}()
@@ -413,14 +420,25 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             )
         end
 
-        # GLCM features
-        if compute_all || :glcm in features
+        # GLCM features (skipped when get_raw_matrices=true)
+        if (compute_all || :glcm in features) && !get_raw_matrices
             t_glcm_features = Threads.@spawn @timed get_glcm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=Float32(bin_width),
                 weighting_norm=weighting_norm,
                 verbose=verbose
+            )
+        end
+
+        # Raw GLCM matrices
+        if get_raw_matrices && (compute_all || :glcm in features)
+            t_glcm_raw = Threads.@spawn @timed calculate_glcm_3d(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=Float32(bin_width),
+                raw_matrices=true,
+                verbose=false
             )
         end
         
@@ -435,7 +453,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
         end
 
         # GLSZM features
-        if compute_all || :glszm in features
+        if (compute_all || :glszm in features) && !get_raw_matrices
             t_glszm_features = Threads.@spawn @timed get_glszm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
@@ -444,8 +462,19 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             )
         end
 
+        # Raw GLSZM matrix
+        if get_raw_matrices && (compute_all || :glszm in features)
+            t_glszm_raw = Threads.@spawn @timed get_glszm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=Float32(bin_width),
+                get_raw_matrices=true,
+                verbose=false
+            )
+        end
+
         # NGTDM features
-        if compute_all || :ngtdm in features
+        if (compute_all || :ngtdm in features) && !get_raw_matrices
             t_ngtdm_features = Threads.@spawn @timed get_ngtdm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
@@ -454,8 +483,19 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             )
         end
 
+        # Raw NGTDM matrix
+        if get_raw_matrices && (compute_all || :ngtdm in features)
+            t_ngtdm_raw = Threads.@spawn @timed get_ngtdm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=Float32(bin_width),
+                get_raw_matrices=true,
+                verbose=false
+            )
+        end
+
         # GLRLM features
-        if compute_all || :glrlm in features
+        if (compute_all || :glrlm in features) && !get_raw_matrices
             t_glrlm_features = Threads.@spawn @timed get_glrlm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
@@ -465,8 +505,18 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             )
         end
 
+        if get_raw_matrices && (compute_all || :glrlm in features)
+            t_glrlm_raw = Threads.@spawn @timed get_glrlm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=Float32(bin_width),
+                get_raw_matrices=true,
+                verbose=false
+            )
+        end
+
         # GLDM features
-        if compute_all || :gldm in features
+        if (compute_all || :gldm in features) && !get_raw_matrices
             t_gldm_features = Threads.@spawn @timed get_gldm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
@@ -474,6 +524,18 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
                 verbose=verbose
             )
         end
+        
+        # Raw GLDM matrix
+        if get_raw_matrices && (compute_all || :gldm in features)
+            t_gldm_raw = Threads.@spawn @timed get_gldm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=Float32(bin_width),
+                get_raw_matrices=true,
+                verbose=false
+            )
+        end
+
     end
 
     # Launch parallel threads for 2D features
@@ -500,8 +562,8 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             end
         end
 
-        # GLCM features
-        if compute_all || :glcm in features
+        # GLCM features (skipped when get_raw_matrices=true)
+        if (compute_all || :glcm in features) && !get_raw_matrices
             results_glcm = fetch(t_glcm_features)
             glcm_features = results_glcm.value
             merge!(radiomic_features, glcm_features)
@@ -512,9 +574,21 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
                 print_features("GLCM Features", glcm_features; log_buffer=log_buffer)
             end
         end
+
+        # Raw GLCM matrices
+        if get_raw_matrices && (compute_all || :glcm in features)
+            results_glcm_raw = fetch(t_glcm_raw)
+            raw_mats, _, _ = results_glcm_raw.value
+            radiomic_features["raw_glcm_matrices"] = raw_mats
+            total_time_accumulated += results_glcm_raw.time
+            total_bytes_accumulated += results_glcm_raw.bytes
+            if verbose
+                log_println("GLCM raw matrices: $(results_glcm_raw.time) sec — $(length(raw_mats)) direction(s) stored under \"raw_glcm_matrices\"")
+            end
+        end
         
         # GLSZM features
-        if compute_all || :glszm in features
+        if (compute_all || :glszm in features) && !get_raw_matrices
             results_glszm = fetch(t_glszm_features)
             glszm_features = results_glszm.value
             merge!(radiomic_features, glszm_features)
@@ -526,8 +600,20 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             end
         end
 
+        # Raw GLSZM matrix
+        if get_raw_matrices && (compute_all || :glszm in features)
+            results_glszm_raw = fetch(t_glszm_raw)
+            raw_mat = results_glszm_raw.value
+            radiomic_features["raw_glszm_matrix"] = raw_mat
+            total_time_accumulated += results_glszm_raw.time
+            total_bytes_accumulated += results_glszm_raw.bytes
+            if verbose
+                log_println("GLSZM raw matrix: $(results_glszm_raw.time) sec — matrix $(size(raw_mat)) stored under \"raw_glszm_matrix\"")
+            end
+        end
+
         # NGTDM features
-        if compute_all || :ngtdm in features
+        if (compute_all || :ngtdm in features) && !get_raw_matrices
             results_ngtdm = fetch(t_ngtdm_features)
             ngtdm_features = results_ngtdm.value
             merge!(radiomic_features, ngtdm_features)
@@ -539,8 +625,20 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             end
         end
 
+        # Raw NGTDM matrix
+        if get_raw_matrices && (compute_all || :ngtdm in features)
+            results_ngtdm_raw = fetch(t_ngtdm_raw)
+            raw_mat = results_ngtdm_raw.value
+            radiomic_features["raw_ngtdm_matrix"] = raw_mat
+            total_time_accumulated += results_ngtdm_raw.time
+            total_bytes_accumulated += results_ngtdm_raw.bytes
+            if verbose
+                log_println("NGTDM raw matrix: $(results_ngtdm_raw.time) sec — matrix $(size(raw_mat)) stored under \"raw_ngtdm_matrix\"")
+            end
+        end
+
         # GLRLM features
-        if compute_all || :glrlm in features
+        if (compute_all || :glrlm in features) && !get_raw_matrices
             results_glrlm = fetch(t_glrlm_features)
             glrlm_features = results_glrlm.value
             merge!(radiomic_features, glrlm_features)
@@ -552,8 +650,20 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             end
         end
 
+        # Raw GLRLM matrix
+        if get_raw_matrices && (compute_all || :glrlm in features)
+            results_glrlm_raw = fetch(t_glrlm_raw)
+            raw_mat = results_glrlm_raw.value
+            radiomic_features["raw_glrlm_matrix"] = raw_mat
+            total_time_accumulated += results_glrlm_raw.time
+            total_bytes_accumulated += results_glrlm_raw.bytes
+            if verbose
+                log_println("GLRLM raw matrix: $(results_glrlm_raw.time) sec — matrix $(size(raw_mat)) stored under \"raw_glrlm_matrix\"")
+            end
+        end
+
         # GLDM features
-        if compute_all || :gldm in features
+        if (compute_all || :gldm in features) && !get_raw_matrices
             results_gldm = fetch(t_gldm_features)
             gldm_features = results_gldm.value
             merge!(radiomic_features, gldm_features)
@@ -562,6 +672,18 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             if verbose
                 log_println("GLDM: $(results_gldm.time) sec, $(results_gldm.bytes / 1024^2) MiB")
                 print_features("GLDM Features", gldm_features; log_buffer=log_buffer)
+            end
+        end
+
+        # Raw GLDM matrix
+        if get_raw_matrices && (compute_all || :gldm in features)
+            results_gldm_raw = fetch(t_gldm_raw)
+            raw_mat = results_gldm_raw.value          
+            radiomic_features["raw_gldm_matrix"] = raw_mat
+            total_time_accumulated += results_gldm_raw.time
+            total_bytes_accumulated += results_gldm_raw.bytes
+            if verbose
+                log_println("GLDM raw matrix: $(results_gldm_raw.time) sec — matrix stored under \"raw_gldm_matrix\"")
             end
         end
 
