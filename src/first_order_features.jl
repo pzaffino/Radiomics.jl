@@ -20,7 +20,7 @@ function get_first_order_features(img::Array{<:Real,3}, mask::BitArray{3}, voxel
         println("Extracting first order features...")
     end
 
-    first_order_features = Dict{String,Float64}()
+    first_order_features = Dict{String,Any}()
 
     # Some data can be useful for features extraction
     voxel_volume::Float64 = voxel_spacing_f64[1] * voxel_spacing_f64[2] * voxel_spacing_f64[3]

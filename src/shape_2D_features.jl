@@ -14,7 +14,7 @@ function get_shape2d_features(mask_array::BitArray{2}, spacing::Vector{Float32},
         println("Extracting 2D shape features...")
     end
 
-    shape_2d_features = Dict{String, Float32}()
+    shape_2d_features = Dict{String, Any}()
 
     perimeter, surface, diameter = get_coefficients(mask_array, spacing)
 
