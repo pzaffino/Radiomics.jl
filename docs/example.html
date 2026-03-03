@@ -828,8 +828,6 @@ mask = <span class="julia-function">niread</span>(<span class="julia-string">"sa
 spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
 
 features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; verbose = true, <span class="julia-literal">get_raw_matrices=true</span>);</code></pre>
-                    <span class="julia-string">mat = <span class="julia-function">features</span>[<span
-                            class="julia-string">"raw_glcm_matrices"</span>]</span>
                 </div>
             </div>
 
@@ -874,6 +872,25 @@ mask = <span class="julia-function">niread</span>(<span class="julia-string">"sa
 spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
 
 features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; verbose = true, get_raw_matrices=true, <span class="julia-literal">labels=[1,2]</span>);</code></pre>
+                </div>
+            </div>
+
+            <!-- SNIPPET 11 -->
+            <div class="section">
+                <h3>Accessing matrix data</h3>
+                <p>To access the raw matrices from the texture features, use the following code:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+mat = <span class="julia-function">features</span>[<span class="julia-string">"raw_glcm_matrices"</span>]
+
                 </div>
             </div>
 
