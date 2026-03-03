@@ -20,7 +20,7 @@ Right now, the implemented features are:
 ## **Website with complete documentation**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
-## **Getting started**
+# **Getting started**
 To install Radiomics.jl, simply run:
 
 ```julia
@@ -42,7 +42,7 @@ spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing)
 ```
-# Multi threading
+## Multi threading
 Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
 
 To do this, you can define and set the following environment variable: JULIA_NUM_THREADS=auto
@@ -59,10 +59,10 @@ If you want to use Radiomics.jl from Python by using Juliacall (see below), add 
 export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
 ```
 
-## Using Radiomics.jl from Python
+# Using Radiomics.jl from Python
 Radiomics.jl can be used directly from Python in a simple and convenient way.
 
-### Setup
+## Setup
 
 Juliacall acts as a bridge between Python and Julia.
 
@@ -81,7 +81,7 @@ from juliacall import Main as jl
 jl.seval('import Pkg; Pkg.add("Radiomics")')
 ```
 
-### Feature extraction
+## Feature extraction
 
 Once the environment is set up, you can extract radiomic features as shown below:
 
