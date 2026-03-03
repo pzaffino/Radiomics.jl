@@ -42,7 +42,7 @@ spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing)
 ```
-## Multi threading
+# Multi threading
 Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
 
 To do this, you can define and set the following environment variable: JULIA_NUM_THREADS=auto
