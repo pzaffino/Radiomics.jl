@@ -14,7 +14,6 @@ using Statistics
         - `n_bins`: The number of bins for discretizing intensity values (optional).
         - `bin_width`: The width of each bin (optional).
         - `weighting_norm`: The norm used for weighting the GLCM (optional), Weighting method ("infinity (Chebyshev)", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
-        - `raw_matrices`: If true, returns one raw (unnormalized, unweighted) GLCM matrix per direction instead of the standard aggregated result.
         - `verbose`: If true, enables verbose output for debugging or detailed processing information.
 
     # Returns:
@@ -28,7 +27,6 @@ function calculate_glcm_3d(img::Array{Float32,3},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
-    raw_matrices::Bool=false,
     verbose::Bool=false)
 
     disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
@@ -109,12 +107,7 @@ function calculate_glcm_3d(img::Array{Float32,3},
         end
 
         # Handle normalization based on weighting
-        if raw_matrices
-            # Raw mode: keep unnormalized matrix per direction (skip empty ones)
-            if sum(G) > 0
-                push!(glcm_matrices, G)
-            end
-        elseif !isnothing(weighting_norm) && weighting_norm != "no_weighting"
+        if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
             # Apply weight WITHOUT normalizing
             if sum(G) > 0
                 @. G *= weights[dir_idx]
@@ -130,8 +123,8 @@ function calculate_glcm_3d(img::Array{Float32,3},
         end
     end
 
-    # If weighting is applied (and NOT raw mode), sum all weighted matrices and normalize ONCE
-    if !raw_matrices && !isnothing(weighting_norm) && weighting_norm != "no_weighting" && !isempty(glcm_matrices)
+    # If weighting is applied, sum all weighted matrices and normalize ONCE
+    if !isnothing(weighting_norm) && weighting_norm != "no_weighting" && !isempty(glcm_matrices)
         summed_glcm = sum(glcm_matrices)
         total = sum(summed_glcm)
         if total > 0
@@ -457,6 +450,7 @@ You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
     - `weighting_norm`: The norm used for weighting the GLCM (optional), Weighting method ("infinity (Chebyshev)", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
+    - `get_raw_matrices`: If true, returns one raw (unnormalized, unweighted) GLCM matrix per direction instead of the standard aggregated result.
     - `verbose`: If true, enables verbose output for debugging or detailed processing information.
     
 # Returns:
@@ -481,6 +475,7 @@ function get_glcm_features(img::Array{Float32,3},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float32,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
+    get_raw_matrices::Bool=false,
     verbose::Bool=false)
 
     if verbose
@@ -499,33 +494,41 @@ function get_glcm_features(img::Array{Float32,3},
         weighting_norm=weighting_norm,
         verbose=verbose)
 
-
+    features = Dict{String, Any}()
+    
     if isempty(glcm_matrices)
-        return Dict{String,Float32}()
+        return features
+    end
+
+    if get_raw_matrices
+        if verbose
+            println("=================================")
+            println("GLCM Matrix Dimensions: $(size(glcm_matrices[1]))  →  $(size(glcm_matrices[1],1)) gray levels × $(size(glcm_matrices[1],2)) gray levels")
+            println("Number of directional matrices saved: $(length(glcm_matrices))")
+            println("GLCM saved in dictionary.")
+            println("=================================")
+        end
+        features["raw_glcm_matrices"] = glcm_matrices
+        return features
     end
 
     all_features = [extract_glcm_features_single(glcm, gray_levels) for glcm in glcm_matrices]
 
-    # Get feature names and pre-allocate result dictionary
     feature_names = collect(keys(all_features[1]))
-    n_features = length(feature_names)
     n_matrices = length(all_features)
-    feats = Dict{String,Float32}()
-    sizehint!(feats, n_features)
-
-    # Compute mean features more efficiently
     inv_n = 1.0f0 / Float32(n_matrices)
+
     @inbounds for name in feature_names
         sum_val = 0.0f0
         for f in all_features
             sum_val += f[name]
         end
-        feats[name] = sum_val * inv_n
+        features[name] = sum_val * inv_n
     end
 
-    verbose && println("completed! Extract $(length(feats)) features.")
+    verbose && println("completed! Extract $(length(features)) features.")
 
-    return feats
+    return features
 end
 
 """

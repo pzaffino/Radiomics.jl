@@ -47,7 +47,7 @@ function get_ngtdm_features(img, mask, voxel_spacing;
         end
     end
 
-    ngtdm_features = Dict{String, Float32}()
+    ngtdm_features = Dict{String, Any}()
 
     # 1. Discretize the image
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
@@ -61,7 +61,15 @@ function get_ngtdm_features(img, mask, voxel_spacing;
     P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, verbose)
 
     if get_raw_matrices
-        return P_ngtdm  
+        if verbose
+            println("=================================")
+            println("NGTDM Matrix Dimensions: $(size(P_ngtdm))  →  $(size(P_ngtdm,1)) gray levels × $(size(P_ngtdm,2)) zone sizes")
+            println("Number of zones: $(sum(P_ngtdm))")
+            println("NGTDM saved in dictionary.")
+            println("=================================")
+        end
+        ngtdm_features["raw_ngtdm_matrix"] = P_ngtdm
+        return ngtdm_features
     end
 
     # 3. Calculate coefficients

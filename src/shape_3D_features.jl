@@ -666,7 +666,7 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
 
     processed_mask = pad_mask(processed_mask, pad_width)
     
-    shape_3d_features = Dict{String,Float64}()
+    shape_3d_features = Dict{String,Any}()
 
     task_axes = Threads.@spawn begin
         if verbose println("[Thread 1] Calculating principal axes...") end

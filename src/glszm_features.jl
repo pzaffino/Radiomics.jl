@@ -47,7 +47,7 @@ function get_glszm_features(img, mask, voxel_spacing;
         end
     end
 
-    glszm_features = Dict{String, Float32}()
+    glszm_features = Dict{String, Any}()
 
     # 1. Discretize the image
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
@@ -61,7 +61,15 @@ function get_glszm_features(img, mask, voxel_spacing;
     P_glszm, gray_levels = calculate_glszm_matrix(discretized_img, mask, verbose)
 
     if get_raw_matrices
-        return P_glszm  
+        if verbose
+            println("=================================")
+            println("GLSZM Matrix Dimensions: $(size(P_glszm))  →  $(size(P_glszm,1)) gray levels × $(size(P_glszm,2)) zone sizes")
+            println("Number of zones: $(sum(P_glszm))")
+            println("GLSZM saved in dictionary.")
+            println("=================================")
+        end
+        glszm_features["raw_glszm_matrix"] = P_glszm
+        return glszm_features
     end
 
     # 3. Calculate coefficients

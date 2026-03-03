@@ -312,7 +312,7 @@ end
         # Returns:
         - Nothing. Prints the features to the console.
 """
-function print_features(title::String, features::Dict{String,<:Real}; log_buffer::Union{Vector{String}, Nothing}=nothing)
+function print_features(title::String, features::Dict{String,Any}; log_buffer::Union{Vector{String}, Nothing}=nothing)
     output = String[]
     
     push!(output, "\n--- $title ---")

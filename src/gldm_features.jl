@@ -50,7 +50,7 @@ function get_gldm_features(img, mask, voxel_spacing;
         end
     end
 
-    gldm_features = Dict{String,Float32}()
+    gldm_features = Dict{String,Any}()
 
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
@@ -62,7 +62,15 @@ function get_gldm_features(img, mask, voxel_spacing;
     P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
 
     if get_raw_matrices
-        return P_gldm
+        if verbose
+            println("=================================")
+            println("GLDM Matrix Dimensions: $(size(P_gldm))  →  $(size(P_gldm,1)) gray levels × $(size(P_gldm,2)) dependence values")
+            println("Number of zones: $(sum(P_gldm))")
+            println("GLDM saved in dictionary.")
+            println("=================================")
+        end
+        gldm_features["raw_gldm_matrix"] = P_gldm
+        return gldm_features
     end
 
     Nz, pd, pg, ivector, jvector = calculate_gldm_coefficients(P_gldm, gray_levels)

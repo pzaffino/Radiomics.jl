@@ -53,7 +53,7 @@ function get_glrlm_features(img, mask, voxel_spacing;
         end
     end
 
-    glrlm_features = Dict{String,Float32}()
+    glrlm_features = Dict{String,Any}()
 
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
@@ -65,7 +65,15 @@ function get_glrlm_features(img, mask, voxel_spacing;
     P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, verbose)
 
     if get_raw_matrices
-        return P_glrlm
+        if verbose
+            println("=================================")
+            println("GLRLM Matrix Dimensions: $(size(P_glrlm))  →  $(size(P_glrlm,1)) gray levels × $(size(P_glrlm,2)) run lengths")
+            println("Number of runs: $(sum(P_glrlm))")
+            println("GLRLM saved in dictionary.")
+            println("=================================")
+        end
+        glrlm_features["raw_glrlm_matrix"] = P_glrlm, angles
+        return glrlm_features
     end
 
     feature_names = [
