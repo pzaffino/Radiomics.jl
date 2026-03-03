@@ -2,7 +2,8 @@
 <a href="https://github.com/pzaffino/radiomics.jl">
   <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Logo Radiomicsjl" width="500"/>
 </a>
-
+## **Website with complete documentation**
+For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
 **Radiomics.jl** is an open-source Julia library for extracting radiomics features from medical images.
 
@@ -44,7 +45,7 @@ mask = niread("sample_data/Lungs.nii.gz")
 spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing)
-
+```
 ## Multi threading
 Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
 
@@ -105,7 +106,3 @@ spacing = ct_sitk.GetSpacing()
 
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
-
-## **Website with complete documentation**
-For complete documentation, visit the [official website](https://www.radiomicsjl.org).
-
