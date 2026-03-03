@@ -821,16 +821,14 @@ features = <span class="julia-type">Radiomics</span>.<span class="julia-function
                         <span class="code-dot"></span>
                     </div>
                     <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
-<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+                    <span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
 
-ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
-mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
-spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+                    ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+                    mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+                    spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
 
-mat = <span class="julia-function">features</span>[<span class="julia-literal">"raw_glcm_matrices"</span>]
-
-features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; verbose = true, <span class="julia-literal">get_raw_matrices=true</span>);</code></pre>
-
+                    features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; verbose = true, <span class="julia-literal">get_raw_matrices=true</span>);</code></pre>
+                    mat = <span class="julia-function">features</span>["raw_glcm_matrices"]
                 </div>
             </div>
 
