@@ -3,15 +3,10 @@
   <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Logo Radiomicsjl" width="500"/>
 </a>
 
-## **Website with complete documentation**
-For complete documentation, visit the [official website](https://www.radiomicsjl.org).
-
 **Radiomics.jl** is an open-source Julia library for extracting radiomics features from medical images.
-
 :email: If you're interested in contributing to the project, please contact us via email at "p DOT zaffino AT unicz DOT it" :email:
 
 ## **Implemented features**
-
 Right now, the implemented features are:
 - first-order features
 - 2D shape features
@@ -22,8 +17,10 @@ Right now, the implemented features are:
 - GLSZM features
 - NGTDM features
 
-## **Getting started**
+## **Website with complete documentation**
+For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
+## **Getting started**
 To install Radiomics.jl, simply run:
 
 ```julia
@@ -33,7 +30,6 @@ Pkg.add("Radiomics")
 You can install Radiomics.jl on either your local machine or Google Colab.
 
 ## **Example**
-
 Once the library is installed, radiomics features can be extracted as reported in the following example (sample data shipped with the library are used):
 
 ```julia
