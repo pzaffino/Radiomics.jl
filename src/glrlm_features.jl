@@ -87,7 +87,7 @@ function get_glrlm_features(img, mask, voxel_spacing;
     ]
 
     for (idx, feature_name) in enumerate(feature_names)
-        glrlm_features["glrlm_"*feature_name] = calculate_glrlm_feature(idx, P_glrlm)
+        glrlm_features["glrlm_"*feature_name] = calculate_glrlm_feature(idx, P_glrlm, gray_levels)
     end
 
     if verbose
@@ -241,7 +241,7 @@ end
     # Returns
     - The calculated feature value.
 """
-function calculate_glrlm_feature(feature_idx, P_glrlm)
+function calculate_glrlm_feature(feature_idx, P_glrlm, gray_levels)
     num_angles = size(P_glrlm, 3)
     feature_values = zeros(Float32, num_angles)
 
@@ -258,7 +258,8 @@ function calculate_glrlm_feature(feature_idx, P_glrlm)
 
         pr = sum(p_glrlm, dims=1)
         pg = sum(p_glrlm, dims=2)
-        ivector = Float32.(1:size(p_glrlm, 1))
+        
+        ivector = Float32.(gray_levels) 
         jvector = Float32.(1:size(p_glrlm, 2))
 
         # Pre-compute squared vectors
