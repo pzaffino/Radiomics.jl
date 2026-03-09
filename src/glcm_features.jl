@@ -2,7 +2,7 @@ using LinearAlgebra
 using Statistics
 
 """ 
-    function calculate_glcm_3d(img::Array{Float32,3}, mask::BitArray{3}, spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float32,Nothing}=nothing, verbose::Bool=false)
+    function calculate_glcm_3d(img::Array{Float32,3}, mask::BitArray{3}, spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
 
     Calculates the Gray Level Co-occurrence Matrix (GLCM) for a 3D image within a specified mask.
     You can specify EITHER n_bins OR bin_width, but not both.
@@ -25,7 +25,7 @@ function calculate_glcm_3d(img::Array{Float32,3},
     mask::BitArray{3},
     spacing::Vector{Float32};
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float32,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false)
 
@@ -431,7 +431,7 @@ end
 """
 function get_glcm_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32};
                             n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float32,Nothing}=nothing,
+                            bin_width::Union{Float64,Nothing}=nothing,
                             weighting_norm::Union{String,Nothing}=nothing,
                             verbose::Bool=false)
 
@@ -473,7 +473,7 @@ function get_glcm_features(img::Array{Float32,3},
     mask::BitArray{3},
     voxel_spacing::Vector{Float32};
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float32,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
     get_raw_matrices::Bool=false,
     verbose::Bool=false)
@@ -534,7 +534,7 @@ end
 """
     function get_glcm_features(img::Matrix{Float32}, mask::BitMatrix, voxel_spacing::Vector{Float32};
                             n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float32,Nothing}=nothing,
+                            bin_width::Union{Float64,Nothing}=nothing,
                             verbose::Bool=false)            
     Wrapper function to compute GLCM features for 2D images by reshaping them into 3D format.
     This function adds a singleton third dimension to the 2D image and mask, allowing the
@@ -554,7 +554,7 @@ function get_glcm_features(img::Matrix{Float32},
     mask::BitMatrix,
     voxel_spacing::Vector{Float32};
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float32,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
     verbose::Bool=false)
 
