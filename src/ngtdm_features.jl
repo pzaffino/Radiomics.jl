@@ -34,7 +34,7 @@ using StatsBase
     """
 function get_ngtdm_features(img, mask, voxel_spacing; 
                            n_bins::Union{Int,Nothing}=nothing,
-                           bin_width::Union{Float32,Nothing}=nothing,
+                           bin_width::Union{Float64,Nothing}=nothing,
                            get_raw_matrices::Bool=false,
                            verbose=false)
     if verbose

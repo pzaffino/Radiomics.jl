@@ -35,7 +35,7 @@ using StatsBase
 """
 function get_glrlm_features(img, mask, voxel_spacing;
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float32,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
     get_raw_matrices::Bool=false,
     verbose=false)

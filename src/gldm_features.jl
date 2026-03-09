@@ -36,7 +36,7 @@ using StatsBase
 """
 function get_gldm_features(img, mask, voxel_spacing;
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float32,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
     gldm_a=0,
     get_raw_matrices::Bool=false,
     verbose=false)

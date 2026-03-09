@@ -70,7 +70,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     verbose::Bool=false)
 
     # Convert parameters to correct types
-    bin_width = isnothing(bin_width) ? Float64(25.0) : Float64(bin_width)
+    bin_width = isnothing(bin_width) ? nothing : Float64(bin_width)
     sample_rate = Float64(sample_rate)
     
     # Convert features (supports String, Vector{String}, Symbol, Vector{Symbol})
@@ -284,8 +284,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         end
         if !isnothing(n_bins)
             println("Using n_bins = $n_bins")
-        else
+        elseif !isnothing(bin_width)
             println("Using bin_width = $bin_width")
+        else
+            println("Using default bin width: 25.0")
         end
         if sample_rate != 0.03
             println("Using explicit sample_rate = $sample_rate")
@@ -400,7 +402,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     input_sanity_check(img, mask, verbose)
 
     # Validate binning parameters
-    if isnothing(n_bins) && voxel_count > 0
+    if isnothing(n_bins) && !isnothing(bin_width) && voxel_count > 0
         validate_binning_parameters(img, mask, bin_width)
     end
 
@@ -425,7 +427,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             t_glcm_features = Threads.@spawn @timed get_glcm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=Float32(bin_width),
+                bin_width=bin_width,
                 weighting_norm=weighting_norm,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
@@ -447,7 +449,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             t_glszm_features = Threads.@spawn @timed get_glszm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=Float32(bin_width),
+                bin_width=bin_width,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
             )
@@ -458,7 +460,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             t_ngtdm_features = Threads.@spawn @timed get_ngtdm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=Float32(bin_width),
+                bin_width=bin_width,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
             )
@@ -469,7 +471,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             t_glrlm_features = Threads.@spawn @timed get_glrlm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=Float32(bin_width),
+                bin_width=bin_width,
                 weighting_norm=weighting_norm,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
@@ -481,7 +483,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             t_gldm_features = Threads.@spawn @timed get_gldm_features(
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
-                bin_width=Float32(bin_width),
+                bin_width=bin_width,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
             )
