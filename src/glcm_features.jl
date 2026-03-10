@@ -291,14 +291,10 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
                 idm += p / (1.0f0 + d2)
                 id += p / (1.0f0 + absd)
                 
-                # Per Idmn e Idn, usa il range effettivo dei gray levels
-                if gray_level_range > 0
-                    idmn += p / (1.0f0 + (d / gray_level_range)^2)
-                    idn += p / (1.0f0 + absd / gray_level_range)
-                else
-                    idmn += p
-                    idn += p
-                end
+                k = Float32(abs(i - j))
+                ng = Float32(n_levels)
+                idmn += p / (1.0f0 + (k / ng)^2)
+                idn  += p / (1.0f0 + k / ng)
 
                 # Inverse variance
                 if i != j
