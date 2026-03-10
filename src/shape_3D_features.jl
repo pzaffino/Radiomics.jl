@@ -208,7 +208,7 @@ function principal_axes_features(coords::Vector{Point3D})
     @inbounds for p in coords; mx+=p[1]; my+=p[2]; mz+=p[3]; end
     mx/=n; my/=n; mz/=n
 
-    sn = sqrt(Float64(n))
+    sn = sqrt(Float64(n - 1))
     c11=c12=c13=c22=c23=c33 = 0.0
     @inbounds for p in coords
         dx=(p[1]-mx)/sn; dy=(p[2]-my)/sn; dz=(p[3]-mz)/sn
