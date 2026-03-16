@@ -250,6 +250,8 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     max_prob = 0.0f0
     sum_squares = 0.0f0
 
+    ng = Float32(max_gray_level - min_gray_level + 1)
+
     # Main feature extraction loop - optimized
     @inbounds for i in 1:n_levels
         xi = gray_levels_f32[i]
@@ -291,10 +293,8 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
                 idm += p / (1.0f0 + d2)
                 id += p / (1.0f0 + absd)
                 
-                k = Float32(abs(i - j))
-                ng = Float32(n_levels)
-                idmn += p / (1.0f0 + (k / ng)^2)
-                idn  += p / (1.0f0 + k / ng)
+                idmn += p / (1.0f0 + (absd / ng)^2)
+                idn  += p / (1.0f0 + absd / ng)
 
                 # Inverse variance
                 if i != j
