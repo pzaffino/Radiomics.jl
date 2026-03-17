@@ -305,18 +305,23 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
     area, meshvol, vol_ratio, sph      = fetch(task_geom)
     maxdiam                            = fetch(task_diam)
 
-    return Dict{String,Any}(
-        "shape3d_surface_area"         => area,
-        "shape3d_mesh_volume"          => meshvol,
-        "shape3d_surface_volume_ratio" => vol_ratio,
-        "shape3d_sphericity"           => sph,
-        "shape3d_maximum_3d_diameter"  => maxdiam,
-        "shape3d_least_axis_length"    => axes_lengths[1],
-        "shape3d_minor_axis_length"    => axes_lengths[2],
-        "shape3d_major_axis_length"    => axes_lengths[3],
-        "shape3d_elongation"           => elongation,
-        "shape3d_flatness"             => flatness,
-        "shape3d_voxel_volume"         => vol_voxel,
-        "shape3d_number_of_islands"    => Float64(num_islands),
-    )
+    shape_3d_features = Dict{String, Any}()
+
+    shape_3d_features["shape3d_surface_area"]         = area
+    shape_3d_features["shape3d_mesh_volume"]          = meshvol
+    shape_3d_features["shape3d_surface_volume_ratio"] = vol_ratio
+    shape_3d_features["shape3d_sphericity"]           = sph
+
+    shape_3d_features["shape3d_maximum_3d_diameter"]  = maxdiam
+
+    shape_3d_features["shape3d_least_axis_length"]    = axes_lengths[1]
+    shape_3d_features["shape3d_minor_axis_length"]    = axes_lengths[2]
+    shape_3d_features["shape3d_major_axis_length"]    = axes_lengths[3]
+    shape_3d_features["shape3d_elongation"]           = elongation
+    shape_3d_features["shape3d_flatness"]             = flatness
+
+    shape_3d_features["shape3d_voxel_volume"]         = vol_voxel
+    shape_3d_features["shape3d_number_of_islands"]    = Float64(num_islands)
+
+    return shape_3d_features
 end
