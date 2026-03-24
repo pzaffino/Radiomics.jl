@@ -26,7 +26,7 @@ function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_tim
     diagnosis_features["diagnosis_Keep_largest_only"] = !isnothing(keep_largest_only) ? keep_largest_only : true
     
     #parameters of the image
-    diagnosis_features["diagnosis_Voxel_spacing"] = [voxel_spacing[1], voxel_spacing[2], voxel_spacing[3]]
+    diagnosis_features["diagnosis_Voxel_spacing"] = collect(voxel_spacing)
     diagnosis_features["diagnosis_Image_size"] = collect(size(image))
     diagnosis_features["diagnosis_Mask_size"] = collect(size(mask))
     

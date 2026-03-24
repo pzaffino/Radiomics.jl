@@ -67,6 +67,8 @@ mktempdir() do tmpdir
 
     @info "Download complete."
 
+    @info "Executing tests..."
+
     @testset "Radiomics test" begin
 
         ct = niread(phantom_path)
