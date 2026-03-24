@@ -47,12 +47,6 @@ function get_shape2d_features(mask_array::BitArray{2}, spacing::Vector{Float32},
     # Elongation
     shape_2d_features["shape2d_elongation"] = get_elongation(ev)
 
-    if verbose
-        for (k, v) in shape_2d_features
-            println("  $k = $v")
-        end
-    end
-
     return shape_2d_features
 end
 
@@ -187,6 +181,37 @@ end
     - A tuple containing perimeter, surface, and maximum diameter as Float32 values.
     """
 function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float32})::Tuple{Float32, Float32, Float32}
+    """
+    The marching squares algorithm iterates from iy = 1 to ny - 1, so row 0 and row ny - 1
+    are never used as the top-left corner of a cell.
+    Without padding, all contour edges along the first and last row/column
+    of the mask are never detected.
+
+    Example with a (4,5) mask without padding:
+    1 1 1 0 0
+    1 1 1 1 1  ← row 0: NEVER visited as a top corner
+    1 1 0 1 1
+    1 1 1 1 1  ← row 3: NEVER visited as a top corner
+
+    With zero padding:
+    0 0 0 0 0 0 0
+    0 1 1 1 0 0 0
+    0 1 1 1 1 1 0  ← now row 1 (former row 0) has a zero above it
+    0 1 1 0 1 1 0     and generates mixed cells detectable by the loop
+    0 1 1 1 1 1 0
+    0 0 0 0 0 0 0
+
+    Each pixel of the original mask now has at least one zero neighbor on all sides,
+    so all border cells are detected as mixed and the contour closes.
+
+    Without this:
+    - the shoelace formula does not receive a closed polygon => incorrect area
+    - the diameter computation finds no valid vertices => returns 0.0
+    """
+    padded = zeros(Int, size(mask, 1) + 2, size(mask, 2) + 2)
+    padded[2:end-1, 2:end-1] .= mask
+    mask = padded
+
     perimeter = 0.0
     surface = 0.0
 
@@ -271,7 +296,7 @@ function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float
         end
     end
 
-    surface /= 2.0
+    surface = abs(surface) / 2.0
     diameter = calculate_mesh_diameter2d(vertices)
     return Float32(perimeter), Float32(surface), Float32(diameter)
 end
