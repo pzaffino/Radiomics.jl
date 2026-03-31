@@ -66,10 +66,10 @@ mktempdir() do tmpdir
     Downloads.download(MASK_DIR, mask_path)
 
     @info "Download complete."
-
-    @info "Executing tests..."
-
-    @testset "Radiomics test" begin
+    
+    @info "Executing tests for 3D Features..."
+    
+    @testset "Radiomics 3D test" begin
 
         ct = niread(phantom_path)
         mask = niread(mask_path)
@@ -196,6 +196,140 @@ mktempdir() do tmpdir
         @test ibsi_test(radiomic_features["shape3d_flatness"], 0.749, 0.005)
         @test ibsi_test(radiomic_features["shape3d_voxel_volume"], 592, 4)
         @test ibsi_test(radiomic_features["shape3d_number_of_islands"], 1, 0)
+
+    end
+
+    @info "Executing tests for 2D Features..."
+    
+    @testset "Radiomics 2D test" begin
+
+        ct = niread(phantom_path)
+        mask = niread(mask_path)
+        spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
+
+        slice_idx = 3
+  
+        ct_slice = ct.raw[:, :, slice_idx]
+        mask_slice = mask.raw[:, :, slice_idx]
+
+        radiomic_2D_features = Radiomics.extract_radiomic_features(ct_slice, mask_slice, spacing; verbose=false, sample_rate = 1.0, n_bins = 6, keep_largest_only=false)
+        
+        # ---- First Order ---- (19 features)
+        @test ibsi_test(radiomic_2D_features["firstorder_entropy"], 0.8343470230852528, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_energy"], 82.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_median"], 1.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_range"], 5.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_maximum"],6, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_robust_mean_absolute_deviation"], 0.65625, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_percentile10"], 1.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_percentile90"], 4.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_minimum"], 1.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_mean"], 1.6470588235294117, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_uniformity"], 0.6955017301038062, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_variance"], 2.110726643598616, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_interquartile_range"], 0.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_root_mean_squared"], 2.1962534944228786, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_mean_absolute_deviation"], 1.065743944636678, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_skewness"], 2.0091745503701466, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_total_energy"], 656.0, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_kurtosis"], 5.5822359580757865, 0)
+        @test ibsi_test(radiomic_2D_features["firstorder_standard_deviation"], 1.4975470138942315, 0)
+
+        # ---- GLCM ---- (24 features)
+        @test ibsi_test(radiomic_2D_features["glcm_Autocorrelation"], 2.369002525252525, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_ClusterProminence"], 29.379996965839368, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_ClusterShade"], 6.349522162635246, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_ClusterTendency"], 3.379222703678196, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Contrast"], 4.176452020202021, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Correlation"], -0.11273883997997489, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_DifferenceAverage"], 1.0565025252525253, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_DifferenceEntropy"], 1.0620199761782945, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_DifferenceVariance"], 2.9625560370115296, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Id"], 0.7778303872053872, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Idm"], 0.7372693278943279, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Idmn"], 0.9218630981950654, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Idn"], 0.8927819865319866, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Imc1"], -0.09725061597992121, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Imc2"], 0.349416066931148, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_InverseVariance"], 0.02451038159371493, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_JointAverage"], 1.5907512626262625, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_JointEntropy"], 1.441418792736606, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_MaximumProbability"], 0.6941287878787878, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_SumAverage"], 3.181502525252525, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_SumEntropy"], 1.156380913948728, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_Mcc"], 0.2881064367074744, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_SumSquares"], 1.8889186809700542, 0)
+        @test ibsi_test(radiomic_2D_features["glcm_JointEnergy"], 0.5149241387996123, 0)
+
+        # ---- GLDM ---- (14 features)
+        @test ibsi_test(radiomic_2D_features["gldm_DependenceEntropy"], 2.60985016602894, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_DependenceNonUniformity"], 3.1176470588235294, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_DependenceNonUniformityNormalized"], 0.18339100346020762, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_DependenceVariance"], 2.8304498269896197, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_GrayLevelNonUniformity"], 11.823529411764707, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_GrayLevelVariance"], 2.110726643598616, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_HighGrayLevelEmphasis"], 4.823529411764706, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_LargeDependenceEmphasis"], 22.294117647058822, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_LargeDependenceHighGrayLevelEmphasis"], 31.41176470588235, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_LargeDependenceLowGrayLevelEmphasis"], 21.795751633986928, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_LowGrayLevelEmphasis"], 0.8325163398692811, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_SmallDependenceEmphasis"], 0.127515339469121, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_SmallDependenceHighGrayLevelEmphasis"], 2.627515339469121, 0)
+        @test ibsi_test(radiomic_2D_features["gldm_SmallDependenceLowGrayLevelEmphasis"], 0.04275226757369615, 0)
+
+        # ---- GLRLM ---- (16 features)
+        @test ibsi_test(radiomic_2D_features["glrlm_GrayLevelNonUniformity"], 5.484848484848485, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_GrayLevelNonUniformityNormalized"], 0.55749253902663, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_GrayLevelVariance"], 3.096630366161616, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_HighGrayLevelRunEmphasis"], 7.4251893939393945, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_LongRunEmphasis"], 4.246212121212121, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_LongRunHighGrayLevelEmphasis"], 12.077651515151516, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_LongRunLowGrayLevelEmphasis"], 3.885640256734007, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_LowGrayLevelRunEmphasis"], 0.7273187605218856, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_RunEntropy"], 2.0820756102292672, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_RunLengthNonUniformity"], 4.496212121212121, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_RunLengthNonUniformityNormalized"], 0.4567263544536272, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_RunPercentage"], 0.573529411764706, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_RunVariance"], 0.8895560720844812, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_ShortRunEmphasis"], 0.5864049347643098, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_ShortRunHighGrayLevelEmphasis"], 6.660031828703703, 0)
+        @test ibsi_test(radiomic_2D_features["glrlm_ShortRunLowGrayLevelEmphasis"], 0.33569635153619526, 0)
+        
+        # ---- GLSZM ---- (16 features)
+        @test ibsi_test(radiomic_2D_features["glszm_GrayLevelNonUniformity"], 1.0, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_GrayLevelNonUniformityNormalized"], 0.3333333333333333, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_GrayLevelVariance"], 4.222222222222222, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_HighGrayLevelZoneEmphasis"], 17.666666666666668, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_LargeAreaEmphasis"], 67.0, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_LargeAreaHighGrayLevelEmphasis"], 98.66666666666667, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_LargeAreaLowGrayLevelEmphasis"], 65.42592592592592, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_LowGrayLevelZoneEmphasis"], 0.3634259259259259, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_SizeZoneNonUniformity"], 1.0, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_SizeZoneNonUniformityNormalized"], 0.3333333333333333, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_SmallAreaEmphasis"], 0.4183673469387755, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_SmallAreaHighGrayLevelEmphasis"], 13.335034013605442, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_SmallAreaLowGrayLevelEmphasis"], 0.016168272864701436, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_ZoneEntropy"], 1.5849625007211552, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_ZonePercentage"], 0.17647058823529413, 0)
+        @test ibsi_test(radiomic_2D_features["glszm_ZoneVariance"], 34.888888888888886, 0)
+        
+        # ---- NGTDM ---- (5 features)
+        @test ibsi_test(radiomic_2D_features["ngtdm_Busyness"], 3.940625, 0)
+        @test ibsi_test(radiomic_2D_features["ngtdm_Coarseness"], 0.13481363996827916, 0)
+        @test ibsi_test(radiomic_2D_features["ngtdm_Complexity"], 8.37328431372549, 0)
+        @test ibsi_test(radiomic_2D_features["ngtdm_Contrast"], 0.7298857259166641, 0)
+        @test ibsi_test(radiomic_2D_features["ngtdm_Strength"], 3.5422771781859765, 0)
+
+        #--- Shape2D --- 
+        @test ibsi_test(radiomic_2D_features["shape2d_elongation"], 0.7143974655883708, 0.005)
+        @test ibsi_test(radiomic_2D_features["shape2d_major_axis_length"], 11.63955229821705, 0.1)
+        @test ibsi_test(radiomic_2D_features["shape2d_maximum_diameter"], 11.661903789690601, 0.1)
+        @test ibsi_test(radiomic_2D_features["shape2d_mesh_surface"], 68.0, 4)
+        @test ibsi_test(radiomic_2D_features["shape2d_minor_axis_length"], 8.315266662429558, 0.06)
+        @test ibsi_test(radiomic_2D_features["shape2d_perimeter"], 38.14213562373095, 0)
+        @test ibsi_test(radiomic_2D_features["shape2d_perimeter_surface_ratio"], 0.560913759172514, 0.004)
+        @test ibsi_test(radiomic_2D_features["shape2d_pixel_surface"], 68.0, 0)
+        @test ibsi_test(radiomic_2D_features["shape2d_sphericity"], 0.7663980345420807, 0.005)
 
     end
 

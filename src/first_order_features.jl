@@ -10,10 +10,10 @@ using StatsBase
     # Returns
     - first_order_features::Dict{String, Float64}: Dictionary containing the extracted first order
       features
-    """
-function get_first_order_features(img::Array{<:Real,3}, mask::BitArray{3}, voxel_spacing::Vector{<:Real}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
+    """ 
+function get_first_order_features(img::Array{<:Real}, mask::BitArray, voxel_spacing::Vector{<:Real}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
     # Convert inputs to Float64 explicitly
-    img_f64 = convert(Array{Float64,3}, img)
+    img_f64 = convert(Array{Float64}, img)
     voxel_spacing_f64 = convert(Vector{Float64}, voxel_spacing)
     
     if verbose
@@ -23,7 +23,7 @@ function get_first_order_features(img::Array{<:Real,3}, mask::BitArray{3}, voxel
     first_order_features = Dict{String,Any}()
 
     # Some data can be useful for features extraction
-    voxel_volume::Float64 = voxel_spacing_f64[1] * voxel_spacing_f64[2] * voxel_spacing_f64[3]
+    voxel_volume::Float64 = prod(voxel_spacing_f64) 
     roi_voxels::Vector{Float64} = extract_roi_voxels(img_f64, mask)
 
     disc, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
@@ -118,7 +118,7 @@ end
     # Returns
     - roi_voxels::Vector{Float64}: Vector containing the voxel values within the region of interest
     """
-function extract_roi_voxels(img::Array{Float64,3}, mask::BitArray{3})::Vector{Float64}
+function extract_roi_voxels(img::Array{Float64}, mask::BitArray)::Vector{Float64}
     v = vec(img[mask])
     any(isnan, v) && error("Image contains NaN values")
     return v
