@@ -9,9 +9,24 @@ using LinearAlgebra
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
     """
-function get_shape2d_features(mask_array::BitArray{2}, spacing::Vector{Float32}, verbose::Bool=false)
-    if verbose
-        println("Extracting 2D shape features...")
+function get_shape2d_features(mask_array::BitArray{2}, 
+                               spacing::Vector{Float32}; 
+                               verbose::Bool=false,
+                               keep_largest_only = true
+                               )
+
+    verbose && println("Extracting 2D shape features...")
+
+    if keep_largest_only
+        verbose && println("Checking for multiple connected components...")
+        processed_mask, num_islands = keep_largest_component(mask_array)
+        if verbose && sum(processed_mask) < sum(mask_array)
+            removed = sum(mask_array) - sum(processed_mask)
+            println("Removed $removed voxels ($(round(100*removed/sum(mask_array), digits=2))%) from smaller components")
+        end
+    else
+        processed_mask = mask_array
+        num_islands    = 1
     end
 
     shape_2d_features = Dict{String, Any}()

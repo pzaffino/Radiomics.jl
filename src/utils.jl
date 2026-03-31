@@ -108,13 +108,13 @@ end
         # Default (bin_width=25.0f0)
         disc, n_bins, levels, bw = discretize_image(img, mask)
     """
-function discretize_image(img::Array{<:Real,3},
-    mask::BitArray{3};
+function discretize_image(img::Array{<:Real},
+    mask::BitArray;
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{<:Real,Nothing}=nothing)
 
     # Convert to Float32 for backward compatibility
-    img_f32 = convert(Array{Float32,3}, img)
+    img_f32 = convert(Array{Float32}, img)
     bin_width_f32 = isnothing(bin_width) ? nothing : Float32(bin_width)
 
     # Early check for empty mask
@@ -184,28 +184,24 @@ end
     - A vector of linear indices of the neighbors.
     """
 @inline function get_neighbors(idx, dims)
-    # Pre-allocate with maximum possible size (26 for 3D)
-    neighbors = Vector{Int}(undef, 26)
+    n = ndims(CartesianIndices(dims))
+    max_neighbors = 3^n - 1  # 8 per 2D, 26 per 3D
+    neighbors = Vector{Int}(undef, max_neighbors)
     count = 0
 
     cartesian_idx = CartesianIndices(dims)[idx]
     linear_indices = LinearIndices(dims)
     cartesian_range = CartesianIndices(dims)
 
-    @inbounds for dz in -1:1, dy in -1:1, dx in -1:1
-        if dz == 0 && dy == 0 && dx == 0
-            continue
-        end
-
-        new_cartesian_idx = cartesian_idx + CartesianIndex(dx, dy, dz)
-
+    @inbounds for offset in CartesianIndices(ntuple(_ -> -1:1, n))
+        all(t -> t == 0, Tuple(offset)) && continue
+        new_cartesian_idx = cartesian_idx + offset
         if checkbounds(Bool, cartesian_range, new_cartesian_idx)
             count += 1
             neighbors[count] = linear_indices[new_cartesian_idx]
         end
     end
 
-    # Return only the filled portion
     return resize!(neighbors, count)
 end
 
@@ -247,7 +243,7 @@ function keep_largest_component(mask::AbstractArray{Bool})
     # Check if there are multiple islands
     num_islands = count(>(0), component_sizes)
     if num_islands > 1
-        @warn "Detected $num_islands separate islands in the mask. 3D features will be computed only on the largest island. First order and texture features will consider all islands."
+        @warn "Detected $num_islands separate islands in the mask. Shape features will be computed only on the largest island. First order and texture features will consider all islands."
 
         sorted_pairs = [(i, component_sizes[i]) for i in 1:max_label if component_sizes[i] > 0]
         sort!(sorted_pairs, by=x -> x[2], rev=true)
@@ -265,6 +261,7 @@ function keep_largest_component(mask::AbstractArray{Bool})
 
     return largest_component_mask, num_islands
 end
+
 """
     pad_mask(mask::AbstractArray, pad::Int)
     

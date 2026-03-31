@@ -29,6 +29,7 @@ function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_tim
     diagnosis_features["diagnosis_Voxel_spacing"] = collect(voxel_spacing)
     diagnosis_features["diagnosis_Image_size"] = collect(size(image))
     diagnosis_features["diagnosis_Mask_size"] = collect(size(mask))
+    diagnosis_features["diagnosis_Dimensionality_of_image"] = string(ndims(image)) * "D"
     
     #parameters of the system
     diagnosis_features["diagnosis_Number_of_threads"] = Threads.nthreads()

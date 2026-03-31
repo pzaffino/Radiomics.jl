@@ -2,7 +2,7 @@ using LinearAlgebra
 using Random
 using Statistics
 
-include("LookUp_lewiner_tables.jl")
+include("shape_3D_features_lookup_tables.jl")
 
 const Point3D    = NTuple{3, Float64}
 const Triangle3D = NTuple{3, Point3D}

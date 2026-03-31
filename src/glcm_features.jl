@@ -552,6 +552,7 @@ function get_glcm_features(img::Matrix{Float32},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float64,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
+    get_raw_matrices::Bool=false, 
     verbose::Bool=false)
 
 
@@ -568,5 +569,6 @@ function get_glcm_features(img::Matrix{Float32},
         n_bins=n_bins,
         bin_width=bin_width,
         weighting_norm=weighting_norm,
+        get_raw_matrices=get_raw_matrices,
         verbose=verbose)
 end

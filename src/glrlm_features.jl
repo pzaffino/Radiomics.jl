@@ -117,11 +117,12 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
         println("Calculating GLRLM matrix...")
     end
 
+    dim = ndims(discretized_img)
+
     masked_img = discretized_img[mask]
     gray_levels = sort(unique(masked_img))
     num_gl = length(gray_levels)
 
-    # Pre-allocate gray level map with sizehint!
     gl_map = Dict{Int,Int}()
     sizehint!(gl_map, num_gl)
     @inbounds for (i, gl) in enumerate(gray_levels)
@@ -130,32 +131,38 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
 
     max_run_length = maximum(size(discretized_img))
 
-    angles = [
-        (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1),
-        (1, 1, 0), (-1, -1, 0), (1, -1, 0), (-1, 1, 0), (1, 0, 1), (-1, 0, -1),
-        (1, 0, -1), (-1, 0, 1), (0, 1, 1), (0, -1, -1), (0, 1, -1), (0, -1, 1),
-        (1, 1, 1), (-1, -1, -1), (1, 1, -1), (-1, -1, 1), (1, -1, 1), (-1, 1, -1),
-        (1, -1, -1), (-1, 1, 1)
-    ]
+    if dim == 2
+        angles = [
+            (1, 0), (0, 1), (1, 1), (1, -1),
+            (-1, 0), (0, -1), (-1, -1), (-1, 1)
+        ]
+    else
+        angles = [
+            (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1),
+            (1, 1, 0), (-1, -1, 0), (1, -1, 0), (-1, 1, 0), (1, 0, 1), (-1, 0, -1),
+            (1, 0, -1), (-1, 0, 1), (0, 1, 1), (0, -1, -1), (0, 1, -1), (0, -1, 1),
+            (1, 1, 1), (-1, -1, -1), (1, 1, -1), (-1, -1, 1), (1, -1, 1), (-1, 1, -1),
+            (1, -1, -1), (-1, 1, 1)
+        ]
+    end
 
     num_angles = length(angles)
     P_glrlm = zeros(Float32, num_gl, max_run_length, num_angles)
 
-    # Pre-compute CartesianIndices and LinearIndices
     cart_indices = CartesianIndices(size(discretized_img))
     lin_indices = LinearIndices(size(discretized_img))
 
     @inbounds for (angle_idx, angle) in enumerate(angles)
+        c_angle = CartesianIndex(angle)
         for i in eachindex(discretized_img)
             if mask[i]
                 gl = discretized_img[i]
                 gl_idx = gl_map[gl]
 
                 run_length = 1
-                curr_idx = i
+                curr_idx_cart = cart_indices[i]
 
-                # Check if the run has already been counted
-                prev_idx_cartesian = cart_indices[curr_idx] - CartesianIndex(angle)
+                prev_idx_cartesian = curr_idx_cart - c_angle
                 if checkbounds(Bool, discretized_img, prev_idx_cartesian)
                     prev_idx = lin_indices[prev_idx_cartesian]
                     if mask[prev_idx] && discretized_img[prev_idx] == gl
@@ -163,17 +170,13 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
                     end
                 end
 
-                while true
-                    next_idx_cartesian = cart_indices[curr_idx] + CartesianIndex(angle)
-                    if !checkbounds(Bool, discretized_img, next_idx_cartesian)
-                        break
-                    end
-                    next_idx = lin_indices[next_idx_cartesian]
-                    if !mask[next_idx] || discretized_img[next_idx] != gl
-                        break
-                    end
+                next_idx_cartesian = curr_idx_cart + c_angle
+                while checkbounds(Bool, discretized_img, next_idx_cartesian) && 
+                      mask[lin_indices[next_idx_cartesian]] && 
+                      discretized_img[next_idx_cartesian] == gl
+                    
                     run_length += 1
-                    curr_idx = next_idx
+                    next_idx_cartesian += c_angle
                 end
 
                 P_glrlm[gl_idx, run_length, angle_idx] += 1.0f0
@@ -181,48 +184,25 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
         end
     end
 
-    # Apply weighting if specified
     if !isnothing(weighting_norm)
-        if verbose
-            println("Applying weighting ($(weighting_norm))...")
-        end
-        
-        pixel_spacing = voxel_spacing
         weights = ones(Float32, num_angles)
-        
         @inbounds for (a_idx, angle) in enumerate(angles)
-            angle_vec = Float32.([angle[1], angle[2], angle[3]])
-            abs_angle = abs.(angle_vec)
+            angle_vec = Float32.([angle...])
+            current_spacing = voxel_spacing[1:dim]
+            
+            abs_angle_dist = abs.(angle_vec) .* current_spacing
             
             if weighting_norm == "infinity"
-                weights[a_idx] = maximum(abs_angle .* pixel_spacing)
+                weights[a_idx] = maximum(abs_angle_dist)
             elseif weighting_norm == "euclidean"
-                weights[a_idx] = sqrt(sum((abs_angle .* pixel_spacing).^2))
+                weights[a_idx] = sqrt(sum(abs_angle_dist.^2))
             elseif weighting_norm == "manhattan"
-                weights[a_idx] = sum(abs_angle .* pixel_spacing)
-            elseif weighting_norm == "no_weighting"
-                weights[a_idx] = 1.0f0
-            else
-                @warn "Weighting norm \"$(weighting_norm)\" is unknown, weighting factor set to 1"
-                weights[a_idx] = 1.0f0
+                weights[a_idx] = sum(abs_angle_dist)
             end
         end
         
-        if verbose
-            println("Weights computed: ", weights)
-        end
-        
-        # Apply weights and sum across angles
-        # P_glrlm_weighted = sum(P_glrlm .* reshape(weights, 1, 1, :), dims=3)
-        weighted_glrlm = zeros(Float32, num_gl, max_run_length, 1)
-        @inbounds for angle_idx in 1:num_angles
-            for j in 1:max_run_length
-                for i in 1:num_gl
-                    weighted_glrlm[i, j, 1] += P_glrlm[i, j, angle_idx] * weights[angle_idx]
-                end
-            end
-        end
-        
+        # Somma pesata
+        weighted_glrlm = sum(P_glrlm .* reshape(weights, 1, 1, :), dims=3)
         P_glrlm = weighted_glrlm
     end
 
