@@ -207,12 +207,7 @@ mktempdir() do tmpdir
         mask = niread(mask_path)
         spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-        slice_idx = 3
-  
-        ct_slice = ct.raw[:, :, slice_idx]
-        mask_slice = mask.raw[:, :, slice_idx]
-
-        radiomic_2D_features = Radiomics.extract_radiomic_features(ct_slice, mask_slice, spacing; verbose=false, sample_rate = 1.0, n_bins = 6, keep_largest_only=false)
+        radiomic_2D_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=false, sample_rate = 1.0, n_bins = 6, keep_largest_only=false, slices_2d = [[3,3]])
         
         # ---- First Order ---- (19 features)
         @test ibsi_test(radiomic_2D_features["firstorder_entropy"], 0.8343470230852528, 0)

@@ -50,6 +50,7 @@ using TOML
     - `sample_rate`: The sample rate for feature extraction (optional).
     - `get_raw_matrices`: If true, computes raw (unnormalized, unweighted) GLCM matrices along all directions
                            and stores them in the result as `"get_raw_matrices"` (Vector of Matrix{Float32}).
+    - `slices_2d`: If present, calcule all features on 2d slice - mask. 
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -67,6 +68,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     keep_largest_only::Bool=true,
     sample_rate=0.03,
     get_raw_matrices::Bool=false,
+    slices_2d =nothing,
     verbose::Bool=false)
 
     # Convert parameters to correct types
@@ -106,6 +108,84 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     compute_all = isempty(features) || :all in features
+
+    # Management slices_2d
+    if !isnothing(slices_2d)
+        plan_map = Dict(1 => 1, 2 => 2, 3 => 3)  #Sagittal=1, Coronal=2, Axial=3
+        
+        results_2d = Dict{Tuple{Int,Int}, Dict{String,Any}}()
+        
+        tasks_2d = map(slices_2d) do (plan, slice_idx)
+            Threads.@spawn begin
+                if verbose
+                    if plan == 1
+                        println("Extracting 2D slice: Sagittal Plane, slice=$slice_idx")
+                    elseif plan == 2
+                        println("Extracting 2D slice: Coronal Plane, slice=$slice_idx")
+                    else 
+                        println("Extracting 2D slice: Axial Plane, slice=$slice_idx")
+                    end
+                end
+                
+                # Extract slice from volume
+                img_slice = if plan == 1
+                    img_input[slice_idx, :, :]   #Sagittal
+                elseif plan == 2
+                    img_input[:, slice_idx, :]   #Coronal
+                else
+                    img_input[:, :, slice_idx]   #Axial
+                end
+                
+                mask_slice = if plan == 1
+                    mask_input[slice_idx, :, :]
+                elseif plan == 2
+                    mask_input[:, slice_idx, :]
+                else
+                    mask_input[:, :, slice_idx]
+                end
+                
+                # Extract spacing from volume
+                spacing_2d = if plan == 1
+                    [voxel_spacing_input[2], voxel_spacing_input[3], voxel_spacing_input[1]]  # Sagittal: y, z, (x)
+                elseif plan == 2
+                    [voxel_spacing_input[1], voxel_spacing_input[3], voxel_spacing_input[2]]  # Coronal: x, z, (y)
+                else
+                    [voxel_spacing_input[1], voxel_spacing_input[2], voxel_spacing_input[3]]  # Axial: x, y, (z)
+                end
+                
+                # Call recursive function on 2D slice
+                result = extract_radiomic_features(
+                    img_slice, mask_slice, spacing_2d;
+                    features=features,
+                    labels=labels,
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    keep_largest_only=keep_largest_only,
+                    sample_rate=sample_rate,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose
+                )
+                
+                return ((plan, slice_idx), result)
+            end
+        end
+        
+        for task in tasks_2d
+            (key, result) = fetch(task)
+            results_2d[key] = result
+        
+        end
+
+        if length(slices_2d) == 1
+            key = first(keys(results_2d))
+            return results_2d[key]
+        else
+            return results_2d
+        
+        end
+
+    end
 
     # Handle multi-label processing
     if labels isa Vector{Int}
