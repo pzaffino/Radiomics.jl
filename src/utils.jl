@@ -307,8 +307,7 @@ end
         - `title`: The title to display before the features.
         - `features`: A dictionary of features to print.
         # Returns:
-        - Nothing. Prints the features to the console.
-"""
+        - Nothing. Prints the features to the console."""
 function print_features(title::String, features::Dict{String,Any}; log_buffer::Union{Vector{String}, Nothing}=nothing)
     output = String[]
     
@@ -371,6 +370,14 @@ function prepare_inputs(img_input::AbstractArray,
     return img, mask, voxel_spacing
 end
 
+"""
+    Validates the binning parameters for feature extraction.
+        # Parameters:
+        - `img_input`: The input image (Array).
+        - `mask_input`: The mask defining the region of interest (Array).
+        - `bin_width`: The width of each bin (Float64).
+        # Returns:
+        - Nothing. Prints a warning if the binning parameters are invalid."""
 function  validate_binning_parameters(img_input, mask_input, bin_width)
 
     # Calculate range and estimated number of bins
@@ -390,6 +397,13 @@ function  validate_binning_parameters(img_input, mask_input, bin_width)
     end
 end
 
+"""
+    Extracts and checks the mask for a specific label.
+        # Parameters:
+        - `mask_input`: The mask defining the region of interest (Array).
+        - `label`: The label to extract from the mask (Int).
+        # Returns:
+        - A tuple containing the extracted mask and the voxel count."""
 function extract_and_check_mask(mask_input, label::Int)
     mask_to_use = (mask_input .== label)
     # Check if label exists
