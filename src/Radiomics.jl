@@ -122,13 +122,13 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 
                 # Extract slice from volume
                 img_slice = if plan == 1
-                    img_input[slice_idx, :, :]   #Sagittal
+                    img_input[slice_idx, :, :]
                 elseif plan == 2
-                    img_input[:, slice_idx, :]   #Coronal
+                    img_input[:, slice_idx, :]
                 elseif plan == 3
-                    img_input[:, :, slice_idx]   #Axial
+                    img_input[:, :, slice_idx]
                 else
-                    error("Invalid plane: $plan. Must be 1 (Sagittal), 2 (Coronal), or 3 (Axial)")
+                    error("Invalid plane: $plan. Must be 1, 2, or 3")
                 end
                 
                 mask_slice = if plan == 1
@@ -138,18 +138,18 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 elseif plan == 3
                     mask_input[:, :, slice_idx]
                 else
-                    error("Invalid plane: $plan. Must be 1 (Sagittal), 2 (Coronal), or 3 (Axial)")
+                    error("Invalid plane: $plan. Must be 1, 2, or 3")
                 end
                 
                 # Extract spacing from volume
                 spacing_2d = if plan == 1
-                    [voxel_spacing_input[2], voxel_spacing_input[3], voxel_spacing_input[1]]  # Sagittal: y, z, (x)
+                    [voxel_spacing_input[2], voxel_spacing_input[3], voxel_spacing_input[1]]  # y, z, (x)
                 elseif plan == 2
-                    [voxel_spacing_input[1], voxel_spacing_input[3], voxel_spacing_input[2]]  # Coronal: x, z, (y)
+                    [voxel_spacing_input[1], voxel_spacing_input[3], voxel_spacing_input[2]]  # x, z, (y)
                 elseif plan == 3 
-                    [voxel_spacing_input[1], voxel_spacing_input[2], voxel_spacing_input[3]]  # Axial: x, y, (z)
+                    [voxel_spacing_input[1], voxel_spacing_input[2], voxel_spacing_input[3]]  # x, y, (z)
                 else
-                    error("Invalid plane: $plan. Must be 1 (Sagittal), 2 (Coronal), or 3 (Axial)")
+                    error("Invalid plane: $plan. Must be 1, 2, or 3")
                 end
                 
                 # Call recursive function on 2D slice
