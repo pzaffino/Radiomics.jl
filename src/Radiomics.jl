@@ -489,6 +489,12 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     img, mask, voxel_spacing = prepare_inputs(img, mask, voxel_spacing,
                                               force_2d, force_2d_dimension)
 
+    if verbose
+        if ndims(img) == 2 && ndims(mask) == 2 
+            @warn "You are passing a 2D image and mask"    
+        end
+    end
+
     # GLCM features
     if compute_all || :glcm in features 
         t_glcm_features = Threads.@spawn @timed get_glcm_features(
