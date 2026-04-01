@@ -111,20 +111,13 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # Management slices_2d
     if !isnothing(slices_2d)
-        plan_map = Dict(1 => 1, 2 => 2, 3 => 3)  #Sagittal=1, Coronal=2, Axial=3
-        
-        results_2d = Dict{Tuple{Int,Int}, Dict{String,Any}}()
-        
+
+        results_2d = Dict{Tuple{Int,Int}, Any}()
+
         tasks_2d = map(slices_2d) do (plan, slice_idx)
             Threads.@spawn begin
                 if verbose
-                    if plan == 1
-                        println("Extracting 2D slice: Sagittal Plane, slice=$slice_idx")
-                    elseif plan == 2
-                        println("Extracting 2D slice: Coronal Plane, slice=$slice_idx")
-                    else 
-                        println("Extracting 2D slice: Axial Plane, slice=$slice_idx")
-                    end
+                    println("Extracting 2D slice: Plane=$plan, slice=$slice_idx")
                 end
                 
                 # Extract slice from volume
@@ -132,16 +125,20 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     img_input[slice_idx, :, :]   #Sagittal
                 elseif plan == 2
                     img_input[:, slice_idx, :]   #Coronal
-                else
+                elseif plan == 3
                     img_input[:, :, slice_idx]   #Axial
+                else
+                    error("Invalid plane: $plan. Must be 1 (Sagittal), 2 (Coronal), or 3 (Axial)")
                 end
                 
                 mask_slice = if plan == 1
                     mask_input[slice_idx, :, :]
                 elseif plan == 2
                     mask_input[:, slice_idx, :]
-                else
+                elseif plan == 3
                     mask_input[:, :, slice_idx]
+                else
+                    error("Invalid plane: $plan. Must be 1 (Sagittal), 2 (Coronal), or 3 (Axial)")
                 end
                 
                 # Extract spacing from volume
@@ -149,8 +146,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     [voxel_spacing_input[2], voxel_spacing_input[3], voxel_spacing_input[1]]  # Sagittal: y, z, (x)
                 elseif plan == 2
                     [voxel_spacing_input[1], voxel_spacing_input[3], voxel_spacing_input[2]]  # Coronal: x, z, (y)
-                else
+                elseif plan == 3 
                     [voxel_spacing_input[1], voxel_spacing_input[2], voxel_spacing_input[3]]  # Axial: x, y, (z)
+                else
+                    error("Invalid plane: $plan. Must be 1 (Sagittal), 2 (Coronal), or 3 (Axial)")
                 end
                 
                 # Call recursive function on 2D slice
