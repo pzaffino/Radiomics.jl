@@ -2,7 +2,7 @@ using Base.Threads
 
 module Radiomics
 
-include("utils.jl")
+include("utils/utils.jl")
 include("glcm_features.jl")
 include("first_order_features.jl")
 include("shape_2D_features.jl")
@@ -11,7 +11,7 @@ include("glszm_features.jl")
 include("ngtdm_features.jl")
 include("glrlm_features.jl")
 include("gldm_features.jl")
-include("diagnosis.jl")
+include("diagnostic_features.jl")
 
 using JSON3
 using TOML
