@@ -345,6 +345,11 @@ function prepare_inputs(img_input::AbstractArray,
     force_2d_dimension::Int)
     # Handle both 2D and 3D inputs
     if ndims(img_input) == 2
+        if length(voxel_spacing_input) == 2
+            @warn "2D image with 2 spacing values. Adding a third spacing value of 1.0 for calculations."
+            voxel_spacing_input = [voxel_spacing_input[1], voxel_spacing_input[2], 1.0]
+            
+        end
         # 2D input: convert to 2D Float32 array
         img = convert(Array{Float32,2}, img_input)
         mask = BitArray(mask_input .!= 0.0f0)
