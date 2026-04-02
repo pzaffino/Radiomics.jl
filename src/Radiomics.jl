@@ -97,6 +97,12 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     # Convert spacing (supports any numeric vector/list)
     voxel_spacing_input = Float64[Float64(s) for s in voxel_spacing_input]
     
+    if length(voxel_spacing_input) > 3
+        throw(ArgumentError("voxel_spacing_input is too long! It should have 2 or 3 elements."))
+    elseif length(voxel_spacing_input) < 2
+        throw(ArgumentError("voxel_spacing_input is too short! It should have 2 or 3 elements."))
+    end
+    
     # Convert n_bins if provided
     if !isnothing(n_bins)
         n_bins = Int(n_bins)
