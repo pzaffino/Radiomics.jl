@@ -1,5 +1,5 @@
 function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_time_real, 
-                                total_bytes_accumulated, weighting_norm, n_bins, keep_largest_only, image, mask)
+                                weighting_norm, n_bins, keep_largest_only, image, mask)
 
     diagnosis_features = Dict{String, Any}()
 
@@ -34,7 +34,6 @@ function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_tim
     #parameters of the system
     diagnosis_features["diagnosis_Number_of_threads"] = Threads.nthreads()
     diagnosis_features["diagnosis_Total_time_real"] = total_time_real
-    diagnosis_features["diagnosis_Total_bytes_accumulated_MiB"] = total_bytes_accumulated / 1024^2
 
     return diagnosis_features
 end

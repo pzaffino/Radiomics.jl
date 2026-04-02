@@ -328,12 +328,12 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     features["glcm_InverseVariance"] = inv_var
     features["glcm_MaximumProbability"] = max_prob
 
-    # Difference features - calcolo diretto dalla GLCM per evitare problemi con gli indici
+    # Difference features - direct calculation from GLCM to avoid index problems
     diff_avg = 0.0f0
     diff_var = 0.0f0
     diff_entropy = 0.0f0
 
-    # Calcola diff_avg direttamente dalla GLCM
+    # Calculate diff_avg directly from GLCM
     @inbounds for i in 1:n_levels, j in 1:n_levels
         p = glcm[i, j]
         if p > 0
@@ -342,7 +342,7 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
         end
     end
 
-    # Entropy dalla distribuzione p_xminusy
+    # Entropy from p_xminusy
     @inbounds for k in 1:length(p_xminusy)
         pk = p_xminusy[k]
         if pk > 0
@@ -363,7 +363,7 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     features["glcm_DifferenceEntropy"] = diff_entropy
     features["glcm_DifferenceVariance"] = diff_var
 
-    # Sum features - usando i valori effettivi dei gray levels
+    # Sum features - using the actual gray level values
     kValuesSum = Float32.(2*min_gray_level : 2*max_gray_level)
     
     sum_avg = 0.0f0
@@ -555,8 +555,7 @@ function get_glcm_features(img::Matrix{Float32},
     get_raw_matrices::Bool=false, 
     verbose::Bool=false)
 
-
-    # Converti 3d image e mask 
+    # Reshape 2D image and mask to 3D format
     img3d = reshape(img, size(img)..., 1)
     mask3d = reshape(mask, size(mask)..., 1)
 
