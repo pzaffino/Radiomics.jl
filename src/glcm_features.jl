@@ -41,14 +41,27 @@ function calculate_glcm_3d(img::Array{Float32,3},
 
     mask_idx = findall(mask)
 
-    dirs = [
-        (1, 0, 0), (0, 1, 0), (0, 0, 1),
-        (1, 1, 0), (1, -1, 0), (1, 0, 1), (1, 0, -1),
-        (0, 1, 1), (0, 1, -1), (1, 1, 1), (1, 1, -1),
-        (1, -1, 1), (-1, 1, 1)
-    ]
-
     sx, sy, sz = size(disc)
+
+    dirs = if sz == 1
+
+        if verbose
+            println("2D image detected. Using 4 directions.")
+        end
+
+        [(1, 0), (0, 1), (1, 1), (1, -1)]
+
+    else
+
+        [
+            (1, 0, 0), (0, 1, 0), (0, 0, 1),
+            (1, 1, 0), (1, -1, 0), (1, 0, 1), (1, 0, -1),
+            (0, 1, 1), (0, 1, -1), (1, 1, 1), (1, 1, -1),
+            (1, -1, 1), (-1, 1, 1)
+        ]
+
+    end
+
     Ng = length(gray_levels)
 
     # Pre-allocate result vector with expected size
@@ -67,8 +80,8 @@ function calculate_glcm_3d(img::Array{Float32,3},
     if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
         pixel_spacing = spacing
         
-        @inbounds for (a_idx, (dx, dy, dz)) in enumerate(dirs)
-            angle = Float32.([dx, dy, dz])
+        @inbounds for (a_idx, dir) in enumerate(dirs)
+            angle = length(dir) == 2 ? Float32.([dir[1], dir[2], 0]) : Float32.([dir[1], dir[2], dir[3]]) #if the dimension of image is 2D add 0 for z-axis
             
             if weighting_norm == "infinity"
                 d = maximum(abs.(angle .* pixel_spacing))
@@ -90,7 +103,9 @@ function calculate_glcm_3d(img::Array{Float32,3},
         end
     end
 
-    @inbounds for (dir_idx, (dx, dy, dz)) in enumerate(dirs)
+    @inbounds for (dir_idx, dir) in enumerate(dirs)
+        dx, dy = dir[1], dir[2]     
+        dz = length(dir) == 3 ? dir[3] : 0 #if the dimension of image is 3D add the z-axis value
         G = zeros(Float32, Ng, Ng)
         for idx in mask_idx
             x, y, z = Tuple(idx)
