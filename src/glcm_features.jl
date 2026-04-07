@@ -1,6 +1,5 @@
 using LinearAlgebra
 using Statistics
-
 """ 
     function calculate_glcm_3d(img::Array{Float32,3}, mask::BitArray{3}, spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
 
@@ -20,9 +19,9 @@ using Statistics
         - `glcm_matrices`: A vector of GLCM matrices calculated for each direction.
         - `gray_levels`: A vector of unique gray levels present in the ROI.
         - `bin_width_used`: The bin width used for discretization.
-    """
-function calculate_glcm_3d(img::Array{Float32,3},
-    mask::BitArray{3},
+"""
+function calculate_glcm(img,
+    mask,
     spacing::Vector{Float32};
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float64,Nothing}=nothing,
@@ -31,40 +30,43 @@ function calculate_glcm_3d(img::Array{Float32,3},
 
     disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
-    if verbose
-        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Effective gray level utilized: $(n_levels)")
-        if weighting_norm !== nothing
-            println("Weighting norm applied: $(weighting_norm)")
-        end
-    end
-
-    mask_idx = findall(mask)
-
-    sx, sy, sz = size(disc)
-
-    dirs = if sz == 1
-
-        if verbose
-            println("2D image detected. Using 4 directions.")
-        end
-
+    dim = ndims(disc)
+    dirs = if dim == 2
         [(1, 0), (0, 1), (1, 1), (1, -1)]
 
     else
-
         [
             (1, 0, 0), (0, 1, 0), (0, 0, 1),
             (1, 1, 0), (1, -1, 0), (1, 0, 1), (1, 0, -1),
             (0, 1, 1), (0, 1, -1), (1, 1, 1), (1, 1, -1),
             (1, -1, 1), (-1, 1, 1)
         ]
+        
+    end
+
+    if verbose
+
+        if !isnothing(n_bins)
+            println("Calculating GLCM ($(dim)D) with $(n_bins) bins...")
+        elseif !isnothing(bin_width)
+            println("Calculating GLCM ($(dim)D) with bin_width=$(bin_width)...")
+        else
+            println("Calculating GLCM ($(dim)D) with default bin_width=25...")
+        end
+
+        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
+        println("Effective gray level utilized: $(n_levels)")
+        println(dim == 2 ? "2D image detected. Using $(length(dirs)) directions." :
+                           "3D image detected. Using $(length(dirs)) directions.")
+        if weighting_norm !== nothing
+            println("Weighting norm applied: $(weighting_norm)")
+        end
 
     end
 
+    mask_idx = findall(mask)
     Ng = length(gray_levels)
 
-    # Pre-allocate result vector with expected size
     glcm_matrices = Vector{Matrix{Float32}}()
     sizehint!(glcm_matrices, length(dirs))
 
@@ -78,43 +80,45 @@ function calculate_glcm_3d(img::Array{Float32,3},
     # Calculate weights if weighting is specified
     weights = ones(Float32, length(dirs))
     if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
-        pixel_spacing = spacing
-        
+        current_spacing = spacing[1:dim]
         @inbounds for (a_idx, dir) in enumerate(dirs)
-            angle = length(dir) == 2 ? Float32.([dir[1], dir[2], 0]) : Float32.([dir[1], dir[2], dir[3]]) #if the dimension of image is 2D add 0 for z-axis
-            
+            angle_vec = Float32.(collect(dir))
+            abs_angle_dist = abs.(angle_vec) .* current_spacing
+
             if weighting_norm == "infinity"
-                d = maximum(abs.(angle .* pixel_spacing))
-                weights[a_idx] = exp(-d^2)
+                weights[a_idx] = exp(-maximum(abs_angle_dist)^2)
             elseif weighting_norm == "euclidean"
-                d_squared = sum((abs.(angle .* pixel_spacing)).^2)
-                weights[a_idx] = exp(-d_squared)
+                weights[a_idx] = exp(-sum(abs_angle_dist.^2))
             elseif weighting_norm == "manhattan"
-                d = sum(abs.(angle .* pixel_spacing))
-                weights[a_idx] = exp(-d^2)
+                weights[a_idx] = exp(-sum(abs_angle_dist)^2)
             else
                 @warn "Weighting norm \"$(weighting_norm)\" is unknown, weight set to 1"
                 weights[a_idx] = 1.0f0
             end
         end
-        
+
         if verbose
             println("Weights computed: ", weights)
         end
     end
 
     @inbounds for (dir_idx, dir) in enumerate(dirs)
-        dx, dy = dir[1], dir[2]     
-        dz = length(dir) == 3 ? dir[3] : 0 #if the dimension of image is 3D add the z-axis value
+        """
+        CartesianIndex represents a multidimensional index in Julia.
+        By converting the direction (tuple) into a CartesianIndex, we can directly
+        sum the current voxel index (idx) with the direction (c_dir) to obtain
+        the neighboring voxel (nidx), without extracting individual coordinates.
+        This works automatically for both 2D and 3D images.
+        E.g: idx = CartesianIndex(3,4,2) + CartesianIndex(1,0,0) = CartesianIndex(4,4,2)
+        """
+        c_dir = CartesianIndex(dir)
         G = zeros(Float32, Ng, Ng)
+
         for idx in mask_idx
-            x, y, z = Tuple(idx)
-            nx = x + dx
-            ny = y + dy
-            nz = z + dz
-            if 1 <= nx <= sx && 1 <= ny <= sy && 1 <= nz <= sz && mask[nx, ny, nz]
-                i = map_bin[disc[x, y, z]]
-                j = map_bin[disc[nx, ny, nz]]
+            nidx = idx + c_dir
+            if checkbounds(Bool, disc, nidx) && mask[nidx]
+                i = map_bin[disc[idx]]
+                j = map_bin[disc[nidx]]
                 # Symmetrize the GLCM
                 G[i, j] += 1.0f0
                 G[j, i] += 1.0f0
@@ -123,7 +127,7 @@ function calculate_glcm_3d(img::Array{Float32,3},
 
         # Handle normalization based on weighting
         if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
-            # Apply weight WITHOUT normalizing
+            # Apply weight WITHOUT normalizing yet
             if sum(G) > 0
                 @. G *= weights[dir_idx]
                 push!(glcm_matrices, G)
@@ -145,16 +149,16 @@ function calculate_glcm_3d(img::Array{Float32,3},
         if total > 0
             summed_glcm ./= total
         end
-        glcm_matrices = [summed_glcm]  # Replace with single normalized matrix
+        glcm_matrices = [summed_glcm]
     end
 
     return glcm_matrices, gray_levels, bin_width_used
 end
-
 """
     function calculate_mcc(glcm::Matrix{Float32}, px, py)
-    Calculates the Maximal Correlation Coefficient (MCC) from a given Gray Level Co-occurrence Matrix (GLCM) and its marginal probabilities. 
-    The @inbounds macro is used for performance optimization.
+
+    Calculates the Maximal Correlation Coefficient (MCC) from a given GLCM and its marginal
+    probabilities. The @inbounds macro is used for performance optimization.
 
     # Arguments:
         - `glcm`: The Gray Level Co-occurrence Matrix as a Float32 matrix.
@@ -163,7 +167,7 @@ end
 
     # Returns:
         - The Maximal Correlation Coefficient as a Float32 value.
-    """
+"""
 function calculate_mcc(glcm::Matrix{Float32}, px, py)
     Ng = length(px)
     eps = 2.2f-16
@@ -177,7 +181,7 @@ function calculate_mcc(glcm::Matrix{Float32}, px, py)
         inv_py[k] = py[k] > eps ? 1.0f0 / py[k] : 0.0f0
     end
 
-    # Compute Q matrix - optimized
+    # Compute Q matrix
     @inbounds for i in 1:Ng
         if px[i] > eps
             inv_pxi = 1.0f0 / px[i]
@@ -201,21 +205,20 @@ function calculate_mcc(glcm::Matrix{Float32}, px, py)
         0.0f0
     end
 end
-
 """
-    function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector{Int})
+    function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
 
-    Extracts a set of Gray Level Co-occurrence Matrix (GLCM) features from a single GLCM matrix and its corresponding gray levels. 
-    It's designed to compute various texture features used in radiomics analysis. 
+    Extracts a set of GLCM features from a single GLCM matrix and its corresponding gray levels.
     The function utilizes the @inbounds macro for performance optimization.
 
     # Arguments:
         - `glcm`: The Gray Level Co-occurrence Matrix as a Float32 matrix.
         - `gray_levels`: A vector of gray levels corresponding to the GLCM.
+
     # Returns:
-        - A dictionary (Dict{String, Float32}) containing the extracted GLCM features as key-value pairs.
-    """
-function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector{Int})
+        - A dictionary (Dict{String, Float32}) containing the extracted GLCM features.
+"""
+function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     features = Dict{String,Float32}()
     n_levels = length(gray_levels)
     eps = Float32(2.2e-16)
@@ -239,7 +242,7 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     max_gray_level = maximum(gray_levels)
     min_gray_level = minimum(gray_levels)
     gray_level_range = Float32(max_gray_level - min_gray_level)
-    
+
     p_xminusy = zeros(Float32, max_gray_level - min_gray_level + 1)
     p_xplusy = zeros(Float32, 2 * max_gray_level + 1)
 
@@ -267,7 +270,7 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
 
     ng = Float32(max_gray_level - min_gray_level + 1)
 
-    # Main feature extraction loop - optimized
+    # Main feature extraction loop
     @inbounds for i in 1:n_levels
         xi = gray_levels_f32[i]
         xi_minus_μx = xi - μx
@@ -307,7 +310,6 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
                 absd = abs(d)
                 idm += p / (1.0f0 + d2)
                 id += p / (1.0f0 + absd)
-                
                 idmn += p / (1.0f0 + (absd / ng)^2)
                 idn  += p / (1.0f0 + absd / ng)
 
@@ -318,7 +320,7 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
 
                 # Maximum probability
                 max_prob = max(max_prob, p)
-                
+
                 # Populate marginal distributions using gray level VALUES
                 diff_val = abs(gray_levels[i] - gray_levels[j])
                 sum_val = gray_levels[i] + gray_levels[j]
@@ -343,12 +345,11 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     features["glcm_InverseVariance"] = inv_var
     features["glcm_MaximumProbability"] = max_prob
 
-    # Difference features - direct calculation from GLCM to avoid index problems
+    # Difference features
     diff_avg = 0.0f0
     diff_var = 0.0f0
     diff_entropy = 0.0f0
 
-    # Calculate diff_avg directly from GLCM
     @inbounds for i in 1:n_levels, j in 1:n_levels
         p = glcm[i, j]
         if p > 0
@@ -378,9 +379,9 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     features["glcm_DifferenceEntropy"] = diff_entropy
     features["glcm_DifferenceVariance"] = diff_var
 
-    # Sum features - using the actual gray level values
+    # Sum features
     kValuesSum = Float32.(2*min_gray_level : 2*max_gray_level)
-    
+
     sum_avg = 0.0f0
     sum_entropy = 0.0f0
     @inbounds for k_idx in 1:length(kValuesSum)
@@ -396,11 +397,10 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
     features["glcm_SumEntropy"] = sum_entropy
     features["glcm_SumSquares"] = sum_squares
 
-    # Joint average - already computed via px
-    joint_average = μx  # This is equivalent to sum(gray_levels_f32[i] * px[i])
-    features["glcm_JointAverage"] = joint_average
+    # Joint average
+    features["glcm_JointAverage"] = μx
 
-    # Marginal entropies - optimized
+    # Marginal entropies
     HX = 0.0f0
     HY = 0.0f0
     @inbounds for i in 1:n_levels
@@ -438,25 +438,21 @@ function extract_glcm_features_single(glcm::Matrix{Float32}, gray_levels::Vector
 
     return features
 end
-
 """
-function get_glcm_features(img::Array{Float32,3}, mask::BitArray{3}, voxel_spacing::Vector{Float32};
-                            n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float64,Nothing}=nothing,
-                            weighting_norm::Union{String,Nothing}=nothing,
-                            verbose::Bool=false)
+    get_glcm_features(img, mask, voxel_spacing; n_bins, bin_width, weighting_norm,
+                      get_raw_matrices, verbose)
 
-The function calculates GLCM matrices in 3D, extracts texture features from each matrix, 
-and returns the mean values of all features across directions.
-    
-You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
-- If n_bins is specified, bin_width is calculated automatically from the intensity range
-- If bin_width is specified, the number of bins depends on the intensity range
-- If neither is specified, defaults to n_bins=32
+    Calculates GLCM matrices for a 2D or 3D image, extracts texture features from each matrix,
+    and returns the mean values of all features across directions.
 
-# Arguments
-    - `img`: The input 3D image as a Float32 array.
-    - `mask`: A BitArray defining the region of interest within the image.
+    You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
+    - If n_bins is specified, bin_width is calculated automatically from the intensity range
+    - If bin_width is specified, the number of bins depends on the intensity range
+    - If neither is specified, defaults to n_bins=32
+
+    # Arguments
+        - `img`: The input 3D image as a Float32 array.
+        - `mask`: A BitArray defining the region of interest within the image.
     - `voxel_spacing`: A vector specifying the voxel spacing in each dimension.
     - `n_bins`: The number of bins for discretizing intensity values (optional).
     - `bin_width`: The width of each bin (optional).
@@ -480,33 +476,24 @@ You can specify EITHER n_bins (number of bins) OR bin_width (fixed bin width):
     # With weighting
     features = get_glcm_features(img, mask, spacing, weighting_norm="euclidean")
 """
-function get_glcm_features(img::Array{Float32,3},
-    mask::BitArray{3},
-    voxel_spacing::Vector{Float32};
+function get_glcm_features(img, mask, voxel_spacing;
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float64,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
     get_raw_matrices::Bool=false,
     verbose::Bool=false)
 
-    if verbose
-        if !isnothing(n_bins)
-            println("Calculating GLCM with $(n_bins) bins...")
-        elseif !isnothing(bin_width)
-            println("GLCM calculation with bin_width=$(bin_width)...")
-        else
-            println("GLCM calculation with 32 bins (default)...")
-        end
-    end
+    # Ensure spacing is Float32 and has the right length for the image dimensionality
+    spacing = convert(Vector{Float32}, voxel_spacing)
 
-    glcm_matrices, gray_levels, bin_width_used = calculate_glcm_3d(img, mask, voxel_spacing;
+    glcm_matrices, gray_levels, bin_width_used = calculate_glcm(img, mask, spacing;
         n_bins=n_bins,
         bin_width=bin_width,
         weighting_norm=weighting_norm,
         verbose=verbose)
 
     features = Dict{String, Any}()
-    
+
     if isempty(glcm_matrices)
         return features
     end
@@ -523,7 +510,7 @@ function get_glcm_features(img::Array{Float32,3},
         return features
     end
 
-    all_features = [extract_glcm_features_single(glcm, gray_levels) for glcm in glcm_matrices]
+    all_features = [extract_glcm_features(glcm, gray_levels) for glcm in glcm_matrices]
 
     feature_names = collect(keys(all_features[1]))
     n_matrices = length(all_features)
@@ -537,52 +524,7 @@ function get_glcm_features(img::Array{Float32,3},
         features[name] = sum_val * inv_n
     end
 
-    verbose && println("completed! Extract $(length(features)) features.")
+    verbose && println("Completed! Extracted $(length(features)) features.")
 
     return features
-end
-
-"""
-    function get_glcm_features(img::Matrix{Float32}, mask::BitMatrix, voxel_spacing::Vector{Float32};
-                            n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float64,Nothing}=nothing,
-                            verbose::Bool=false)            
-    Wrapper function to compute GLCM features for 2D images by reshaping them into 3D format.
-    This function adds a singleton third dimension to the 2D image and mask, allowing the
-    use of the 3D GLCM feature extraction function.
-    # Arguments
-        - `img`: The input 2D image as a Float32 matrix.
-        - `mask`: A BitMatrix defining the region of interest within the image.
-        - `voxel_spacing`: A vector specifying the voxel spacing in each dimension (2D).
-        - `n_bins`: The number of bins for discretizing intensity values (optional).
-        - `bin_width`: The width of each bin (optional).
-        - `weighting_norm`: The norm used for weighting the GLCM (optional)
-        - `verbose`: If true, enables verbose output for debugging or detailed processing information.
-    # Returns:
-        - `feats`: A dictionary containing the mean GLCM features across all directions.
-"""
-function get_glcm_features(img::Matrix{Float32},
-    mask::BitMatrix,
-    voxel_spacing::Vector{Float32};
-    n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float64,Nothing}=nothing,
-    weighting_norm::Union{String,Nothing}=nothing,
-    get_raw_matrices::Bool=false, 
-    verbose::Bool=false)
-
-    # Reshape 2D image and mask to 3D format
-    img3d = reshape(img, size(img)..., 1)
-    mask3d = reshape(mask, size(mask)..., 1)
-
-    # If 2D spacing is given, add a default spacing of 1.0 for the 3rd dimension
-    spacing3d = length(voxel_spacing) == 2 ? Float32[voxel_spacing..., 1.0f0] : voxel_spacing
-
-    return get_glcm_features(img3d,
-        mask3d,
-        spacing3d;
-        n_bins=n_bins,
-        bin_width=bin_width,
-        weighting_norm=weighting_norm,
-        get_raw_matrices=get_raw_matrices,
-        verbose=verbose)
 end
