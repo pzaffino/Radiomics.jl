@@ -7,6 +7,7 @@
     <link rel="icon"
         href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
         type="image/png">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/devicons/devicon@latest/devicon.min.css">
     <title>Other Setup- Radiomics.jl</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
@@ -248,6 +249,39 @@
             width: auto;
             margin-left: 300px;
             min-width: 0;
+        }
+
+        .toggle-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+            color: white;
+            border-color: var(--primary);
+            box-shadow: var(--shadow-lg);
+        }
+
+        .toggle-btn i {
+            font-size: 1.2rem;
+            vertical-align: middle;
+            margin-right: 6px;
+        }
+
+        .devicon-python-plain {
+            color: #3776ab;
+        }
+
+        .devicon-r-plain {
+            color: #276dc3;
+        }
+
+        .devicon-c-plain {
+            color: #a8b9cc;
+        }
+
+        .devicon-cplusplus-plain {
+            color: #00599c;
+        }
+
+        .toggle-btn.active i {
+            color: white;
         }
 
         /* --- PAGE HEADER --- */
@@ -688,18 +722,18 @@
 
                 <div class="method-toggle">
                     <button class="toggle-btn active" onclick="showMethod('juliacall')">
-                        📦 Using Python (Ready to go)
+                        <i class="devicon-python-plain"></i> Using Python (Ready to go)
                     </button>
                     <button class="toggle-btn" onclick="showMethod('clib')">
-                        ⚙️ Using C Shared Library from Python
+                        <i class="devicon-c-plain"></i> Using C Shared Library from Python
                     </button>
                     <button class="toggle-btn" onclick="showMethod('cpp')">
-                        💻 Using C Shared Library from C++
+                        <i class="devicon-cplusplus-plain"></i> Using C Shared Library from C++
                     </button>
                 </div>
                 <div class="method-toggle">
                     <button class="toggle-btn" onclick="showMethod('R')">
-                        📦 Using R
+                        <i class="devicon-r-plain"></i> Using R
                     </button>
                 </div>
 
@@ -1107,18 +1141,6 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
                     </div>
                 </div>
 
-
-
-
-
-
-
-
-
-
-
-
-
                 <!-- R Method -->
                 <div id="R-method" class="method-content">
                     <h2>Installation</h2>
@@ -1203,27 +1225,15 @@ spacing &lt;- as.numeric(pixdim(ct_raw))
 <span class="julia-comment"># Extract radiomic features</span>
 features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing)</code></pre>
                     </div>
-
-
-
-
-
-
-
-
-
-
-
-
-
                 </div>
             </div>
+        </div>
 
-            <footer class="footer">
-                <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on
-                        GitHub</a>
-                </p>
-            </footer>
+        <footer class="footer">
+            <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on
+                    GitHub</a>
+            </p>
+        </footer>
     </main>
 
     <script>
