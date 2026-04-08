@@ -102,14 +102,13 @@
             transition: transform 0.3s ease;
         }
 
-        /* FIX LOGO: Layout Header Sidebar */
+        /* FIX: Layout Header Sidebar */
         .sidebar-header {
-            /* Flexbox per centrare il contenuto (il logo) */
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 40px 20px;
-            /* Spazio attorno al logo */
+            padding: 30px 20px 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(0, 0, 0, 0.2);
         }
@@ -683,6 +682,10 @@
                     <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
                         alt="Radiomics.jl Logo">
                 </a>
+            </div>
+            <div style="text-align: center; margin-top: 12px;">
+                <span style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">Version </span>
+                <span id="latest-version" style="font-size: 0.88rem; color: white; font-weight: 600;">...</span>
             </div>
         </div>
         <nav>
@@ -1301,6 +1304,7 @@ features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing
             }
         }
     </script>
+    <script src="latestv.js"></script>
 
 </body>
 
