@@ -697,6 +697,11 @@
                         💻 Using C Shared Library from C++
                     </button>
                 </div>
+                <div class="method-toggle">
+                    <button class="toggle-btn" onclick="showMethod('R')">
+                        📦 Using R
+                    </button>
+                </div>
 
                 <!-- Juliacall Method -->
                 <div id="juliacall-method" class="method-content active">
@@ -1101,14 +1106,124 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
 }</code></pre>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <footer class="footer">
-            <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on
-                    GitHub</a>
-            </p>
-        </footer>
+
+
+
+
+
+
+
+
+
+
+
+
+                <!-- R Method -->
+                <div id="R-method" class="method-content">
+                    <h2>Installation</h2>
+                    <p>JuliaConnectoR acts as a bridge between R and Julia, enabling you to call Julia functions
+                        directly from R code.</p>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Installing JuliaConnectoR</h4>
+                    <p>Install JuliaConnectoR in your R development environment:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+
+                        <pre><code>install.packages(<span class="julia-string">"JuliaConnectoR"</span>)</code></pre>
+                    </div>
+
+                    <p>Load the package into the R working environment, making its functions available.</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+
+                        <pre><code><span class="julia-keyword">library</span>(JuliaConnectoR)</code></pre>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Installing Radiomics.jl</h4>
+                    <p>To install the Radiomics.jl package, run the following in your R development environment:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>juliaEval(<span class="julia-string">'import Pkg; Pkg.add("Radiomics")'</span>)</code></pre>
+                    </div>
+
+                    <p>Also, to update the Radiomics.jl package, run:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>juliaEval(<span class="julia-string">'import Pkg; Pkg.update("Radiomics")'</span>)</code></pre>
+                    </div>
+
+                    <h2>Feature Extraction with JuliaConnectoR</h2>
+                    <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-comment"># Import the Radiomics module from Julia</span>
+radiomics &lt;- juliaImport(<span class="julia-string">"Radiomics"</span>)
+
+<span class="julia-comment"># Load medical images (requires RNifti or similar package)</span>
+ct_raw &lt;- readNifti(<span class="julia-string">"DATA_PATH/ct.nii.gz"</span>)
+mask_raw &lt;- readNifti(<span class="julia-string">"DATA_PATH/mask.nii.gz"</span>)
+
+<span class="julia-comment"># Clean and format CT data</span>
+ct_clean &lt;- as.array(ct_raw[])
+storage.mode(ct_clean) &lt;- <span class="julia-string">"double"</span>
+attributes(ct_clean) &lt;- <span class="julia-keyword">list</span>(dim = dim(ct_raw))
+
+<span class="julia-comment"># Clean and format mask data</span>
+mask_clean &lt;- as.array(mask_raw[])
+storage.mode(mask_clean) &lt;- <span class="julia-string">"integer"</span>
+attributes(mask_clean) &lt;- <span class="julia-keyword">list</span>(dim = dim(mask_raw))
+
+<span class="julia-comment"># Extract spacing information</span>
+spacing &lt;- as.numeric(pixdim(ct_raw))
+
+<span class="julia-comment"># Extract radiomic features</span>
+features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing)</code></pre>
+                    </div>
+
+
+
+
+
+
+
+
+
+
+
+
+
+                </div>
+            </div>
+
+            <footer class="footer">
+                <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on
+                        GitHub</a>
+                </p>
+            </footer>
     </main>
 
     <script>
@@ -1170,6 +1285,9 @@ radiomic_features = json.loads(raw_json.decode(<span class="julia-string">'utf-8
             } else if (method === 'cpp') {
                 document.getElementById('cpp-method').classList.add('active');
                 document.querySelectorAll('.toggle-btn')[2].classList.add('active');
+            } else if (method === 'R') {
+                document.getElementById('R-method').classList.add('active');
+                document.querySelectorAll('.toggle-btn')[3].classList.add('active');
             }
         }
     </script>
