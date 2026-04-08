@@ -97,9 +97,10 @@
 
         .sidebar-header {
             display: flex;
+            flex-direction: column;
             justify-content: center;
             align-items: center;
-            padding: 40px 20px;
+            padding: 30px 20px 20px;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             background: rgba(0, 0, 0, 0.2);
         }
@@ -543,6 +544,10 @@
                         alt="Radiomics.jl Logo">
                 </a>
             </div>
+            <div style="text-align: center; margin-top: 12px;">
+                <span style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">Version </span>
+                <span id="latest-version" style="font-size: 0.88rem; color: white; font-weight: 600;">...</span>
+            </div>
         </div>
         <nav>
             <a href="index.html">Home</a>
@@ -933,6 +938,7 @@ features = <span class="julia-type">Radiomics</span>.<span class="julia-function
             });
         });
     </script>
+    <script src="latestv.js"></script>
 
 </body>
 
