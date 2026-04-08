@@ -892,21 +892,8 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
         }
       });
     });
-
-    async function loadLatestVersion() {
-      try {
-        const res = await fetch(
-          'https://api.github.com/repos/pzaffino/Radiomics.jl/releases/latest'
-        );
-        const release = await res.json();
-        document.getElementById('latest-version').textContent = release.tag_name;
-      } catch (e) {
-        document.getElementById('latest-version').textContent = 'N/A';
-      }
-    }
-
-    loadLatestVersion();
   </script>
+  <script src="latestv.js"></script>
 
 </body>
 
