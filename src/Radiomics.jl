@@ -117,18 +117,75 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # Management slices_2d
     if !isnothing(slices_2d)
-        return process_slices_2d(
-            slices_2d, img_input, mask_input, voxel_spacing_input;
-            features=features,
-            labels=labels,
-            n_bins=n_bins,
-            bin_width=bin_width,
-            weighting_norm=weighting_norm,
-            keep_largest_only=keep_largest_only,
-            sample_rate=sample_rate,
-            get_raw_matrices=get_raw_matrices,
-            verbose=verbose
-        )
+        results_2d = Dict{Tuple{Int,Int}, Any}()
+        dict_lock = ReentrantLock()
+
+        Threads.@threads for i in eachindex(slices_2d)
+            plan, slice_idx = slices_2d[i]
+            
+            if verbose
+                lock(dict_lock) do 
+                    println("Extracting 2D slice: Plane=$plan, slice=$slice_idx")
+                end
+            end
+            
+            # Use @view to avoid unnecessary memory allocations
+            img_slice = if plan == 1
+                @view img_input[slice_idx, :, :]
+            elseif plan == 2
+                @view img_input[:, slice_idx, :]
+            elseif plan == 3
+                @view img_input[:, :, slice_idx]
+            else
+                error("Invalid plane: $plan. Must be 1, 2, or 3")
+            end
+            
+            mask_slice = if plan == 1
+                @view mask_input[slice_idx, :, :]
+            elseif plan == 2
+                @view mask_input[:, slice_idx, :]
+            elseif plan == 3
+                @view mask_input[:, :, slice_idx]
+            else
+                error("Invalid plane: $plan. Must be 1, 2, or 3")
+            end
+            
+            # 2D spacing calculation
+            spacing_2d = if plan == 1
+                [voxel_spacing_input[2], voxel_spacing_input[3], voxel_spacing_input[1]]  # y, z, (x)
+            elseif plan == 2
+                [voxel_spacing_input[1], voxel_spacing_input[3], voxel_spacing_input[2]]  # x, z, (y)
+            elseif plan == 3 
+                [voxel_spacing_input[1], voxel_spacing_input[2], voxel_spacing_input[3]]  # x, y, (z)
+            end
+            
+            # Call the main function passing the light views
+            result = extract_radiomic_features(
+                img_slice, mask_slice, spacing_2d;
+                features=features,
+                labels=labels,
+                n_bins=n_bins,
+                bin_width=bin_width,
+                weighting_norm=weighting_norm,
+                keep_largest_only=keep_largest_only,
+                sample_rate=sample_rate,
+                get_raw_matrices=get_raw_matrices,
+                verbose=verbose
+            )
+            
+            # Thread-safe saving
+            lock(dict_lock) do
+                results_2d[(plan, slice_idx)] = result
+            end
+        end
+
+        # Final return
+        if length(slices_2d) == 1
+            key = first(keys(results_2d))
+            return results_2d[key]
+        else
+            return results_2d
+        end
     end
 
     # Handle multi-label processing
