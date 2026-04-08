@@ -102,12 +102,11 @@
 
     /* FIX LOGO: Layout Header Sidebar */
     .sidebar-header {
-      /* Flexbox per centrare il contenuto (il logo) */
       display: flex;
+      flex-direction: column;
       justify-content: center;
       align-items: center;
-      padding: 40px 20px;
-      /* Spazio attorno al logo */
+      padding: 30px 20px 20px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.1);
       background: rgba(0, 0, 0, 0.2);
     }
@@ -654,6 +653,10 @@
             alt="Radiomics.jl Logo">
         </a>
       </div>
+      <div style="text-align: center; margin-top: 12px;">
+        <span style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">Version </span>
+        <span id="latest-version" style="font-size: 0.88rem; color: white; font-weight: 600;">...</span>
+      </div>
     </div>
     <nav>
       <a href="index.html" class="active">Home</a>
@@ -889,6 +892,20 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
         }
       });
     });
+
+    async function loadLatestVersion() {
+      try {
+        const res = await fetch(
+          'https://api.github.com/repos/pzaffino/Radiomics.jl/releases/latest'
+        );
+        const release = await res.json();
+        document.getElementById('latest-version').textContent = release.tag_name;
+      } catch (e) {
+        document.getElementById('latest-version').textContent = 'N/A';
+      }
+    }
+
+    loadLatestVersion();
   </script>
 
 </body>
