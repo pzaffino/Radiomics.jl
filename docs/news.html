@@ -161,6 +161,14 @@
             border-left-color: var(--primary-light);
         }
 
+        .sidebar nav>a.active,
+        .sidebar .dropdown-content a.active {
+            background-color: rgba(37, 99, 235, 0.15);
+            color: white;
+            font-weight: 600;
+            border-left-color: var(--primary-light);
+        }
+
         .dropdown {
             display: flex;
             flex-direction: column;
@@ -388,9 +396,9 @@
         <nav>
             <a href="index.html">Home</a>
             <a href="installation.html">Getting Started</a>
-            <a href="news.html" class="active">News</a>
             <a href="example.html">Examples</a>
             <a href="cross_languages.html">Cross languages</a>
+            <a href="news.html" class="active">News</a>
             <div class="dropdown">
                 <button class="dropdown-btn">Features</button>
                 <div class="dropdown-content">
@@ -490,9 +498,9 @@
 
                     let imageHTML = '';
                     if (news.Image && news.Image.trim() !== '') {
-                        imageHTML = `<img src="${news.Image}" alt="${news.Title}" style="max-width: 100%; border-radius: 8px; margin-bottom: 20px; box-shadow: var(--shadow-md);">`;
-                    }
 
+                        imageHTML = `<img src="${news.Image}" alt="${news.Title}" style="width: 300px; height: auto; border-radius: 8px; box-shadow: var(--shadow-md); flex-shrink: 0;">`;
+                    }
 
                     article.innerHTML = `
                         <div class="news-header">
@@ -501,9 +509,11 @@
                                 ${news.Date || ''}
                             </span>
                         </div>
-                        ${imageHTML}
-                        <div class="news-body">
-                            <p>${news.Text}</p>
+                        <div class="news-body" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+                            <div style="flex: 1 1 300px;">
+                                <p style="margin-bottom: 0; text-align: justify;">${news.Text}</p>
+                            </div>
+                            ${imageHTML}
                         </div>
                     `;
 
