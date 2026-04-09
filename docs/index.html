@@ -702,19 +702,24 @@
       </div>
 
       <div class="section">
-        <h2>Contribution</h2>
-        <p>
-          Radiomics.jl is an open-source project. Contributions are welcome!
-          You can find the source code, report issues, or submit pull requests
-          on our official GitHub repository:
-        </p>
-
-        <p style="text-align: center;">
-          <a href="https://github.com/pzaffino/Radiomics.jl" target="_blank"
-            style="font-weight: bold; font-size: 1.3em; color: var(--primary); text-decoration: none;">
-            Visit the GitHub repository →
-          </a>
-        </p>
+        <h2>Why choose Radiomics.jl for your project</h2>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>Full IBSI Compliance:</strong> Every feature is calculated according to IBSI standards—our unit
+            tests are strictly validated against IBSI sample images (go ahead, take a look!).</li>
+          <li><strong>User-Friendly API:</strong> Simplify your workflow by extracting features from multiple labels
+            with a single call. Handling 2D slices or multiple planes/slices "in one shot" has never been easier.</li>
+          <li><strong>First-class 2D support:</strong> 2D analysis is treated with the same priority as 3D; computing
+            features for a 2D matrix is just as seamless as the 3D case.</li>
+          <li><strong>Deep Insights:</strong> While other radiomics libraries focus only on final scalar values,
+            Radiomics.jl also lets you easily get the raw matrices used under the hood for texture feature calculations.
+          </li>
+          <li><strong>No silent failures:</strong> If something looks suspicious or ambiguous—like disconnected
+            segmentation islands or oversized binning—the library raises clear warnings.</li>
+          <li><strong>Native Multi-threading:</strong> The engine is engineered from the ground up to take full
+            advantage of multi-threaded performance.</li>
+          <li><strong>Cross-language ready:</strong> Radiomics.jl delivers a frictionless experience across languages,
+            allowing Python, C++, R, and many other language developers to call Julia’s power with ease.</li>
+        </ul>
       </div>
 
       <div class="section">
