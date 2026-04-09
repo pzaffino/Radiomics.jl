@@ -490,9 +490,9 @@
 
                     let imageHTML = '';
                     if (news.Image && news.Image.trim() !== '') {
-                        imageHTML = `<img src="${news.Image}" alt="${news.Title}" style="max-width: 100%; border-radius: 8px; margin-bottom: 20px; box-shadow: var(--shadow-md);">`;
-                    }
 
+                        imageHTML = `<img src="${news.Image}" alt="${news.Title}" style="width: 300px; height: auto; border-radius: 8px; box-shadow: var(--shadow-md); flex-shrink: 0;">`;
+                    }
 
                     article.innerHTML = `
                         <div class="news-header">
@@ -501,9 +501,11 @@
                                 ${news.Date || ''}
                             </span>
                         </div>
-                        ${imageHTML}
-                        <div class="news-body">
-                            <p>${news.Text}</p>
+                        <div class="news-body" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+                            <div style="flex: 1 1 300px;">
+                                <p style="margin-bottom: 0;">${news.Text}</p>
+                            </div>
+                            ${imageHTML}
                         </div>
                     `;
 
