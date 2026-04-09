@@ -420,12 +420,12 @@
         <section class="page-header">
             <div class="page-header-content">
                 <h1>News</h1>
-                <p>Latest updates for Radiomics.jl.</p>
+                <p>Latest updates from Radiomics.jl.</p>
             </div>
         </section>
 
         <section class="content" id="news-container">
-            <p>Caricamento news...</p>
+            <p>Loading news...</p>
         </section>
 
         <footer class="footer">
@@ -558,8 +558,8 @@
                 });
             },
             error: function (err) {
-                console.error("Errore nel caricamento del CSV:", err);
-                document.getElementById('news-container').innerHTML = '<p>Si è verificato un errore nel caricamento delle news.</p>';
+                console.error("Error loading CSV:", err);
+                document.getElementById('news-container').innerHTML = '<p>An error occurred while loading the news.</p>';
             }
         });
     </script>
