@@ -497,9 +497,42 @@
 
 
                     let imageHTML = '';
-                    if (news.Image && news.Image.trim() !== '') {
 
+                    if (news.Image && news.Image.trim() !== '') {
                         imageHTML = `<img src="${news.Image}" alt="${news.Title}" style="width: 300px; height: auto; border-radius: 8px; box-shadow: var(--shadow-md); flex-shrink: 0;">`;
+                    }
+
+                    let videoHTML = '';
+
+                    if (news.Video && news.Video.trim() !== '') {
+                        let videoUrl = news.Video.trim();
+
+
+                        if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
+                            let videoId = '';
+                            if (videoUrl.includes('youtu.be/')) {
+                                videoId = videoUrl.split('youtu.be/')[1].split('?')[0];
+                            } else if (videoUrl.includes('watch?v=')) {
+                                videoId = videoUrl.split('watch?v=')[1].split('&')[0];
+                            }
+
+                            if (videoId) {
+                                videoHTML = `
+                                <div style="margin-top: 30px; width: 100%;">
+                                    <iframe width="100%" height="450" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="max-width: 800px; border-radius: 8px; box-shadow: var(--shadow-md);"></iframe>
+                                </div>`;
+                            }
+                        }
+
+                        else {
+                            videoHTML = `
+                                <div style="margin-top: 30px; width: 100%;">
+                                    <video width="100%" controls style="max-width: 800px; border-radius: 8px; box-shadow: var(--shadow-md);">
+                                        <source src="${videoUrl}" type="video/mp4">
+                                        Il tuo browser non supporta la riproduzione di video.
+                                    </video>
+                                </div>`;
+                        }
                     }
 
                     article.innerHTML = `
@@ -509,12 +542,15 @@
                                 ${news.Date || ''}
                             </span>
                         </div>
-                        <div class="news-body" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
+                        
+                        <div class="news-body-top" style="display: flex; flex-wrap: wrap; gap: 24px; align-items: flex-start;">
                             <div style="flex: 1 1 300px;">
                                 <p style="margin-bottom: 0; text-align: justify;">${news.Text}</p>
                             </div>
                             ${imageHTML}
                         </div>
+                        
+                        ${videoHTML}
                     `;
 
                     container.appendChild(article);
