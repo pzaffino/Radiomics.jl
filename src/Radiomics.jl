@@ -23,8 +23,6 @@ using TOML
                               n_bins=nothing,
                               bin_width=nothing,
                               weighting_norm=nothing,
-                              force_2d::Bool=false,
-                              force_2d_dimension::Int=1,
                               keep_largest_only::Bool=true,
                               sample_rate=0.03,
                               get_raw_matrices::Bool=false,
@@ -44,8 +42,6 @@ using TOML
     - `bin_width`: The width of each bin (optional).
     - `weighting_norm`: Performs weight-normalized radiomic feature extraction on the input image and mask (optional).
                         Options: "infinity", "euclidean", "manhattan", and "no_weighting".
-    - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
-    - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
     - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
     - `sample_rate`: The sample rate for feature extraction (optional).
     - `get_raw_matrices`: If true, computes raw (unnormalized, unweighted) GLCM matrices along all directions
@@ -63,8 +59,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     n_bins=nothing,
     bin_width=nothing,
     weighting_norm=nothing,
-    force_2d::Bool=false,
-    force_2d_dimension::Int=1,
     keep_largest_only::Bool=true,
     sample_rate=0.03,
     get_raw_matrices::Bool=false,
@@ -250,8 +244,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         verbose=verbose,
                         sample_rate=sample_rate,
                         keep_largest_only=keep_largest_only,
-                        force_2d=force_2d,
-                        force_2d_dimension=force_2d_dimension,
                         compute_all=compute_all,
                         features=features,
                         get_raw_matrices=get_raw_matrices,
@@ -383,8 +375,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         verbose=verbose,
         sample_rate=sample_rate,
         keep_largest_only=keep_largest_only,
-        force_2d=force_2d,
-        force_2d_dimension=force_2d_dimension,
         compute_all=compute_all,
         features=features,
         get_raw_matrices=get_raw_matrices
@@ -435,8 +425,6 @@ end
     - `verbose`: Print progress messages
     - `sample_rate`: Sample rate for shape features
     - `keep_largest_only`: Keep only largest connected component
-    - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
-    - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
     - `compute_all`: Compute all features or only selected ones
     - `features`: Vector of feature symbols to compute
     - `log_buffer`: Optional buffer for collecting log messages (for multi-label parallel processing)
@@ -451,8 +439,6 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     verbose::Bool=false,
     sample_rate=0.03,
     keep_largest_only::Bool=true,
-    force_2d::Bool=false,
-    force_2d_dimension::Int=1,
     compute_all::Bool=true,
     features=Symbol[],
     get_raw_matrices::Bool=false,
@@ -479,8 +465,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
 
     # Cast and prepare inputs
-    img, mask, voxel_spacing = prepare_inputs(img, mask, voxel_spacing,
-                                              force_2d, force_2d_dimension)
+    img, mask, voxel_spacing = prepare_inputs(img, mask, voxel_spacing)
 
     # GLCM features
     if compute_all || :glcm in features 

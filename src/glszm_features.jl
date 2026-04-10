@@ -130,6 +130,9 @@ function calculate_glszm_matrix(discretized_img, mask, verbose)
 
     visited = falses(size(discretized_img))
 
+    n_dims = ndims(discretized_img)
+    neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
+
     for i in eachindex(discretized_img)
         if mask[i] && !visited[i]
             gl = discretized_img[i]
@@ -145,7 +148,9 @@ function calculate_glszm_matrix(discretized_img, mask, verbose)
                 head += 1
                 zone_size += 1
 
-                for neighbor_idx in get_neighbors(curr_idx, size(discretized_img))
+                n_count = get_neighbors!(neighbors_buffer, curr_idx, size(discretized_img))
+                for k in 1:n_count
+                    neighbor_idx = neighbors_buffer[k]
                     if mask[neighbor_idx] && !visited[neighbor_idx] && discretized_img[neighbor_idx] == gl
                         visited[neighbor_idx] = true
                         push!(q, neighbor_idx)

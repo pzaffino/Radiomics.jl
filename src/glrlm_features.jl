@@ -86,9 +86,8 @@ function get_glrlm_features(img, mask, voxel_spacing;
         "LongRunHighGrayLevelEmphasis"
     ]
 
-    for (idx, feature_name) in enumerate(feature_names)
-        glrlm_features["glrlm_"*feature_name] = calculate_glrlm_feature(idx, P_glrlm, gray_levels)
-    end
+    extracted_features = extract_all_glrlm_features(P_glrlm, gray_levels, feature_names)
+    merge!(glrlm_features, extracted_features)
 
     if verbose
         println("Completed! Extract $(length(glrlm_features)) features.")
@@ -152,156 +151,158 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
     cart_indices = CartesianIndices(size(discretized_img))
     lin_indices = LinearIndices(size(discretized_img))
 
-    @inbounds for (angle_idx, angle) in enumerate(angles)
-        c_angle = CartesianIndex(angle)
-        for i in eachindex(discretized_img)
-            if mask[i]
-                gl = discretized_img[i]
-                gl_idx = gl_map[gl]
+    # Pre-compute CartesianIndex for each angle
+    c_angles = [CartesianIndex(a) for a in angles]
 
-                run_length = 1
-                curr_idx_cart = cart_indices[i]
+    # Iterate only over masked voxels instead of the entire image
+    masked_cart_indices = cart_indices[mask]
 
-                prev_idx_cartesian = curr_idx_cart - c_angle
-                if checkbounds(Bool, discretized_img, prev_idx_cartesian)
-                    prev_idx = lin_indices[prev_idx_cartesian]
-                    if mask[prev_idx] && discretized_img[prev_idx] == gl
-                        continue
-                    end
+    @inbounds for (angle_idx, c_angle) in enumerate(c_angles)
+        for curr_idx_cart in masked_cart_indices
+            i = lin_indices[curr_idx_cart]
+            gl = discretized_img[i]
+            gl_idx = gl_map[gl]
+
+            # Skip if this voxel is not the start of a run
+            prev_idx_cart = curr_idx_cart - c_angle
+            if checkbounds(Bool, discretized_img, prev_idx_cart)
+                prev_idx = lin_indices[prev_idx_cart]
+                if mask[prev_idx] && discretized_img[prev_idx] == gl
+                    continue
                 end
-
-                next_idx_cartesian = curr_idx_cart + c_angle
-                while checkbounds(Bool, discretized_img, next_idx_cartesian) && 
-                      mask[lin_indices[next_idx_cartesian]] && 
-                      discretized_img[next_idx_cartesian] == gl
-                    
-                    run_length += 1
-                    next_idx_cartesian += c_angle
-                end
-
-                P_glrlm[gl_idx, run_length, angle_idx] += 1.0f0
             end
+
+            # Count run length
+            run_length = 1
+            next_idx_cart = curr_idx_cart + c_angle
+            while checkbounds(Bool, discretized_img, next_idx_cart) &&
+                  mask[lin_indices[next_idx_cart]] &&
+                  discretized_img[next_idx_cart] == gl
+                run_length += 1
+                next_idx_cart += c_angle
+            end
+
+            P_glrlm[gl_idx, run_length, angle_idx] += 1.0f0
         end
     end
 
+    # Weighted sum in-place without allocating intermediate arrays
     if !isnothing(weighting_norm)
         weights = ones(Float32, num_angles)
         @inbounds for (a_idx, angle) in enumerate(angles)
             angle_vec = Float32.([angle...])
             current_spacing = voxel_spacing[1:dim]
-            
             abs_angle_dist = abs.(angle_vec) .* current_spacing
-            
             if weighting_norm == "infinity"
                 weights[a_idx] = maximum(abs_angle_dist)
             elseif weighting_norm == "euclidean"
-                weights[a_idx] = sqrt(sum(abs_angle_dist.^2))
+                weights[a_idx] = sqrt(sum(abs_angle_dist .^ 2))
             elseif weighting_norm == "manhattan"
                 weights[a_idx] = sum(abs_angle_dist)
             end
         end
-        
-        # Somma pesata
-        weighted_glrlm = sum(P_glrlm .* reshape(weights, 1, 1, :), dims=3)
-        P_glrlm = weighted_glrlm
+
+        P_out = zeros(Float32, num_gl, max_run_length)
+        @inbounds for a_idx in 1:num_angles
+            @views P_out .+= weights[a_idx] .* P_glrlm[:, :, a_idx]
+        end
+        return reshape(P_out, num_gl, max_run_length, 1), angles
     end
 
     return P_glrlm, angles
 end
 
 """
-    calculate_glrlm_feature(feature_idx, P_glrlm)
+    extract_all_glrlm_features(P_glrlm, gray_levels, feature_names)
 
-    Calculates a specific GLRLM feature.
+    Calculates all GLRLM features in a single pass to avoid redundant computations.
 
     # Arguments
-    - `feature_idx`: The index of the feature to calculate.
     - `P_glrlm`: The GLRLM matrix.
+    - `gray_levels`: The gray levels used.
+    - `feature_names`: The list of feature names to extract.
 
     # Returns
-    - The calculated feature value.
+    - A dictionary containing all calculated feature values.
 """
-function calculate_glrlm_feature(feature_idx, P_glrlm, gray_levels)
+function extract_all_glrlm_features(P_glrlm, gray_levels, feature_names)
+    num_gl = length(gray_levels)
     num_angles = size(P_glrlm, 3)
-    feature_values = zeros(Float32, num_angles)
+    max_run_length = size(P_glrlm, 2)
+    num_features = length(feature_names)
+    feature_sums = zeros(Float32, num_features)
+
+    ivector = Float32.(gray_levels)
+    jvector = Float32.(1:max_run_length)
+    # Pre-compute squared vectors outside the loop (constant across angles)
+    ivector_sq = ivector .^ 2
+    jvector_sq = jvector .^ 2
+
+    # Pre-allocate marginal sum buffers outside the loop to avoid repeated allocations
+    pr = zeros(Float32, 1, max_run_length)
+    pg = zeros(Float32, num_gl, 1)
 
     @inbounds for i in 1:num_angles
-        p_glrlm = P_glrlm[:, :, i]
-        Nr = sum(p_glrlm)
+        p_slice = @view P_glrlm[:, :, i]
+        Nr = sum(p_slice)
         if Nr == 0
             continue
         end
 
-        # Pre-compute inverse of Nr
         inv_Nr = 1.0f0 / Float32(Nr)
         inv_Nr_sq = inv_Nr * inv_Nr
 
-        pr = sum(p_glrlm, dims=1)
-        pg = sum(p_glrlm, dims=2)
-        
-        ivector = Float32.(gray_levels) 
-        jvector = Float32.(1:size(p_glrlm, 2))
+        # In-place marginal sums: zero allocations
+        sum!(pr, p_slice)
+        sum!(pg, p_slice)
 
-        # Pre-compute squared vectors
-        ivector_sq = ivector .^ 2
-        jvector_sq = jvector .^ 2
-
-        if feature_idx == 1
-            # ShortRunEmphasis
-            feature_values[i] = sum(pr' ./ jvector_sq) * inv_Nr
-        elseif feature_idx == 2
-            # LongRunEmphasis
-            feature_values[i] = sum(pr' .* jvector_sq) * inv_Nr
-        elseif feature_idx == 3
-            # GrayLevelNonUniformity
-            feature_values[i] = sum(pg .^ 2) * inv_Nr
-        elseif feature_idx == 4
-            # GrayLevelNonUniformityNormalized
-            feature_values[i] = sum(pg .^ 2) * inv_Nr_sq
-        elseif feature_idx == 5
-            # RunLengthNonUniformity
-            feature_values[i] = sum(pr .^ 2) * inv_Nr
-        elseif feature_idx == 6
-            # RunLengthNonUniformityNormalized
-            feature_values[i] = sum(pr .^ 2) * inv_Nr_sq
-        elseif feature_idx == 7
-            # RunPercentage
-            Np = sum(pr' .* jvector)
-            feature_values[i] = Float32(Nr) / Np
-        elseif feature_idx == 8
-            # GrayLevelVariance
-            p_g = pg .* inv_Nr
-            u_i = sum(p_g .* ivector)
-            feature_values[i] = sum(p_g .* (ivector .- u_i) .^ 2)
-        elseif feature_idx == 9
-            # RunVariance
-            p_r = pr' .* inv_Nr
-            u_j = sum(p_r .* jvector)
-            feature_values[i] = sum(p_r .* (jvector .- u_j) .^ 2)
-        elseif feature_idx == 10
-            # RunEntropy
-            p = p_glrlm .* inv_Nr
-            feature_values[i] = -sum(p .* log2.(p .+ 1.0f-16))
-        elseif feature_idx == 11
-            # LowGrayLevelRunEmphasis
-            feature_values[i] = sum(pg ./ ivector_sq) * inv_Nr
-        elseif feature_idx == 12
-            # HighGrayLevelRunEmphasis
-            feature_values[i] = sum(pg .* ivector_sq) * inv_Nr
-        elseif feature_idx == 13
-            # ShortRunLowGrayLevelEmphasis
-            feature_values[i] = sum(p_glrlm ./ (ivector_sq .* jvector_sq')) * inv_Nr
-        elseif feature_idx == 14
-            # ShortRunHighGrayLevelEmphasis
-            feature_values[i] = sum(p_glrlm .* ivector_sq ./ jvector_sq') * inv_Nr
-        elseif feature_idx == 15
-            # LongRunLowGrayLevelEmphasis
-            feature_values[i] = sum(p_glrlm .* jvector_sq' ./ ivector_sq) * inv_Nr
-        elseif feature_idx == 16
-            # LongRunHighGrayLevelEmphasis
-            feature_values[i] = sum(p_glrlm .* ivector_sq .* jvector_sq') * inv_Nr
-        end
+        # 1. ShortRunEmphasis
+        feature_sums[1] += sum(pr[j] / jvector_sq[j] for j in 1:max_run_length) * inv_Nr
+        # 2. LongRunEmphasis
+        feature_sums[2] += sum(pr[j] * jvector_sq[j] for j in 1:max_run_length) * inv_Nr
+        # 3. GrayLevelNonUniformity
+        feature_sums[3] += sum(pg[g]^2 for g in 1:num_gl) * inv_Nr
+        # 4. GrayLevelNonUniformityNormalized
+        feature_sums[4] += sum(pg[g]^2 for g in 1:num_gl) * inv_Nr_sq
+        # 5. RunLengthNonUniformity
+        feature_sums[5] += sum(pr[j]^2 for j in 1:max_run_length) * inv_Nr
+        # 6. RunLengthNonUniformityNormalized
+        feature_sums[6] += sum(pr[j]^2 for j in 1:max_run_length) * inv_Nr_sq
+        # 7. RunPercentage
+        Np = sum(pr[j] * jvector[j] for j in 1:max_run_length)
+        feature_sums[7] += Float32(Nr) / Np
+        # 8. GrayLevelVariance
+        u_i = sum(pg[g] * ivector[g] for g in 1:num_gl) * inv_Nr
+        feature_sums[8] += sum(pg[g] * inv_Nr * (ivector[g] - u_i)^2 for g in 1:num_gl)
+        # 9. RunVariance
+        u_j = sum(pr[j] * jvector[j] for j in 1:max_run_length) * inv_Nr
+        feature_sums[9] += sum(pr[j] * inv_Nr * (jvector[j] - u_j)^2 for j in 1:max_run_length)
+        # 10. RunEntropy
+        feature_sums[10] += -sum(p_slice[g,j] * inv_Nr * log2(p_slice[g,j] * inv_Nr + 1.0f-16)
+                                  for g in 1:num_gl, j in 1:max_run_length)
+        # 11. LowGrayLevelRunEmphasis
+        feature_sums[11] += sum(pg[g] / ivector_sq[g] for g in 1:num_gl) * inv_Nr
+        # 12. HighGrayLevelRunEmphasis
+        feature_sums[12] += sum(pg[g] * ivector_sq[g] for g in 1:num_gl) * inv_Nr
+        # 13. ShortRunLowGrayLevelEmphasis
+        feature_sums[13] += sum(p_slice[g,j] / (ivector_sq[g] * jvector_sq[j])
+                                 for g in 1:num_gl, j in 1:max_run_length) * inv_Nr
+        # 14. ShortRunHighGrayLevelEmphasis
+        feature_sums[14] += sum(p_slice[g,j] * ivector_sq[g] / jvector_sq[j]
+                                 for g in 1:num_gl, j in 1:max_run_length) * inv_Nr
+        # 15. LongRunLowGrayLevelEmphasis
+        feature_sums[15] += sum(p_slice[g,j] * jvector_sq[j] / ivector_sq[g]
+                                 for g in 1:num_gl, j in 1:max_run_length) * inv_Nr
+        # 16. LongRunHighGrayLevelEmphasis
+        feature_sums[16] += sum(p_slice[g,j] * ivector_sq[g] * jvector_sq[j]
+                                 for g in 1:num_gl, j in 1:max_run_length) * inv_Nr
     end
 
-    return mean(feature_values)
+    inv_angles = 1.0f0 / num_angles
+    glrlm_features = Dict{String,Any}()
+    for (idx, name) in enumerate(feature_names)
+        glrlm_features["glrlm_"*name] = feature_sums[idx] * inv_angles
+    end
+
+    return glrlm_features
 end

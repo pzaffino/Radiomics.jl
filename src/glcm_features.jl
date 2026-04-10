@@ -1,7 +1,7 @@
 using LinearAlgebra
 using Statistics
 """ 
-    function calculate_glcm_3d(img::Array{Float32,3}, mask::BitArray{3}, spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
+    function calculate_glcm(img::Array{Float32,3}, mask::BitArray{3}, spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
 
     Calculates the Gray Level Co-occurrence Matrix (GLCM) for a 3D image within a specified mask.
     You can specify EITHER n_bins OR bin_width, but not both.
@@ -64,31 +64,36 @@ function calculate_glcm(img,
 
     end
 
-    mask_idx = findall(mask)
     Ng = length(gray_levels)
 
     glcm_matrices = Vector{Matrix{Float32}}()
     sizehint!(glcm_matrices, length(dirs))
 
-    # Pre-compute mapping from gray levels to indices
+    # Pre-compute mapping from gray levels to indices directly into mapped_disc array
     map_bin = Dict{Int,Int}()
     sizehint!(map_bin, Ng)
     @inbounds for (i, gl) in enumerate(gray_levels)
         map_bin[Int(gl)] = i
     end
 
+    mapped_disc = zeros(Int, size(disc))
+    @inbounds for i in CartesianIndices(disc)
+        if mask[i]
+            mapped_disc[i] = map_bin[disc[i]]
+        end
+    end
+
     # Calculate weights if weighting is specified
     weights = ones(Float32, length(dirs))
     if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
-        current_spacing = spacing[1:dim]
+        current_spacing = Tuple(spacing[1:dim])
         @inbounds for (a_idx, dir) in enumerate(dirs)
-            angle_vec = Float32.(collect(dir))
-            abs_angle_dist = abs.(angle_vec) .* current_spacing
+            abs_angle_dist = abs.(Float32.(dir)) .* current_spacing
 
             if weighting_norm == "infinity"
                 weights[a_idx] = exp(-maximum(abs_angle_dist)^2)
             elseif weighting_norm == "euclidean"
-                weights[a_idx] = exp(-sum(abs_angle_dist.^2))
+                weights[a_idx] = exp(-sum(x^2 for x in abs_angle_dist))
             elseif weighting_norm == "manhattan"
                 weights[a_idx] = exp(-sum(abs_angle_dist)^2)
             else
@@ -114,14 +119,16 @@ function calculate_glcm(img,
         c_dir = CartesianIndex(dir)
         G = zeros(Float32, Ng, Ng)
 
-        for idx in mask_idx
-            nidx = idx + c_dir
-            if checkbounds(Bool, disc, nidx) && mask[nidx]
-                i = map_bin[disc[idx]]
-                j = map_bin[disc[nidx]]
-                # Symmetrize the GLCM
-                G[i, j] += 1.0f0
-                G[j, i] += 1.0f0
+        for idx in CartesianIndices(disc)
+            if mask[idx]
+                nidx = idx + c_dir
+                if checkbounds(Bool, disc, nidx) && mask[nidx]
+                    i = mapped_disc[idx]
+                    j = mapped_disc[nidx]
+                    # Symmetrize the GLCM
+                    G[i, j] += 1.0f0
+                    G[j, i] += 1.0f0
+                end
             end
         end
 
@@ -154,6 +161,7 @@ function calculate_glcm(img,
 
     return glcm_matrices, gray_levels, bin_width_used
 end
+
 """
     function calculate_mcc(glcm::Matrix{Float32}, px, py)
 
@@ -205,6 +213,7 @@ function calculate_mcc(glcm::Matrix{Float32}, px, py)
         0.0f0
     end
 end
+
 """
     function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
 
@@ -231,12 +240,22 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     gray_levels_f32 = Float32.(gray_levels)
 
     # Compute means
-    μx = sum(gray_levels_f32[i] * px[i] for i in 1:n_levels)
-    μy = sum(gray_levels_f32[j] * py[j] for j in 1:n_levels)
+    μx = 0.0f0
+    μy = 0.0f0
+    for i in 1:n_levels
+        μx += gray_levels_f32[i] * px[i]
+        μy += gray_levels_f32[i] * py[i]
+    end
 
     # Compute standard deviations
-    σx = sqrt(sum((gray_levels_f32[i] - μx)^2 * px[i] for i in 1:n_levels))
-    σy = sqrt(sum((gray_levels_f32[j] - μy)^2 * py[j] for j in 1:n_levels))
+    σx_sq = 0.0f0
+    σy_sq = 0.0f0
+    for i in 1:n_levels
+        σx_sq += (gray_levels_f32[i] - μx)^2 * px[i]
+        σy_sq += (gray_levels_f32[i] - μy)^2 * py[i]
+    end
+    σx = sqrt(σx_sq)
+    σy = sqrt(σy_sq)
 
     # Pre-allocate marginal distributions using actual gray level values
     max_gray_level = maximum(gray_levels)
@@ -267,10 +286,12 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     inv_var = 0.0f0
     max_prob = 0.0f0
     sum_squares = 0.0f0
+    diff_avg = 0.0f0  # accumulated here to avoid a second i×j pass below
 
     ng = Float32(max_gray_level - min_gray_level + 1)
 
-    # Main feature extraction loop
+    # Main feature extraction loop — also accumulates diff_avg and populates
+    # p_xminusy/p_xplusy, so we avoid two extra O(n_levels^2) passes
     @inbounds for i in 1:n_levels
         xi = gray_levels_f32[i]
         xi_minus_μx = xi - μx
@@ -326,6 +347,9 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
                 sum_val = gray_levels[i] + gray_levels[j]
                 p_xminusy[diff_val + 1] += p
                 p_xplusy[sum_val] += p
+
+                # Accumulate diff_avg in the same pass (avoids a second i×j loop)
+                diff_avg += Float32(diff_val) * p
             end
         end
     end
@@ -344,21 +368,10 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     features["glcm_Idn"] = idn
     features["glcm_InverseVariance"] = inv_var
     features["glcm_MaximumProbability"] = max_prob
+    features["glcm_DifferenceAverage"] = diff_avg
 
-    # Difference features
-    diff_avg = 0.0f0
-    diff_var = 0.0f0
+    # Difference entropy from p_xminusy (single pass over p_xminusy, no extra i×j loop)
     diff_entropy = 0.0f0
-
-    @inbounds for i in 1:n_levels, j in 1:n_levels
-        p = glcm[i, j]
-        if p > 0
-            diff_val = abs(gray_levels_f32[i] - gray_levels_f32[j])
-            diff_avg += diff_val * p
-        end
-    end
-
-    # Entropy from p_xminusy
     @inbounds for k in 1:length(p_xminusy)
         pk = p_xminusy[k]
         if pk > 0
@@ -366,7 +379,9 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
         end
     end
 
-    # Variance
+    # Difference variance — requires diff_avg, which was computed in the main loop above,
+    # so this is now the only remaining extra i×j pass (unavoidable without two-pass logic)
+    diff_var = 0.0f0
     @inbounds for i in 1:n_levels, j in 1:n_levels
         p = glcm[i, j]
         if p > 0
@@ -375,19 +390,18 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
         end
     end
 
-    features["glcm_DifferenceAverage"] = diff_avg
     features["glcm_DifferenceEntropy"] = diff_entropy
     features["glcm_DifferenceVariance"] = diff_var
 
     # Sum features
-    kValuesSum = Float32.(2*min_gray_level : 2*max_gray_level)
+    min_k = 2 * min_gray_level
+    max_k = 2 * max_gray_level
 
     sum_avg = 0.0f0
     sum_entropy = 0.0f0
-    @inbounds for k_idx in 1:length(kValuesSum)
-        sum_k = Int(kValuesSum[k_idx])
+    @inbounds for sum_k in min_k:max_k
         pk = p_xplusy[sum_k]
-        sum_avg += kValuesSum[k_idx] * pk
+        sum_avg += Float32(sum_k) * pk
         if pk > 0
             sum_entropy -= pk * log2(pk + eps)
         end
@@ -438,6 +452,7 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
 
     return features
 end
+
 """
     get_glcm_features(img, mask, voxel_spacing; n_bins, bin_width, weighting_norm,
                       get_raw_matrices, verbose)
@@ -510,18 +525,21 @@ function get_glcm_features(img, mask, voxel_spacing;
         return features
     end
 
-    all_features = [extract_glcm_features(glcm, gray_levels) for glcm in glcm_matrices]
+    # Accumulate features directly into a single sum dictionary instead of
+    # allocating N separate feature dicts and averaging after — saves N-1 Dict allocations
+    n_matrices = length(glcm_matrices)
+    sum_features = extract_glcm_features(glcm_matrices[1], gray_levels)
 
-    feature_names = collect(keys(all_features[1]))
-    n_matrices = length(all_features)
-    inv_n = 1.0f0 / Float32(n_matrices)
-
-    @inbounds for name in feature_names
-        sum_val = 0.0f0
-        for f in all_features
-            sum_val += f[name]
+    @inbounds for k in 2:n_matrices
+        f = extract_glcm_features(glcm_matrices[k], gray_levels)
+        for (name, val) in f
+            sum_features[name] += val
         end
-        features[name] = sum_val * inv_n
+    end
+
+    inv_n = 1.0f0 / Float32(n_matrices)
+    @inbounds for name in keys(sum_features)
+        features[name] = sum_features[name] * inv_n
     end
 
     verbose && println("Completed! Extracted $(length(features)) features.")

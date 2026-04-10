@@ -53,6 +53,7 @@ function marching_cubes_surface(mask::BitArray{3},
                                  isolevel::Float64=0.5)
     nx, ny, nz = size(mask)
     triangles  = Vector{Triangle3D}()
+    sizehint!(triangles, count(mask) * 2)
 
     for z in 1:nz-1, y in 1:ny-1, x in 1:nx-1
 
@@ -153,7 +154,6 @@ function maximum_3d_diameter(triangles::Vector{Triangle3D};
     @inbounds for (a, b, c) in triangles
         push!(uniq, a); push!(uniq, b); push!(uniq, c)
     end
-
     verts = collect(uniq)
     n     = length(verts)
     n < 2 && return 0.0
