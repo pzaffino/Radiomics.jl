@@ -78,10 +78,10 @@ function marching_cubes_surface(mask::BitArray{3},
 
         (cubeindex == 0 || cubeindex == 255) && continue
 
-        # --- lookup classico ---
+        # Lookup table
         edges_seq = casesClassic[cubeindex + 1]
 
-        # --- coordinate fisiche (NTuple, stack-allocated) ---
+        # Physical coordinates
         sx, sy, sz = spacing[1], spacing[2], spacing[3]
         x0, x1 = (x-1)*sx, x*sx
         y0, y1 = (y-1)*sy, y*sy
@@ -96,7 +96,7 @@ function marching_cubes_surface(mask::BitArray{3},
         p6 = (x1, y1, z1)
         p7 = (x0, y1, z1)
 
-        # --- genera triangoli ---
+        # Triangles generation
         i = 1
         while i + 2 <= length(edges_seq)
             edges_seq[i] == -1 && break
