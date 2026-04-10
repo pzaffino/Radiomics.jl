@@ -26,6 +26,7 @@ using TOML
                               keep_largest_only::Bool=true,
                               sample_rate=0.03,
                               get_raw_matrices::Bool=false,
+                              slices_2d=nothing,
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
