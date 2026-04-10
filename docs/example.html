@@ -602,6 +602,7 @@
                           keep_largest_only<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">true</span>,
                           get_raw_matrices<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
                           sample_rate<span class="julia-keyword">=</span><span class="julia-literal">0.03</span>,
+                          slices_2d<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
                           verbose<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>)
 
 <span class="julia-comment"># Parameters:</span>
@@ -619,6 +620,7 @@
 <span class="julia-comment">#  keep_largest_only   – If true, only the largest connected component is used.</span>
 <span class="julia-comment">#  get_raw_matrices    – If true, returns the raw matrices for texture features.</span>
 <span class="julia-comment">#  sample_rate         – Fraction of voxel pairs sampled for GLCM (0–1).</span>
+<span class="julia-comment">#  slices_2d           – If present, calculate all features on 2D slices - mask.</span>
 <span class="julia-comment">#  verbose             – Print progress information during extraction.</span>
 
 <span class="julia-comment"># Returns:</span>
