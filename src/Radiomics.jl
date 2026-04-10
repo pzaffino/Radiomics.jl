@@ -33,8 +33,8 @@ using TOML
     Supports both single and multiple label extraction with parallel processing (if enabled. see below).
     
     # Parameters:
-    - `img_input`: The input image (Array), you can pass a 3D array or a 2D array, and if the image is 3D, is possible convert 
-                            to 2D passing the parameter `slices_2d`.
+    - `img_input`: The input image (Array), either 2D or 3D. If a 3D image is passed and the "slices_2d"
+                            parameter is defined, it computes the features on 2D images according to the specified plan/slice pairs.
     - `mask_input`: The mask defining the region of interest (Array) with same shape of `img_input`.
     - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
     - `features`: Array of symbols specifying which features to compute. 
