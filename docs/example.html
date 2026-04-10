@@ -599,8 +599,6 @@
                           n_bins<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
                           bin_width<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
                           weighting_norm<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
-                          force_2d<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
-                          force_2d_dimension<span class="julia-keyword">::</span><span class="julia-type">Int</span><span class="julia-keyword">=</span><span class="julia-literal">1</span>,
                           keep_largest_only<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">true</span>,
                           get_raw_matrices<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
                           sample_rate<span class="julia-keyword">=</span><span class="julia-literal">0.03</span>,
@@ -618,8 +616,6 @@
 <span class="julia-comment">#  n_bins              – Number of histogram bins for discretisation.</span>
 <span class="julia-comment">#  bin_width           – Fixed bin width for discretisation (alternative to n_bins).</span>
 <span class="julia-comment">#  weighting_norm      – Norm used for GLCM distance weighting.</span>
-<span class="julia-comment">#  force_2d            – If true, features are computed slice-by-slice.</span>
-<span class="julia-comment">#  force_2d_dimension  – Axis along which 2-D slicing is performed (default: 1).</span>
 <span class="julia-comment">#  keep_largest_only   – If true, only the largest connected component is used.</span>
 <span class="julia-comment">#  get_raw_matrices    – If true, returns the raw matrices for texture features.</span>
 <span class="julia-comment">#  sample_rate         – Fraction of voxel pairs sampled for GLCM (0–1).</span>
