@@ -738,8 +738,8 @@
 <span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
 
 <span class="julia-comment"># Load medical image and segmentation mask</span>
-ct = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
-mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+ct = <span class="julia-function">niread</span>(<span class="julia-string">"Path/to/CT.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"Path/to/Mask.nii.gz"</span>)
 
 <span class="julia-comment"># Extract voxel spacing from image header</span>
 spacing = [<span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">2</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">3</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">4</span>]]

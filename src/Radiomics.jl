@@ -33,8 +33,9 @@ using TOML
     Supports both single and multiple label extraction with parallel processing (if enabled. see below).
     
     # Parameters:
-    - `img_input`: The input image (Array).
-    - `mask_input`: The mask defining the region of interest (Array).
+    - `img_input`: The input image (Array), you can pass a 3D array or a 2D array, and if the image is 3D, is possible convert 
+                            to 2D passing the parameter `slices_2d`.
+    - `mask_input`: The mask defining the region of interest (Array) with same shape of `img_input`.
     - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
     - `features`: Array of symbols specifying which features to compute. 
                  Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
@@ -47,7 +48,8 @@ using TOML
     - `sample_rate`: The sample rate for feature extraction (optional).
     - `get_raw_matrices`: If true, computes raw (unnormalized, unweighted) GLCM matrices along all directions
                            and stores them in the result as `"get_raw_matrices"` (Vector of Matrix{Float32}).
-    - `slices_2d`: If present, calcule all features on 2d slice - mask. 
+    - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
+                            a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `verbose`: If true, prints progress messages.
         
     # Returns:
