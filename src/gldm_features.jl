@@ -131,6 +131,9 @@ function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
     max_dependence = 27
     P_gldm = zeros(Int, num_gl, max_dependence)
 
+    n_dims = ndims(discretized_img)
+    neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
+
     for i in eachindex(discretized_img)
         if mask[i]
             gl = discretized_img[i]
@@ -138,7 +141,9 @@ function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
 
             dependence_count = 0
 
-            for neighbor_idx in get_neighbors(i, size(discretized_img))
+            n_count = get_neighbors!(neighbors_buffer, i, size(discretized_img))
+            for k in 1:n_count
+                neighbor_idx = neighbors_buffer[k]
                 if mask[neighbor_idx] && abs(gl - discretized_img[neighbor_idx]) <= gldm_a
                     dependence_count += 1
                 end

@@ -114,6 +114,9 @@ function calculate_ngtdm_matrix(discretized_img, mask, verbose)
 
     P_ngtdm = zeros(Float32, num_gl, 3)
 
+    n_dims = ndims(discretized_img)
+    neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
+
     for i in eachindex(discretized_img)
         if mask[i]
             gl = discretized_img[i]
@@ -122,7 +125,9 @@ function calculate_ngtdm_matrix(discretized_img, mask, verbose)
             neighborhood_sum = 0
             neighborhood_count = 0
 
-            for neighbor_idx in get_neighbors(i, size(discretized_img))
+            n_count = get_neighbors!(neighbors_buffer, i, size(discretized_img))
+            for k in 1:n_count
+                neighbor_idx = neighbors_buffer[k]
                 if mask[neighbor_idx]
                     neighborhood_sum += discretized_img[neighbor_idx]
                     neighborhood_count += 1

@@ -172,21 +172,20 @@ function discretize_image(img::Array{<:Real},
 end
 
 """
-    get_neighbors(idx, dims)
+    get_neighbors!(neighbors::AbstractVector{Int}, idx, dims)
 
-    Gets the 26-connected neighbors of a voxel in a 3D image.
+    Gets the 26-connected neighbors of a voxel in a 3D image securely into a pre-allocated array.
 
     # Arguments
+    - `neighbors`: The pre-allocated vector to store the linear indices of the neighbors.
     - `idx`: The linear index of the voxel.
     - `dims`: The dimensions of the image.
 
     # Returns
-    - A vector of linear indices of the neighbors.
+    - The number of valid neighbors found.
     """
-@inline function get_neighbors(idx, dims)
+@inline function get_neighbors!(neighbors::AbstractVector{Int}, idx, dims)
     n = ndims(CartesianIndices(dims))
-    max_neighbors = 3^n - 1  # 8 per 2D, 26 per 3D
-    neighbors = Vector{Int}(undef, max_neighbors)
     count = 0
 
     cartesian_idx = CartesianIndices(dims)[idx]
@@ -202,6 +201,26 @@ end
         end
     end
 
+    return count
+end
+
+"""
+    get_neighbors(idx, dims)
+
+    Gets the 26-connected neighbors of a voxel in a 3D image.
+
+    # Arguments
+    - `idx`: The linear index of the voxel.
+    - `dims`: The dimensions of the image.
+
+    # Returns
+    - A vector of linear indices of the neighbors.
+    """
+@inline function get_neighbors(idx, dims)
+    n = ndims(CartesianIndices(dims))
+    max_neighbors = 3^n - 1  # 8 per 2D, 26 per 3D
+    neighbors = Vector{Int}(undef, max_neighbors)
+    count = get_neighbors!(neighbors, idx, dims)
     return resize!(neighbors, count)
 end
 
@@ -334,15 +353,11 @@ end
         - `img_input`: The input image (Array).
         - `mask_input`: The mask defining the region of interest (Array).
         - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
-        - `force_2d`: If true, forces 2D feature extraction along the specified dimension.
-        - `force_2d_dimension`: The dimension along which to force 2D extraction (1, 2, or 3).
         # Returns:
         - A tuple containing the prepared image, mask, and voxel spacing."""
 function prepare_inputs(img_input::AbstractArray,
     mask_input::AbstractArray,
-    voxel_spacing_input::AbstractVector,
-    force_2d::Bool,
-    force_2d_dimension::Int)
+    voxel_spacing_input::AbstractVector)
     # Handle both 2D and 3D inputs
     if ndims(img_input) == 2
         # 2D input: convert to 2D Float32 array
@@ -352,16 +367,6 @@ function prepare_inputs(img_input::AbstractArray,
         # 3D input: convert to 3D Float32 array
         img = convert(Array{Float32,3}, img_input)
         mask = BitArray(mask_input .!= 0.0f0)
-
-        if force_2d
-            if force_2d_dimension < 1 || force_2d_dimension > 3
-                throw(ArgumentError("force_2d_dimension must be between 1 and 3"))
-            end
-            # Use view instead of creating new array for spacing selection
-            dims_to_keep = setdiff(1:3, force_2d_dimension)
-            voxel_spacing = convert(Vector{Float32}, voxel_spacing_input[dims_to_keep])
-            return img, mask, voxel_spacing
-        end
     else
         throw(ArgumentError("Input image must be 2D or 3D, got $(ndims(img_input))D"))
     end

@@ -169,23 +169,72 @@ end
 Helper functions to calculate the maximum diameter of a 2D mesh and coefficients for the 2D shape
 Original C code: https://github.com/AIM-Harvard/pyradiomics/blob/master/radiomics/src/cshape.c
 """
-function calculate_mesh_diameter2d(points::Vector{Float64})
-    diameter = 0.0
-    stack_top = length(points)
-    while stack_top > 0
-        y1 = points[stack_top]; stack_top -= 1
-        x1 = points[stack_top]; stack_top -= 1
-        for i in 1:2:stack_top
-            x2, y2 = points[i], points[i+1]
-            dx = x1 - x2
-            dy = y1 - y2
-            dist2 = dx^2 + dy^2
-            if dist2 > diameter
-                diameter = dist2
+function calculate_mesh_diameter2d(points_flat::Vector{Float64})::Float64
+    n = div(length(points_flat), 2)
+    n < 2 && return 0.0
+    
+    # 1. Costruiamo l'array di tuple
+    pts = Vector{Tuple{Float64, Float64}}(undef, n)
+    @inbounds for i in 1:n
+        pts[i] = (points_flat[2i-1], points_flat[2i])
+    end
+    
+    sort!(pts)
+    
+    # 2. Pre-allochiamo l'array per l'involucro (dimensione massima possibile: 2n)
+    hull = Vector{Tuple{Float64, Float64}}(undef, 2n)
+    k = 0 # Contatore che fa da puntatore per la cima dello "stack"
+    
+    # Involucro inferiore
+    @inbounds for i in 1:n
+        p = pts[i]
+        while k >= 2 
+            o = hull[k-1]
+            a = hull[k]
+            # Prodotto vettoriale inline per evitare overhead di chiamate a funzione
+            if (a[2] - o[2]) * (p[1] - o[1]) - (a[1] - o[1]) * (p[2] - o[2]) <= 0
+                k -= 1 # Equivale a un pop!
+            else
+                break
+            end
+        end
+        k += 1
+        hull[k] = p # Equivale a un push!
+    end
+    
+    # Involucro superiore
+    t = k + 1
+    @inbounds for i in n-1:-1:1
+        p = pts[i]
+        while k >= t
+            o = hull[k-1]
+            a = hull[k]
+            if (a[2] - o[2]) * (p[1] - o[1]) - (a[1] - o[1]) * (p[2] - o[2]) <= 0
+                k -= 1
+            else
+                break
+            end
+        end
+        k += 1
+        hull[k] = p
+    end
+    
+    # 3. Calcolo della massima distanza sui vertici (h = k - 1 per ignorare il punto duplicato)
+    h = k - 1
+    max_dist2 = 0.0
+    
+    @inbounds for i in 1:h
+        p1 = hull[i]
+        for j in (i+1):h
+            p2 = hull[j]
+            dist2 = (p1[1] - p2[1])^2 + (p1[2] - p2[2])^2
+            if dist2 > max_dist2
+                max_dist2 = dist2
             end
         end
     end
-    return sqrt(diameter)
+    
+    return sqrt(max_dist2)
 end
 
 """Calculate perimeter, surface, and maximum diameter of a 2D shape represented by a binary mask.
