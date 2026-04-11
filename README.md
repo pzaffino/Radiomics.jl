@@ -17,7 +17,16 @@ Right now, the implemented features are:
 - GLSZM features
 - NGTDM features
 
-## **Website with complete documentation**
+## **Why choose Radiomics.jl for your project**
+- Full IBSI Compliance: Every feature is calculated according to IBSI 1 - Phase 1 standards—our unit tests are strictly validated against IBSI sample images (go ahead, take a look!).
+- User-Friendly API: Simplify your workflow by extracting features from multiple labels with a single call. Handling 2D slices or multiple planes/slices "in one shot" has never been easier.
+- First-class 2D support: 2D analysis is treated with the same priority as 3D; computing features for a 2D matrix is just as seamless as the 3D case.
+- Deep Insights: While other radiomics libraries focus only on final scalar values, Radiomics.jl also lets you easily get the raw matrices used under the hood for texture feature calculations.
+- No silent failures: If something looks suspicious or ambiguous—like disconnected segmentation islands or oversized binning—the library raises clear warnings.
+- Native Multi-threading: The engine is engineered from the ground up to take full advantage of multi-threaded performance.
+- Cross-language ready: Radiomics.jl delivers a frictionless experience across languages, allowing Python, C++, R, and many other language developers to call Julia’s power with ease.
+
+## **Official website**
 For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
 # **Getting started**
