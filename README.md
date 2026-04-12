@@ -111,3 +111,9 @@ spacing = ct_sitk.GetSpacing()
 
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
+
+### Discalaimer
+This software is for research purposes only.
+It is NOT intended for clinical use, diagnosis, or treatment.
+It has NOT been cleared or approved by the FDA (USA), CE (EU), or any other regulatory body.
+Use at your own risk.
