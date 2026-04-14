@@ -28,4 +28,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/pzaffino/radiomics:latest
+          tags: ghcr.io/pzaffino/radiomics.jl:latest
