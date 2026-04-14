@@ -8,6 +8,9 @@ on:
 jobs:
   build-and-push:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout repository
@@ -25,4 +28,4 @@ jobs:
         with:
           context: .
           push: true
-          tags: ghcr.io/pzaffino/radiomics.jl:latest
+          tags: ghcr.io/pzaffino/radiomics:latest
