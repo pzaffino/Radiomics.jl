@@ -1,8 +1,11 @@
 # Official Julia image
 FROM julia:1.10-bookworm
 
-ENV DEBIAN_FRONTEND=noninteractive
+LABEL org.opencontainers.image.source=https://github.com/pzaffino/Radiomics.jl
+LABEL org.opencontainers.image.description="Radiomics.jl Docker Image"
+LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>"
 
+ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
     build-essential \
