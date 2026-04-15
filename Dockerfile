@@ -1,12 +1,10 @@
 # Official Julia image
 FROM julia:1.10-bookworm
-
 LABEL org.opencontainers.image.source=https://github.com/pzaffino/Radiomics.jl
 LABEL org.opencontainers.image.description="Radiomics.jl Docker Image"
 LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>"
 
 ENV DEBIAN_FRONTEND=noninteractive
-
 RUN apt-get update && apt-get install -y \
     build-essential \
     wget \
@@ -90,5 +88,11 @@ features = Radiomics.extract_radiomic_features(\n\
     verbose=args["verbose"]\n\
 );' > /app/extract.jl
 
-# Set the entrypoint to Julia
-ENTRYPOINT ["julia", "/app/extract.jl"]
+# Add PackageCompiler and create the sysimage
+RUN julia -e 'using Pkg; Pkg.add("PackageCompiler")'
+RUN julia -e 'using PackageCompiler; \
+    create_sysimage([:Radiomics, :NIfTI, :ArgParse]; \
+    sysimage_path="/app/radiomics.so")'
+
+# Use the sysimage at each run
+ENTRYPOINT ["julia", "--sysimage", "/app/radiomics.so", "/app/extract.jl"]
