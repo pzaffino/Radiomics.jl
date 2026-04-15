@@ -2,7 +2,7 @@
 FROM julia:1.10-bookworm
 LABEL org.opencontainers.image.source=https://github.com/pzaffino/Radiomics.jl
 LABEL org.opencontainers.image.description="Radiomics.jl Docker Image"
-LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>"
+LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>, Ciro Benito Raggio <[ciro.raggio@kit.edu]>, Mohammadreza Javadi Namin <[mohammadreza.javadi@mail.polimi.it]>, Nastaran Ghaffari Elkhechi <[nastaran.ghaffari@mail.polimi.it]>, Jakub Mitura <[jakub.mitura14@gmail.com]>"
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
@@ -14,13 +14,13 @@ RUN apt-get update && apt-get install -y \
 # Install Julia packages
 RUN julia -e 'using Pkg; \
     Pkg.add(url="https://github.com/pzaffino/Radiomics.jl"); \
-    Pkg.add(["NIfTI", "ArgParse"]); \
+    Pkg.add(["NIfTI", "ArgParse", "CSV", "DataFrames"]); \
     Pkg.precompile()'
 
 # Set working directory and generate the embedded Julia script
 WORKDIR /app
 
-RUN printf 'using Radiomics, NIfTI, ArgParse\n\
+RUN printf 'using Radiomics, NIfTI, ArgParse, CSV, DataFrames\n\
 \n\
 # Function to parse command line arguments\n\
 function parse_args_custom()\n\
@@ -32,6 +32,10 @@ function parse_args_custom()\n\
         "mask"\n\
             help = "Path to NIfTI mask"\n\
             required = true\n\
+        "--output", "-o"\n\
+            help = "Path to output CSV file"\n\
+            arg_type = String\n\
+            default = "features.csv"\n\
         "--n_bins"\n\
             help = "Number of bins for histogram"\n\
             arg_type = Int\n\
@@ -86,12 +90,18 @@ features = Radiomics.extract_radiomic_features(\n\
     sample_rate=args["sample_rate"],\n\
     slices_2d=nothing,\n\
     verbose=args["verbose"]\n\
-);' > /app/extract.jl
+);\n\
+\n\
+# Convert results to DataFrame and save to CSV\n\
+df = DataFrame(features)\n\
+CSV.write(args["output"], df)\n\
+println("Extraction complete. Results saved to: ", args["output"])\n\
+' > /app/extract.jl
 
 # Add PackageCompiler and create the sysimage
 RUN julia -e 'using Pkg; Pkg.add("PackageCompiler")'
 RUN julia -e 'using PackageCompiler; \
-    create_sysimage([:Radiomics, :NIfTI, :ArgParse]; \
+    create_sysimage([:Radiomics, :NIfTI, :ArgParse, :CSV, :DataFrames]; \
     sysimage_path="/app/radiomics.so", \
     cpu_target="generic")'
 
