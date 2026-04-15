@@ -1,0 +1,940 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+    type="image/png">
+  <title>GLCM Features - Radiomics.jl</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #0f172a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      min-height: 100vh;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    /* Mobile Menu Toggle */
+    .mobile-menu-toggle {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 300;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: var(--shadow-lg);
+      font-size: 1.2rem;
+      transition: all 0.3s;
+    }
+
+    .mobile-menu-toggle:hover {
+      background: var(--primary-dark);
+      transform: scale(1.05);
+    }
+
+    .mobile-menu-toggle.active {
+      background: #ef4444;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      height: 100%;
+      width: 300px;
+      background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+
+    /* FIX: Layout Header Sidebar */
+    .sidebar-header {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 30px 20px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    .sidebar h2 {
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      margin-bottom: 8px;
+      background: linear-gradient(135deg, #ffffff 0%, #94a3b8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .sidebar-subtitle {
+      font-size: 0.85rem;
+      color: rgba(255, 255, 255, 0.6);
+      font-weight: 400;
+      letter-spacing: 0.5px;
+    }
+
+    /* FIX: Logo fluido dentro il quadrato */
+    .top-left-logo {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s ease;
+      flex-shrink: 0;
+    }
+
+    .top-left-logo:hover {
+      transform: scale(1.05);
+    }
+
+    /* FIX: Reset stili link per il logo */
+    .top-left-logo a {
+      display: block;
+      width: 100%;
+      height: 100%;
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .top-left-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .sidebar nav {
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* Stili generali link sidebar */
+    .sidebar nav>a,
+    .sidebar .dropdown-btn,
+    .sidebar .dropdown-content a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      padding: 14px 30px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-left: 3px solid transparent;
+      display: block;
+    }
+
+    .sidebar nav>a:hover,
+    .sidebar .dropdown-content a:hover,
+    .sidebar .dropdown-btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar nav>a.active,
+    .sidebar .dropdown-content a.active {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: white;
+      font-weight: 600;
+      border-left-color: var(--primary-light);
+    }
+
+    .dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-btn {
+      background: none;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Inter', sans-serif;
+      width: 100%;
+    }
+
+    .dropdown-btn::after {
+      content: '▾';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      opacity: 0.7;
+    }
+
+    .dropdown.active .dropdown-btn::after {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-content {
+      display: none;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .dropdown-content a {
+      font-size: 0.88rem;
+      padding: 10px 30px 10px 50px;
+      font-weight: 400;
+    }
+
+    .dropdown-content a::before {
+      width: 4px;
+      height: 4px;
+    }
+
+    .dropdown.active .dropdown-content {
+      display: flex;
+      max-height: 500px;
+    }
+
+    /* Main Content */
+    .main {
+      flex: 1;
+      padding: 0;
+      width: auto;
+      margin-left: 300px;
+      min-width: 0;
+    }
+
+    /* Page Header */
+    .page-header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 60px 60px;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .page-header::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .page-header-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    .page-header h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 12px;
+      letter-spacing: -1px;
+    }
+
+    .page-header p {
+      font-size: 1.1rem;
+      opacity: 0.95;
+      font-weight: 400;
+      color: white
+    }
+
+    /* Content Section */
+    .content {
+      padding: 60px;
+      background: white;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section {
+      margin-bottom: 50px;
+    }
+
+    h2 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 20px;
+      position: relative;
+      padding-bottom: 12px;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 50px;
+      height: 3px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 2px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    ul {
+      margin-left: 24px;
+      margin-bottom: 20px;
+    }
+
+    li {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      margin-bottom: 12px;
+    }
+
+    li strong {
+      color: var(--text-primary);
+      font-weight: 600;
+    }
+
+    /* Info Box */
+    .info-box {
+      background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%);
+      border-left: 4px solid var(--primary);
+      padding: 24px;
+      border-radius: 8px;
+      margin: 30px 0;
+    }
+
+    .info-box p {
+      margin-bottom: 0;
+    }
+
+    /* Feature List */
+    .feature-list {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 16px;
+      margin: 30px 0;
+    }
+
+    .feature-item {
+      background: var(--bg-light);
+      border-left: 3px solid var(--primary-light);
+      padding: 16px 20px;
+      border-radius: 8px;
+      transition: all 0.3s;
+    }
+
+    .feature-item:hover {
+      background: white;
+      box-shadow: var(--shadow-md);
+      transform: translateX(4px);
+    }
+
+    .feature-item strong {
+      display: block;
+      color: var(--primary-dark);
+      font-weight: 600;
+      font-size: 1.15rem;
+      margin-bottom: 8px;
+    }
+
+    .feature-item p {
+      margin: 4px 0 0 0;
+      font-size: 0.95rem;
+      color: var(--text-secondary);
+    }
+
+    .formula {
+      margin-top: 12px;
+      font-family: 'Courier New', monospace;
+      background: white;
+      padding: 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      color: var(--primary-dark);
+      border: 1px solid var(--border);
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--secondary);
+      color: rgba(255, 255, 255, 0.7);
+      padding: 40px 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Overlay for mobile menu */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* Tablet breakpoint */
+    @media (max-width: 1024px) {
+
+      /* FIX: Logo ridimensionato su tablet */
+      .top-left-logo {
+        width: 120px;
+        height: 120px;
+      }
+
+      .sidebar {
+        width: 260px;
+      }
+
+      .main {
+        margin-left: 260px;
+        width: auto;
+      }
+
+      .page-header,
+      .content,
+      .footer {
+        padding: 40px;
+      }
+
+      .page-header h1 {
+        font-size: 2rem;
+      }
+
+      h2 {
+        font-size: 1.5rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Mobile breakpoint */
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-menu-toggle {
+        display: block;
+      }
+
+      .sidebar {
+        width: 280px;
+        transform: translateX(-100%);
+        z-index: 250;
+        height: 100%;
+        bottom: 0;
+      }
+
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      /* FIX: Logo su mobile */
+      .top-left-logo {
+        width: 100px;
+        height: 100px;
+      }
+
+      .sidebar-header {
+        padding: 60px 25px 25px;
+      }
+
+      .sidebar h2 {
+        font-size: 1.5rem;
+      }
+
+      .sidebar nav {
+        padding: 15px 0;
+      }
+
+      .sidebar a,
+      .dropdown-btn {
+        padding: 12px 25px;
+        font-size: 0.9rem;
+      }
+
+      .dropdown-content a {
+        padding: 10px 25px 10px 45px;
+        font-size: 0.85rem;
+      }
+
+      .page-header {
+        padding: 100px 25px 40px;
+      }
+
+      .page-header h1 {
+        font-size: 1.75rem;
+      }
+
+      .page-header p {
+        font-size: 1rem;
+      }
+
+      .content {
+        padding: 30px 25px;
+      }
+
+      .section {
+        margin-bottom: 40px;
+      }
+
+      h2 {
+        font-size: 1.4rem;
+      }
+
+      .feature-list {
+        grid-template-columns: 1fr;
+        gap: 14px;
+      }
+
+      .feature-item {
+        padding: 14px 18px;
+      }
+
+      .feature-item strong {
+        font-size: 1rem;
+      }
+
+      .formula {
+        font-size: 0.85rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 20px;
+      }
+
+      .footer {
+        padding: 30px 25px;
+      }
+    }
+
+    /* Small mobile breakpoint */
+    @media (max-width: 480px) {
+      .mobile-menu-toggle {
+        padding: 10px 14px;
+        font-size: 1rem;
+      }
+
+      /* FIX: Logo su schermi piccoli */
+      .top-left-logo {
+        width: 80px;
+        height: 80px;
+      }
+
+      .page-header {
+        padding: 90px 20px 30px;
+      }
+
+      .page-header h1 {
+        font-size: 1.5rem;
+      }
+
+      .page-header p {
+        font-size: 0.95rem;
+      }
+
+      .content {
+        padding: 25px 20px;
+      }
+
+      h2 {
+        font-size: 1.25rem;
+      }
+
+      p {
+        font-size: 0.95rem;
+      }
+
+      .feature-list {
+        gap: 12px;
+      }
+
+      .feature-item {
+        padding: 12px 16px;
+      }
+
+      .feature-item strong {
+        font-size: 0.95rem;
+      }
+
+      .feature-item p {
+        font-size: 0.9rem;
+      }
+
+      .formula {
+        font-size: 0.8rem;
+        padding: 6px;
+      }
+
+      .info-box {
+        padding: 15px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+  <div class="overlay" id="overlay"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="top-left-logo">
+        <a href="index.html">
+          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+            alt="Radiomics.jl Logo">
+        </a>
+      </div>
+      <div style="text-align: center; margin-top: 12px;">
+        <span style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">Version </span>
+        <span id="latest-version" style="font-size: 0.88rem; color: white; font-weight: 600;">...</span>
+      </div>
+    </div>
+    <nav>
+      <a href="index.html">Home</a>
+      <a href="installation.html">Getting Started</a>
+      <a href="example.html">Examples</a>
+      <a href="cross_languages.html">Cross languages</a>
+      <a href="news.html">News</a>
+      <div class="dropdown active">
+        <button class="dropdown-btn">Features</button>
+        <div class="dropdown-content">
+          <a href="first-order.html">First-order features</a>
+          <a href="2d-shape.html">2D shape features</a>
+          <a href="3d-shape.html">3D shape features</a>
+          <a href="glcm.html" class="active">GLCM features</a>
+          <a href="gldm.html">GLDM features</a>
+          <a href="glrlm.html">GLRLM features</a>
+          <a href="glszm.html">GLSZM features</a>
+          <a href="ngtdm.html">NGTDM features</a>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <section class="page-header">
+      <div class="page-header-content">
+        <h1>GLCM Features</h1>
+        <p>Gray Level Co-occurrence Matrix texture analysis for medical imaging</p>
+      </div>
+    </section>
+
+    <div class="content">
+      <div class="section">
+        <h2>Overview</h2>
+        <p>The Gray Level Co-occurrence Matrix (GLCM) is a fundamental texture analysis method that quantifies spatial
+          relationships between voxel intensities in medical images. GLCM features capture information about the
+          frequency of intensity value pairs occurring at specific spatial offsets, providing powerful descriptors of
+          image texture and heterogeneity.</p>
+
+
+        <div class="info-box">
+          <p>Radiomics.jl implements comprehensive GLCM feature extraction for both 2D and 3D medical images. The
+            library computes co-occurrence matrices across multiple directions and distances, aggregating the results to
+            produce rotationally invariant texture features suitable for radiomics analysis.</p>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Extracted Features</h2>
+        <p>The following GLCM-based texture features are computed:</p>
+
+        <div class="feature-list">
+          <div class="feature-item">
+            <strong>Autocorrelation</strong>
+            <p>Measures correlation between intensities of neighboring voxels, quantifying spatial intensity
+              dependencies.</p>
+            <div class="formula">AC = Σᵢⱼ i·j·P(i,j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Cluster Prominence</strong>
+            <p>Indicates sharpness of deviations from the mean; detects asymmetric patterns in texture.</p>
+            <div class="formula">CP = Σᵢⱼ (i+j-μₓ-μᵧ)⁴·P(i,j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Cluster Shade</strong>
+            <p>Measures asymmetry of cluster distributions, capturing skewness in spatial intensity patterns.</p>
+            <div class="formula">CS = Σᵢⱼ (i+j-μₓ-μᵧ)³·P(i,j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Cluster Tendency</strong>
+            <p>Quantifies the degree of clustering of similar intensity values in the image.</p>
+            <div class="formula">CT = Σᵢⱼ (i+j-μₓ-μᵧ)²·P(i,j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Contrast</strong>
+            <p>Measures local intensity contrast between neighboring voxels, indicating texture variation.</p>
+            <div class="formula">C = Σᵢⱼ (i-j)²·P(i,j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Correlation</strong>
+            <p>Statistical correlation between intensities of neighboring voxels, reflecting linear dependencies.</p>
+            <div class="formula">ρ = Σᵢⱼ [(i-μₓ)(j-μᵧ)·P(i,j)]/(σₓσᵧ)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Joint Energy</strong>
+            <p>Uniformity of the GLCM; high values indicate homogeneous texture patterns.</p>
+            <div class="formula">E = Σᵢⱼ P(i,j)²</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Joint Entropy</strong>
+            <p>Measures the complexity or disorder of the GLCM, quantifying texture randomness.</p>
+            <div class="formula">H = -Σᵢⱼ P(i,j)·log₂(P(i,j))</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Inverse Difference Moment (IDM)</strong>
+            <p>Measures homogeneity; higher values indicate less local variation and smoother textures.</p>
+            <div class="formula">IDM = Σᵢⱼ P(i,j)/(1+(i-j)²)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Normalized IDM (IDMN)</strong>
+            <p>Normalized version of IDM, providing scale-invariant homogeneity measurement.</p>
+            <div class="formula">IDMN = Σᵢⱼ P(i,j)/(1+(i-j)²/N²)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Inverse Difference (ID)</strong>
+            <p>Similar to IDM, measures proximity of intensity values to the central voxel.</p>
+            <div class="formula">ID = Σᵢⱼ P(i,j)/(1+|i-j|)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Normalized Inverse Difference (IDN)</strong>
+            <p>Normalized version of ID for consistent comparison across different images.</p>
+            <div class="formula">IDN = Σᵢⱼ P(i,j)/(1+|i-j|/N)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Inverse Variance</strong>
+            <p>Measures dispersion of GLCM values, indicating texture heterogeneity.</p>
+            <div class="formula">IV = Σᵢⱼ P(i,j)/(i-j)² (i≠j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Maximum Probability</strong>
+            <p>Maximum co-occurrence probability between gray levels, identifying dominant texture patterns.</p>
+            <div class="formula">MP = maxᵢⱼ P(i,j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Sum of Squares</strong>
+            <p>Measures total variation relative to the mean intensity in the GLCM.</p>
+            <div class="formula">SS = Σᵢⱼ (i-μ)²·P(i,j)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Difference Average</strong>
+            <p>Mean of intensity differences between neighboring voxels across the GLCM.</p>
+            <div class="formula">DA = Σₖ k·Pₓ₋ᵧ(k)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Difference Entropy</strong>
+            <p>Disorder of intensity differences, quantifying complexity of local variations.</p>
+            <div class="formula">DE = -Σₖ Pₓ₋ᵧ(k)·log₂(Pₓ₋ᵧ(k))</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Difference Variance</strong>
+            <p>Variance of intensity differences between neighbors, measuring spread of local contrasts.</p>
+            <div class="formula">DV = Σₖ (k-DA)²·Pₓ₋ᵧ(k)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Sum Average</strong>
+            <p>Mean of sums of GLCM value pairs, representing average combined intensities.</p>
+            <div class="formula">SA = Σₖ k·Pₓ₊ᵧ(k)</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Sum Entropy</strong>
+            <p>Entropy of sums; measures complexity of combined intensity distributions.</p>
+            <div class="formula">SE = -Σₖ Pₓ₊ᵧ(k)·log₂(Pₓ₊ᵧ(k))</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Joint Average</strong>
+            <p>Global mean of GLCM values, providing an average co-occurrence measure.</p>
+            <div class="formula">JA = Σᵢⱼ i·P(i,j) = μₓ</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>IMC1 / IMC2</strong>
+            <p>Informational measures of correlation between marginal distributions, capturing mutual information.</p>
+            <div class="formula">IMC1 = (H-HXY1)/(max(Hₓ,Hᵧ))</div>
+          </div>
+
+          <div class="feature-item">
+            <strong>Maximal Correlation Coefficient (MCC)</strong>
+            <p>Measures maximum linear correlation between rows and columns of the GLCM matrix.</p>
+            <div class="formula">MCC = √(second largest eigenvalue of Q)</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>Notation Legend</h2>
+        <p style="margin-bottom: 12px;">The following symbols are used in the formulas above:</p>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>P(i,j)</strong> = normalized co-occurrence probability at gray levels i and j</li>
+          <li><strong>N</strong> = number of gray levels in the image</li>
+          <li><strong>μₓ, μᵧ</strong> = mean values along x and y dimensions of the GLCM</li>
+          <li><strong>σₓ, σᵧ</strong> = standard deviations along x and y dimensions</li>
+          <li><strong>Pₓ₊ᵧ(k)</strong> = probability of sum of gray levels (i+j=k)</li>
+          <li><strong>Pₓ₋ᵧ(k)</strong> = probability of difference of gray levels (|i-j|=k)</li>
+          <li><strong>Hₓ, Hᵧ</strong> = marginal entropies</li>
+          <li><strong>HXY1, HXY2</strong> = conditional entropies</li>
+          <li><strong>Σᵢⱼ</strong> = summation over all i,j pairs in the GLCM</li>
+          <li><strong>Σₖ</strong> = summation over all k values</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Implementation Details</h2>
+        <div class="info-box">
+          <p>These functions are designed for advanced radiomics analysis on medical images. The 2D wrapper enables the
+            3D calculation methodology to be applied to planar images by adding a singleton dimension, ensuring
+            consistency across different dimensionalities. Features are aggregated across multiple spatial directions to
+            provide rotationally invariant descriptors.</p>
+        </div>
+      </div>
+    </div>
+
+    <footer class="footer">
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a>
+      </p>
+    </footer>
+  </main>
+
+  <script>
+    const dropdownBtn = document.querySelector('.dropdown-btn');
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+
+    dropdownBtn.addEventListener('click', () => {
+      dropdownBtn.parentElement.classList.toggle('active');
+    });
+
+    mobileMenuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('active');
+      mobileMenuToggle.classList.toggle('active');
+      mobileMenuToggle.textContent = mobileMenuToggle.classList.contains('active') ? '✕' : '☰';
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('active');
+      mobileMenuToggle.classList.remove('active');
+      mobileMenuToggle.textContent = '☰';
+    });
+
+    // Close menu on link click (mobile)
+    const sidebarLinks = document.querySelectorAll('.sidebar a');
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('mobile-open');
+          overlay.classList.remove('active');
+          mobileMenuToggle.classList.remove('active');
+          mobileMenuToggle.textContent = '☰';
+        }
+      });
+    });
+  </script>
+  <script src="latestv.js"></script>
+
+</body>
+
+</html>

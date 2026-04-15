@@ -1,0 +1,906 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="icon" href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+    type="image/png">
+  <title>Radiomics.jl - Medical Imaging Library</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-dark: #1e40af;
+      --primary-light: #3b82f6;
+      --secondary: #0f172a;
+      --text-primary: #1e293b;
+      --text-secondary: #64748b;
+      --bg-light: #f8fafc;
+      --bg-white: #ffffff;
+      --border: #e2e8f0;
+      --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.05);
+      --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.07);
+      --shadow-lg: 0 10px 25px rgba(0, 0, 0, 0.08);
+      --shadow-xl: 0 20px 40px rgba(0, 0, 0, 0.1);
+
+      /* Colori base per la sintassi */
+      --syntax-keyword: #ff79c6;
+      --syntax-function: #50fa7b;
+      --syntax-type: #8be9fd;
+      --syntax-string: #f1fa8c;
+      --syntax-comment: #6272a4;
+      --syntax-literal: #bd93f9;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      display: flex;
+      min-height: 100vh;
+      background-color: var(--bg-light);
+      color: var(--text-primary);
+      line-height: 1.6;
+      overflow-x: hidden;
+      width: 100%;
+    }
+
+    /* --- LAYOUT & SIDEBAR --- */
+
+    /* Mobile Menu Toggle */
+    .mobile-menu-toggle {
+      display: none;
+      position: fixed;
+      top: 20px;
+      left: 20px;
+      z-index: 300;
+      background: var(--primary);
+      color: white;
+      border: none;
+      padding: 12px 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      box-shadow: var(--shadow-lg);
+      font-size: 1.2rem;
+      transition: all 0.3s;
+    }
+
+    .mobile-menu-toggle:hover {
+      background: var(--primary-dark);
+      transform: scale(1.05);
+    }
+
+    .mobile-menu-toggle.active {
+      background: #ef4444;
+    }
+
+    /* Sidebar Styling */
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      bottom: 0;
+      height: 100%;
+      width: 300px;
+      background: linear-gradient(180deg, var(--secondary) 0%, #1e293b 100%);
+      color: white;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      box-shadow: var(--shadow-xl);
+      overflow-y: auto;
+      z-index: 100;
+      transition: transform 0.3s ease;
+    }
+
+    /* FIX LOGO: Layout Header Sidebar */
+    .sidebar-header {
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      padding: 30px 20px 20px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+      background: rgba(0, 0, 0, 0.2);
+    }
+
+    /* FIX LOGO: Stile del quadrato bianco */
+    .top-left-logo {
+      /* Rimosso position: fixed per farlo fluire nella sidebar */
+      position: relative;
+      width: 160px;
+      height: 160px;
+      background: white;
+      border-radius: 8px;
+      padding: 10px;
+      box-shadow: var(--shadow-lg);
+      transition: transform 0.3s ease;
+      /* Assicura che non venga schiacciato */
+      flex-shrink: 0;
+    }
+
+    .top-left-logo:hover {
+      transform: scale(1.05);
+    }
+
+    /* FIX LOGO: Link interno al logo */
+    .top-left-logo a {
+      display: block;
+      width: 100%;
+      height: 100%;
+      /* Reset stili link sidebar per evitare evidenziazioni indesiderate */
+      padding: 0 !important;
+      background: transparent !important;
+      border: none !important;
+    }
+
+    .top-left-logo img {
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      display: block;
+    }
+
+    .sidebar nav {
+      padding: 20px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    /* Stili generali per i link della sidebar */
+    .sidebar nav>a,
+    .sidebar .dropdown-btn,
+    .sidebar .dropdown-content a {
+      color: rgba(255, 255, 255, 0.85);
+      text-decoration: none;
+      padding: 14px 30px;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      font-weight: 500;
+      font-size: 0.95rem;
+      border-left: 3px solid transparent;
+      display: block;
+      /* Assicura che si comportino bene */
+    }
+
+    .sidebar nav>a:hover,
+    .sidebar .dropdown-content a:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .sidebar nav>a.active {
+      background-color: rgba(37, 99, 235, 0.15);
+      color: white;
+      font-weight: 600;
+      border-left-color: var(--primary-light);
+    }
+
+    .dropdown {
+      display: flex;
+      flex-direction: column;
+    }
+
+    .dropdown-btn {
+      background: none;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-family: 'Inter', sans-serif;
+      width: 100%;
+    }
+
+    .dropdown-btn::after {
+      content: '▾';
+      font-size: 0.8rem;
+      transition: transform 0.3s;
+      opacity: 0.7;
+    }
+
+    .dropdown.active .dropdown-btn::after {
+      transform: rotate(180deg);
+    }
+
+    .dropdown-btn:hover {
+      background-color: rgba(255, 255, 255, 0.08);
+      color: white;
+      border-left-color: var(--primary-light);
+    }
+
+    .dropdown-content {
+      display: none;
+      flex-direction: column;
+      background: rgba(0, 0, 0, 0.15);
+      padding: 8px 0;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out;
+    }
+
+    .dropdown-content a {
+      font-size: 0.88rem;
+      padding: 10px 30px 10px 50px;
+      font-weight: 400;
+    }
+
+    .dropdown.active .dropdown-content {
+      display: flex;
+      max-height: 500px;
+    }
+
+    /* Main Container */
+    .main {
+      flex: 1;
+      padding: 0;
+      width: auto;
+      margin-left: 300px;
+      min-width: 0;
+    }
+
+    /* --- HOME PAGE STYLES --- */
+
+    .hero {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding: 80px 60px;
+      text-align: center;
+      color: white;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: url('data:image/svg+xml,<svg width="60" height="60" xmlns="http://www.w3.org/2000/svg"><defs><pattern id="grid" width="60" height="60" patternUnits="userSpaceOnUse"><path d="M 60 0 L 0 0 0 60" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="1"/></pattern></defs><rect width="100%" height="100%" fill="url(%23grid)"/></svg>');
+      opacity: 0.3;
+    }
+
+    .hero-content {
+      position: relative;
+      z-index: 1;
+    }
+
+    img.hero-logo {
+      width: 280px;
+      margin-bottom: 30px;
+      filter: drop-shadow(0 10px 40px rgba(0, 0, 0, 0.3));
+    }
+
+    .hero h1 {
+      font-size: 2.5rem;
+      font-weight: 800;
+      margin-bottom: 16px;
+      letter-spacing: -1px;
+      line-height: 1.2;
+    }
+
+    .hero p {
+      color: white;
+      font-size: 1.15rem;
+      opacity: 0.95;
+      max-width: 700px;
+      margin: 0 auto 12px;
+    }
+
+    .content {
+      padding: 60px;
+      background: white;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section {
+      margin-bottom: 60px;
+    }
+
+    h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin-bottom: 24px;
+      position: relative;
+      padding-bottom: 16px;
+    }
+
+    h2::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 60px;
+      height: 4px;
+      background: linear-gradient(90deg, var(--primary) 0%, var(--primary-light) 100%);
+      border-radius: 2px;
+    }
+
+    p {
+      color: var(--text-secondary);
+      line-height: 1.8;
+      font-size: 1rem;
+      margin-bottom: 16px;
+    }
+
+    /* Code Block */
+    .code-container {
+      position: relative;
+      margin-top: 24px;
+      margin-bottom: 24px;
+    }
+
+    .code-header {
+      background: #1e293b;
+      padding: 12px 20px;
+      border-radius: 12px 12px 0 0;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .code-dot {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+    }
+
+    .code-dot:nth-child(1) {
+      background: #ef4444;
+    }
+
+    .code-dot:nth-child(2) {
+      background: #f59e0b;
+    }
+
+    .code-dot:nth-child(3) {
+      background: #10b981;
+    }
+
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 30px;
+      border-radius: 0 0 12px 12px;
+      overflow-x: auto;
+      margin: 0;
+      box-shadow: var(--shadow-lg);
+      border: 1px solid #1e293b;
+      border-top: none;
+    }
+
+    code {
+      font-family: 'Fira Code', 'Consolas', monospace;
+      font-size: 0.9rem;
+      line-height: 1.7;
+      display: block;
+    }
+
+    .julia-keyword {
+      color: var(--syntax-keyword);
+      font-weight: 600;
+    }
+
+    .julia-function {
+      color: var(--syntax-function);
+    }
+
+    .julia-type {
+      color: var(--syntax-type);
+    }
+
+    .julia-string {
+      color: var(--syntax-string);
+    }
+
+    .julia-comment {
+      color: var(--syntax-comment);
+    }
+
+    .julia-literal {
+      color: var(--syntax-literal);
+    }
+
+    /* Team Section */
+    .team-section {
+      background: linear-gradient(135deg, #f8fafc 0%, #e0e7ff 100%);
+      padding: 80px 60px;
+      margin: 0;
+    }
+
+    .team-header {
+      text-align: center;
+      margin-bottom: 60px;
+    }
+
+    .team-header h2::after {
+      left: 50%;
+      transform: translateX(-50%);
+    }
+
+    .team-subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .team-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 40px;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .team-member-wrapper {
+      text-decoration: none;
+      display: flex;
+      height: 100%;
+    }
+
+    .team-member {
+      background: white;
+      text-align: center;
+      padding: 40px 30px;
+      border-radius: 16px;
+      transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+      box-shadow: var(--shadow-md);
+      border: 1px solid var(--border);
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .team-member:hover {
+      transform: translateY(-12px);
+      box-shadow: var(--shadow-xl);
+      border-color: var(--primary-light);
+    }
+
+    .team-member-wrapper:not([href]) .team-member {
+      cursor: default;
+    }
+
+    .team-member-image {
+      position: relative;
+      width: 160px;
+      height: 160px;
+      margin: 0 auto 24px;
+    }
+
+    .team-member img {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 5px solid var(--primary);
+      box-shadow: 0 8px 24px rgba(37, 99, 235, 0.2);
+      transition: all 0.4s;
+    }
+
+    .team-member:hover img {
+      transform: scale(1.05);
+      box-shadow: 0 12px 32px rgba(37, 99, 235, 0.3);
+    }
+
+    .team-member h3 {
+      font-size: 1.25rem;
+      color: var(--text-primary);
+      font-weight: 700;
+      margin-bottom: 8px;
+    }
+
+    .team-member .role {
+      color: var(--primary);
+      font-size: 0.9rem;
+      font-weight: 600;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+    }
+
+    /* Footer */
+    .footer {
+      background: var(--secondary);
+      color: rgba(255, 255, 255, 0.7);
+      padding: 40px 60px;
+      text-align: center;
+      font-size: 0.9rem;
+    }
+
+    .footer a {
+      color: var(--primary-light);
+      text-decoration: none;
+    }
+
+    .footer a:hover {
+      text-decoration: underline;
+    }
+
+    /* Overlay */
+    .overlay {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(0, 0, 0, 0.5);
+      z-index: 200;
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+
+    .overlay.active {
+      display: block;
+      opacity: 1;
+    }
+
+    /* --- RESPONSIVE MEDIA QUERIES --- */
+
+    @media (max-width: 1024px) {
+      .top-left-logo {
+        width: 120px;
+        height: 120px;
+      }
+
+      .sidebar {
+        width: 260px;
+      }
+
+      .main {
+        margin-left: 260px;
+        width: auto;
+      }
+
+      .hero,
+      .content,
+      .team-section,
+      .footer {
+        padding: 40px;
+      }
+
+      .team-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+    }
+
+    @media (max-width: 768px) {
+      body {
+        flex-direction: column;
+      }
+
+      .mobile-menu-toggle {
+        display: block;
+      }
+
+      .sidebar {
+        width: 280px;
+        transform: translateX(-100%);
+        z-index: 250;
+        height: 100%;
+        bottom: 0;
+      }
+
+      .sidebar.mobile-open {
+        transform: translateX(0);
+      }
+
+      .main {
+        margin-left: 0;
+        width: 100%;
+      }
+
+      .top-left-logo {
+        width: 100px;
+        height: 100px;
+      }
+
+      .sidebar-header {
+        padding: 60px 25px 25px;
+      }
+
+      .hero {
+        padding: 100px 30px 40px;
+      }
+
+      .content,
+      .team-section,
+      .footer {
+        padding: 40px 30px;
+      }
+
+      h2 {
+        font-size: 1.75rem;
+      }
+
+      .team-grid {
+        grid-template-columns: 1fr;
+      }
+
+      img.hero-logo {
+        width: 200px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <button class="mobile-menu-toggle" id="mobileMenuToggle">☰</button>
+  <div class="overlay" id="overlay"></div>
+
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <div class="top-left-logo">
+        <a href="index.html">
+          <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+            alt="Radiomics.jl Logo">
+        </a>
+      </div>
+      <div style="text-align: center; margin-top: 12px;">
+        <span style="font-size: 0.8rem; color: rgba(255,255,255,0.5);">Version </span>
+        <span id="latest-version" style="font-size: 0.88rem; color: white; font-weight: 600;">...</span>
+      </div>
+    </div>
+    <nav>
+      <a href="index.html" class="active">Home</a>
+      <a href="installation.html">Getting Started</a>
+      <a href="example.html">Examples</a>
+      <a href="cross_languages.html">Cross languages</a>
+      <a href="news.html">News</a>
+      <div class="dropdown">
+        <button class="dropdown-btn">Features</button>
+        <div class="dropdown-content">
+          <a href="first-order.html">First-order features</a>
+          <a href="2d-shape.html">2D shape features</a>
+          <a href="3d-shape.html">3D shape features</a>
+          <a href="glcm.html">GLCM features</a>
+          <a href="gldm.html">GLDM features</a>
+          <a href="glrlm.html">GLRLM features</a>
+          <a href="glszm.html">GLSZM features</a>
+          <a href="ngtdm.html">NGTDM features</a>
+        </div>
+      </div>
+    </nav>
+  </aside>
+
+  <main class="main">
+    <section class="hero">
+      <div class="hero-content">
+        <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
+          class="hero-logo" alt="Radiomics.jl Big Logo">
+        <h1>Advanced Radiomics Feature Extraction</h1>
+        <p>An open-source Julia library for extracting quantitative features from medical images with precision and
+          efficiency.</p>
+      </div>
+    </section>
+
+    <div class="content">
+      <div class="section">
+        <h2>Welcome to Radiomics.jl</h2>
+        <p>Radiomics.jl is a comprehensive Julia library designed for medical imaging researchers and clinicians. Our
+          tool enables the extraction of high-throughput quantitative features from radiological images, supporting
+          advanced research in precision medicine and computer-aided diagnosis.</p>
+        <p>Navigate through our documentation using the sidebar to explore detailed information about feature extraction
+          methods, installation procedures, and implementation examples.</p>
+      </div>
+
+      <div class="section">
+        <h2>Why choose Radiomics.jl for your project</h2>
+        <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
+          <li><strong>Full IBSI Compliance:</strong> Every feature is calculated according to IBSI 1 - Phase 1
+            standards—our unit
+            tests are strictly validated against IBSI sample images (go ahead, take a look!).</li>
+          <li><strong>User-Friendly API:</strong> Simplify your workflow by extracting features from multiple labels
+            with a single call. Handling 2D slices or multiple planes/slices "in one shot" has never been easier.</li>
+          <li><strong>First-class 2D support:</strong> 2D analysis is treated with the same priority as 3D; computing
+            features for a 2D matrix is just as seamless as the 3D case.</li>
+          <li><strong>Deep Insights:</strong> While other radiomics libraries focus only on final scalar values,
+            Radiomics.jl also lets you easily get the raw matrices used under the hood for texture feature calculations.
+          </li>
+          <li><strong>No silent failures:</strong> If something looks suspicious or ambiguous—like disconnected
+            segmentation islands or oversized binning—the library raises clear warnings.</li>
+          <li><strong>Native Multi-threading:</strong> The engine is engineered from the ground up to take full
+            advantage of multi-threaded performance.</li>
+          <li><strong>Cross-language ready:</strong> Radiomics.jl delivers a frictionless experience across languages,
+            allowing Python, C++, R, and many other language developers to call Julia’s power with ease.</li>
+        </ul>
+      </div>
+
+      <div class="section">
+        <h2>Quick Start Example</h2>
+        <p>Once installed, you can begin extracting radiomic features with just a few lines of code. The following
+          example demonstrates feature extraction using sample data included with the library:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+<span class="julia-comment"># Load medical image and segmentation mask</span>
+ct = <span class="julia-function">niread</span>(<span class="julia-string">"Path/to/CT.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"Path/to/Mask.nii.gz"</span>)
+
+<span class="julia-comment"># Extract voxel spacing from image header</span>
+spacing = [<span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">2</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">3</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">4</span>]]
+
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing)</code></pre>
+        </div>
+      </div>
+    </div>
+    <section class="team-section" id="team">
+      <div class="team-header">
+        <h2>Development Team</h2>
+        <p class="team-subtitle">Meet the experts behind Radiomics.jl, dedicated to advancing medical image analysis
+          through innovative technology.</p>
+      </div>
+
+      <div class="team-grid">
+        <a href="https://dmsc.unicz.it/personale/docente/paolozaffino" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://avatars.githubusercontent.com/u/4259198?v=4" alt="Prof. Paolo Zaffino">
+            </div>
+            <h3>Prof. Paolo Zaffino</h3>
+            <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
+          </div>
+        </a>
+
+        <a href="https://www.ibt.kit.edu/Spadea_Francesca.php" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://www.ibt.kit.edu/img/content/IMG%20FrancescaSpadea%202023_rdax_230x230.png"
+                alt="Prof. Maria Francesca Spadea">
+            </div>
+            <h3>Prof. Maria Francesca Spadea</h3>
+            <div class="role">Karlsruher Institut für Technologie, Germany</div>
+          </div>
+        </a>
+
+        <a href="https://dmsc.unicz.it/personale/docente/carlocosentino" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://i1.rgstatic.net/ii/profile.image/272442098712597-1441966666382_Q512/Carlo-Cosentino.jpg"
+                alt="Prof. Carlo Cosentino">
+            </div>
+            <h3>Prof. Carlo Cosentino</h3>
+            <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
+          </div>
+        </a>
+
+        <a href="https://scuoladottorati.unicz.it/ricerca/287" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img
+                src="https://avatars.githubusercontent.com/u/149241459?s=400&u=d80b160854af0ac4bce821264fbca066baf0030a&v=4"
+                alt="Eng. Aldo Giuliani">
+            </div>
+            <h3>Eng. Aldo Giuliani, PhD Student</h3>
+            <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
+          </div>
+        </a>
+
+        <div class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://ai4ar.opi.org.pl/wp-content/uploads/2022/10/IMG_4281.jpg" alt="Dr. Jakub Mitura">
+            </div>
+            <h3>Dr. Jakub Mitura, MD, PhD</h3>
+            <div class="role">National Information Processing Institut, Poland</div>
+          </div>
+        </div>
+
+        <a href="http://ibt.kit.edu/english/Raggio_C.php" target="_blank" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://avatars.githubusercontent.com/u/96300975?v=4" alt="Eng. Ciro Benito Raggio">
+            </div>
+            <h3>Eng. Ciro Benito Raggio, Research Assistant</h3>
+            <div class="role">Karlsruher Institut für Technologie, Germany</div>
+          </div>
+        </a>
+
+        <div class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://avatars.githubusercontent.com/u/59024947?v=4" alt="Eng. Mohammadreza Javadi Namin">
+            </div>
+            <h3>Eng. Mohammadreza Javadi Namin</h3>
+            <div class="role">Politecnico di Milano, Italy</div>
+          </div>
+        </div>
+
+        <div class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img
+                src="https://media.licdn.com/dms/image/v2/D4D03AQGHigE9ThzXrg/profile-displayphoto-scale_200_200/B4DZ1ZDeLlHQAY-/0/1775315577649?e=1776902400&v=beta&t=iMg9-n6jo9TLoIqxbxJnHcGgh0_jqoUqdqDONkfmZwQ"
+                alt="Eng. Nastaran Ghaffari Elkhechi">
+            </div>
+            <h3>Eng. Nastaran Ghaffari Elkhechi</h3>
+            <div class="role">Politecnico di Milano, Italy</div>
+          </div>
+        </div>
+
+        <a href="https://it.linkedin.com/in/michela-destito-5619051b6" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img
+                src="https://media.licdn.com/dms/image/v2/C4E03AQE_ooV1zu4udQ/profile-displayphoto-shrink_200_200/profile-displayphoto-shrink_200_200/0/1605547761502?e=2147483647&v=beta&t=jqc15U7sFfPg0jwyJymQqz2USjyhk9diOVriU8FtyKk"
+                alt="Dr. Michela Destito">
+            </div>
+            <h3>Dr. Michela Destito, PhD</h3>
+            <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
+          </div>
+        </a>
+      </div>
+    </section>
+
+    <footer class="footer">
+      <p>Open-source project under MIT License. <a href="https://github.com/pzaffino/Radiomics.jl">View on GitHub</a>
+      </p>
+    </footer>
+  </main>
+
+  <script>
+    const dropdownBtn = document.querySelector('.dropdown-btn');
+    const mobileMenuToggle = document.getElementById('mobileMenuToggle');
+    const sidebar = document.getElementById('sidebar');
+    const overlay = document.getElementById('overlay');
+
+    dropdownBtn.addEventListener('click', () => {
+      dropdownBtn.parentElement.classList.toggle('active');
+    });
+
+    mobileMenuToggle.addEventListener('click', () => {
+      sidebar.classList.toggle('mobile-open');
+      overlay.classList.toggle('active');
+      mobileMenuToggle.classList.toggle('active');
+      mobileMenuToggle.textContent = mobileMenuToggle.classList.contains('active') ? '✕' : '☰';
+    });
+
+    overlay.addEventListener('click', () => {
+      sidebar.classList.remove('mobile-open');
+      overlay.classList.remove('active');
+      mobileMenuToggle.classList.remove('active');
+      mobileMenuToggle.textContent = '☰';
+    });
+
+    // Close menu on link click (mobile)
+    const sidebarLinks = document.querySelectorAll('.sidebar a');
+    sidebarLinks.forEach(link => {
+      link.addEventListener('click', () => {
+        if (window.innerWidth <= 768) {
+          sidebar.classList.remove('mobile-open');
+          overlay.classList.remove('active');
+          mobileMenuToggle.classList.remove('active');
+          mobileMenuToggle.textContent = '☰';
+        }
+      });
+    });
+  </script>
+  <script src="latestv.js"></script>
+
+</body>
+
+</html>
