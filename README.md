@@ -1,10 +1,32 @@
 # **Welcome to Radiomics.jl**
-<a href="https://github.com/pzaffino/radiomics.jl">
+<div align=center>
+  <a href="https://github.com/pzaffino/radiomics.jl">
   <img src="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png" alt="Logo Radiomicsjl" width="500"/>
 </a>
+</div>
+</br>
 
-**Radiomics.jl** is an open-source Julia library for extracting radiomics features from medical images.
-:email: If you're interested in contributing to the project, please contact us via email at "p DOT zaffino AT unicz DOT it" :email:
+**Radiomics.jl** is an open-source, [IBSI](https://theibsi.github.io/) compliant Julia library for extracting radiomics features from medical images. 
+
+You can integrate the library with your preferred programming language: Radiomics.jl is also  **compatible with Python, C++, R, and many others**!
+
+For complete documentation, visit the [official website](https://www.radiomicsjl.org).
+
+📧 If you're interested in contributing to the project, please contact us via email at <a href="mailto:p.zaffino&#64;unicz.it">p.zaffino@unicz.it</a>.
+
+
+
+
+- [**Welcome to Radiomics.jl**](#welcome-to-radiomicsjl)
+  - [**Implemented features**](#implemented-features)
+  - [**Why choose Radiomics.jl for your project**](#why-choose-radiomicsjl-for-your-project)
+- [**Getting started**](#getting-started)
+  - [**Example**](#example)
+- [Multi threading](#multi-threading)
+- [Using Radiomics.jl from Python](#using-radiomicsjl-from-python)
+  - [Setup](#setup)
+  - [Feature extraction](#feature-extraction)
+- [Discalaimer](#discalaimer)
 
 ## **Implemented features**
 Right now, the implemented features are:
@@ -25,9 +47,6 @@ Right now, the implemented features are:
 - **No silent failures:** If something looks suspicious or ambiguous—like disconnected segmentation islands or oversized binning—the library raises clear warnings.
 - **Native Multi-threading:** The engine is engineered from the ground up to take full advantage of multi-threaded performance.
 - **Cross-language ready:** Radiomics.jl delivers a frictionless experience across languages, allowing Python, C++, R, and many other language developers to call Julia’s power with ease.
-
-## **Official website**
-For complete documentation, visit the [official website](https://www.radiomicsjl.org).
 
 # **Getting started**
 To install Radiomics.jl, simply run:
@@ -112,7 +131,7 @@ spacing = ct_sitk.GetSpacing()
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
 
-### Discalaimer
+# Discalaimer
 This software is for research purposes only.
 It is NOT intended for clinical use, diagnosis, or treatment.
 It has NOT been cleared or approved by the FDA (USA), CE (EU), or any other regulatory body.
