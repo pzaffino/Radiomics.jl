@@ -92,7 +92,8 @@ features = Radiomics.extract_radiomic_features(\n\
 RUN julia -e 'using Pkg; Pkg.add("PackageCompiler")'
 RUN julia -e 'using PackageCompiler; \
     create_sysimage([:Radiomics, :NIfTI, :ArgParse]; \
-    sysimage_path="/app/radiomics.so")'
+    sysimage_path="/app/radiomics.so", \
+    cpu_target="generic")'
 
 # Use the sysimage at each run
 ENTRYPOINT ["julia", "--sysimage", "/app/radiomics.so", "/app/extract.jl"]
