@@ -93,7 +93,7 @@ features = Radiomics.extract_radiomic_features(\n\
 );\n\
 \n\
 # Convert results to DataFrame and save to CSV\n\
-df = DataFrame(features)\n\
+df = DataFrame([features])\n\
 CSV.write(args["output"], df)\n\
 println("Extraction complete. Results saved to: ", args["output"])\n\
 ' > /app/extract.jl
