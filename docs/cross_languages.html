@@ -739,6 +739,9 @@
                     <button class="toggle-btn" onclick="showMethod('R')">
                         <i class="devicon-r-plain"></i> Using R
                     </button>
+                    <button class="toggle-btn" onclick="showMethod('docker')">
+                        <i class="devicon-docker-plain"></i> Using Docker
+                    </button>
                 </div>
 
                 <!-- Juliacall Method -->
@@ -1255,6 +1258,96 @@ spacing &lt;- as.numeric(pixdim(ct_raw))
 features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing)</code></pre>
                     </div>
                 </div>
+
+                <!-- Docker Method -->
+                <div id="docker-method" class="method-content">
+                    <h2>Installation</h2>
+                    <p>Install Docker Desktop on your system.</p>
+                    <div style="text-align: center; margin-top: 12px;">
+                        <a href="https://www.docker.com/" target="_blank" style="
+                        display: inline-flex;
+                        align-items: center;
+                        gap: 8px;
+                        padding: 12px 20px;
+                        background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+                        color: white;
+                        text-decoration: none;
+                        font-weight: 600;
+                        font-size: 0.95rem;
+                        border-radius: 12px;
+                        box-shadow: 0 4px 6px rgba(0,0,0,0.07);
+                        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+                        font-family: 'Inter', sans-serif;
+                        " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 10px 25px rgba(0,0,0,0.08)';"
+                            onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 6px rgba(0,0,0,0.07)';">
+                            <i class="devicon-docker-plain" style="font-size: 1.2rem;"></i>
+                            Visit Docker
+                        </a>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Installing Image of
+                        Radiomics.jl</h4>
+                    <p>Install the image of Radiomics.jl in your Docker development environment:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+
+                        <pre><code>docker pull ghcr.io/pzaffino/radiomics.jl:latest</code></pre>
+                    </div>
+
+                    <h2>Feature Extraction with Docker</h2>
+                    <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Basic usage</h4>
+                    <p>Run the container mounting the current directory as /data and passing the CT image and mask as
+                        arguments.</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz</code></pre>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Save results to CSV</h4>
+                    <p>Run the container and save the results to a CSV file.</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz <span class="julia-keyword">-o</span> /data/results.csv</code></pre>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Custom parameters</h4>
+                    <p>Run the container with custom parameters.</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz <span class="julia-keyword">--keep_largest_only</span> false <span class="julia-keyword">--sample_rate</span> 1.0</code></pre>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Multi-threading</h4>
+                    <p>Run the container with multi-threading enabled.</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run -it <span class="julia-keyword">-e</span> JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz <span class="julia-keyword">--keep_largest_only</span> false <span class="julia-keyword">--sample_rate</span> 1.0</code></pre>
+                    </div>
+
+                </div>
+
             </div>
         </div>
 
@@ -1327,6 +1420,9 @@ features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing
             } else if (method === 'R') {
                 document.getElementById('R-method').classList.add('active');
                 document.querySelectorAll('.toggle-btn')[3].classList.add('active');
+            } else if (method === 'docker') {
+                document.getElementById('docker-method').classList.add('active');
+                document.querySelectorAll('.toggle-btn')[4].classList.add('active');
             }
         }
     </script>
