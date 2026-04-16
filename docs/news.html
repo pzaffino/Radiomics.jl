@@ -469,7 +469,8 @@
             });
         });
     </script>
-    <script src="latestv.js"></script>
+    <script src="js/latestv.js"></script>
+    <script src="js/disclaimer.js"></script>
 
     <script>
 
@@ -504,11 +505,10 @@
 
                     let videoHTML = '';
 
-                    // 2. Prepara il video per metterlo SOTTO (ora centrato!)
+
                     if (news.Video && news.Video.trim() !== '') {
                         let videoUrl = news.Video.trim();
 
-                        // Gestione YouTube
                         if (videoUrl.includes('youtube.com') || videoUrl.includes('youtu.be')) {
                             let videoId = '';
                             if (videoUrl.includes('youtu.be/')) {
@@ -524,7 +524,7 @@
                                 </div>`;
                             }
                         }
-                        // Gestione MP4
+
                         else {
                             videoHTML = `
                                 <div style="margin-top: 30px; width: 100%; display: flex; justify-content: center;">
