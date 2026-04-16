@@ -130,7 +130,23 @@ spacing = ct_sitk.GetSpacing()
 
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
-
+# Using Radiomics.jl from Docker
+Run the container mounting the current directory as /data and passing the CT image and mask as arguments.
+```bash
+docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz
+```
+Run the container and save the results to a CSV file.
+```bash
+docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz -o /data/results.csv
+```
+Run the container with custom parameters.
+```bash
+docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false --sample_rate 1.0
+```
+Run the container with multi-threading enabled.
+```bash
+docker run -it -e JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false --sample_rate 1.0
+```
 # Discalaimer
 This software is for research purposes only.
 It is NOT intended for clinical use, diagnosis, or treatment.
