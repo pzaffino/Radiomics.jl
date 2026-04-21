@@ -62,6 +62,9 @@ function get_shape2d_features(mask_array::BitArray{2},
     # Elongation
     shape_2d_features["shape2d_elongation"] = get_elongation(ev)
 
+    # Number of Islands
+    shape_2d_features["shape2d_number_of_islands"] = Int32(num_islands)
+
     return shape_2d_features
 end
 

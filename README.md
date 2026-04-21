@@ -17,11 +17,11 @@ For complete documentation, visit the [official website](https://www.radiomicsjl
 
 
 
-- [**Welcome to Radiomics.jl**](#welcome-to-radiomicsjl)
-  - [**Implemented features**](#implemented-features)
-  - [**Why choose Radiomics.jl for your project**](#why-choose-radiomicsjl-for-your-project)
-- [**Getting started**](#getting-started)
-  - [**Example**](#example)
+- [Welcome to Radiomics.jl](#welcome-to-radiomicsjl)
+  - [Implemented features](#implemented-features)
+  - [Why choose Radiomics.jl for your project](#why-choose-radiomicsjl-for-your-project)
+- [Getting started](#getting-started)
+  - [Example](#example)
 - [Multi threading](#multi-threading)
 - [Using Radiomics.jl from Python](#using-radiomicsjl-from-python)
   - [Setup](#setup)

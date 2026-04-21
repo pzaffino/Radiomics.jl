@@ -325,6 +325,7 @@ mktempdir() do tmpdir
         @test ibsi_test(radiomic_2D_features["shape2d_perimeter_surface_ratio"], 0.560913759172514, 0.004)
         @test ibsi_test(radiomic_2D_features["shape2d_pixel_surface"], 68.0, 0)
         @test ibsi_test(radiomic_2D_features["shape2d_sphericity"], 0.7663980345420807, 0.005)
+        @test ibsi_test(radiomic_2D_features["shape2d_number_of_islands"], 1, 0)
 
     end
 
