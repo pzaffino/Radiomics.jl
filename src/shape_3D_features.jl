@@ -321,7 +321,7 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
     shape_3d_features["shape3d_flatness"]             = flatness
 
     shape_3d_features["shape3d_voxel_volume"]         = vol_voxel
-    shape_3d_features["shape3d_number_of_islands"]    = Float64(num_islands)
+    shape_3d_features["shape3d_number_of_islands"]    = Int32(num_islands)
 
     return shape_3d_features
 end
