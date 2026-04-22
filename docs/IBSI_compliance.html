@@ -809,23 +809,25 @@
             <div class="section">
                 <h2>IBSI Validation Test Suite</h2>
                 <p>The runtest module contains a dedicated automated test suite designed to verify strict compliance of
-                    the <code>extract_radiomic_features</code> function with the Image Biomarker Standardisation
-                    Initiative (IBSI)
-                    Phase 1 guidelines — the
-                    internationally recognized standard for radiomic feature extraction.
+                    the <code>extract_radiomic_features</code> function with the
+                    <a href="https://ibsi.readthedocs.io/en/latest/index.html">Image Biomarker Standardisation
+                        Initiative (IBSI)</a> Phase 1 guidelines — the internationally recognized standard for radiomic
+                    feature extraction.
                     Each test loads a standardized digital phantom, runs the full extraction pipeline, and performs
-                    exact numerical assertions
-                    against the official IBSI Phase 1 reference values. Any deviation from the expected output causes
-                    the test to fail,
-                    ensuring that every feature — including intensity-based statistics, texture matrices (GLCM, GLRLM,
-                    GLSZM, NGTDM),
-                    and morphological descriptors — is computed in full conformance with the IBSI specification.</p>
+                    exact numerical assertions against the official IBSI Phase 1 reference values. Any deviation from
+                    the
+                    expected output causes
+                    the test to fail, ensuring that every feature — including intensity-based statistics, texture
+                    matrices (GLCM, GLRLM, GLSZM, NGTDM), and morphological descriptors — is computed in full
+                    conformance with the IBSI
+                    specification.
+                </p>
             </div>
 
             <div class="section">
                 <h2>How to test Radiomics.jl</h2>
                 <p>To test by yourself the IBSI validation test suite, you can use the following code.
-                    The results of the IBSI validation test suite are available in the <a
+                    The code of the IBSI validation test suite is available in the <a
                         href="https://github.com/pzaffino/Radiomics.jl/blob/main/test/runtests.jl">runtests.jl</a> file
                 </p>
                 <div class="code-container">
@@ -839,62 +841,6 @@
 <span class="prompt">julia&gt; </span><span class="module">Pkg</span><span class="operator">.</span><span class="function">test</span><span class="string">("Radiomics")</span></code></pre>
                 </div>
             </div>
-
-            <div class="section">
-                <h2>Digital Phantom Structure</h2>
-                <p>A small digital phantom was developed to derive image features manually and compare these values with
-                    values obtained from radiomics software implementations. The phantom has the following
-                    characteristics:</p>
-                <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
-                    <li>The phantom consists of <span class="math">5 <span class="math-symbol">×</span> 4 <span
-                                class="math-symbol">×</span> 4</span> (<span class="math">x, y, z</span>) voxels.</li>
-                    <li>A slice consists of the voxels in the (<span class="math">x, y</span>) plane for a particular
-                        slice at position <span class="math">z</span>. Slices are therefore stacked in the <span
-                            class="math">z</span> direction.</li>
-                    <li>Voxels are <span class="math">2.0 <span class="math-symbol">×</span> 2.0 <span
-                                class="math-symbol">×</span> 2.0 mm</span> in size.</li>
-                    <li>Not all voxels are included in the region of interest. Several excluded voxels are located on
-                        the outside of the ROI, and one internal voxel was excluded as well.</li>
-                    <li>Some intensities are not present in the phantom. Notably, grey levels 2 and 5 are absent. 1 is
-                        the lowest grey level present in the ROI, and 6 the highest.</li>
-                </ul>
-            </div>
-
-            <div class="section">
-                <h3>Computing image features</h3>
-                <p>The digital phantom was designed to not require image processing prior to calculating the features.
-                    Thus, feature calculation is done directly on the phantom itself. The following should be taken into
-                    account for calculating image features:</p>
-                <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
-                    <li>Discretisation is not required. All features are to be calculated using the phantom as it is.
-                        Alternatively, one could use a fixed bin size discretisation of 1 or fixed bin number
-                        discretisation of 6 bins, which does not alter the contents of the phantom.</li>
-                    <li>Grey level co-occurrence matrices are symmetrical and calculated for (Chebyshev) distance <span
-                            class="math">δ = 1</span>.</li>
-                    <li>Neighbouring grey level dependence and neighbourhood grey tone difference matrices are likewise
-                        calculated for (Chebyshev) distance <span class="math">δ = 1</span>. Additionally, the
-                        neighbouring grey level dependence coarseness parameter has the value <span class="math">α =
-                            0</span>.</li>
-                    <li>Because discretisation is lacking, most intensity-based statistical features will match their
-                        intensity histogram-based analogues in value.</li>
-                    <li>The ROI morphological and intensity masks are identical for the digital phantom, due to lack of
-                        re-segmentation.</li>
-                </ul>
-            </div>
-
-            <div class="section">
-                <h2>Reference data</h2>
-                <p>All benchmark values used in this test suite are derived from the official IBSI Phase 1 standard. The
-                    reference manuals and data sets can be accessed at:
-                </p>
-                <ul style="margin-left: 24px; color: var(--text-secondary); line-height: 2;">
-                    <li><a href="https://ibsi.readthedocs.io/en/latest/05_Reference_data_sets.html">Reference Data Sets
-                            Guide</a></li>
-                    <li><a href="https://theibsi.github.io/">Official Website</a></li>
-                    <li><a href="https://github.com/theibsi/data_sets">Data Repository</a></li>
-                </ul>
-            </div>
-
         </div>
 
         <footer class="footer">
