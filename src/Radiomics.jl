@@ -3,6 +3,7 @@ using Base.Threads
 module Radiomics
 
 include("utils/utils.jl")
+include("utils/utils_pet.jl")
 include("glcm_features.jl")
 include("first_order_features.jl")
 include("shape_2D_features.jl")
@@ -672,6 +673,65 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
     
     return (radiomic_features, total_time_accumulated)
+end
+
+"""
+    normalize_pet_and_extract_features(dcms)
+ 
+    Converts raw PET DICOM slices to SUVbw-normalized volume.
+ 
+    # Arguments:
+    - `dcms`: Vector{DICOMData} – the slice DICOM ordered by SliceLocation
+
+    # Returns:
+    - `Array{Float32, 3}` – normalized PET volume  (rows × cols × slices)
+"""
+function normalize_pet_and_extract_features(dcms)
+
+    sort!(dcms, by = d -> begin
+        v = haskey(d, (0x0020, 0x1041)) ? d[(0x0020, 0x1041)] : 0.0
+        Float64(v isa AbstractArray ? first(v) : v)
+    end)
+
+    d0 = dcms[1]
+
+    units    = sanitize(get_tag(d0, (0x0054, 0x1001)))
+    suv_type = sanitize(get_tag(d0, (0x0054, 0x1006)))
+    sex      = sanitize(get_tag(d0, (0x0010, 0x0040)))
+    manuf    = sanitize(get_tag(d0, (0x0008, 0x0070)))
+
+    W_kg_raw = scalar_tag(d0, (0x0010, 0x1030))
+    W_kg     = W_kg_raw !== nothing && W_kg_raw > 0 ? Float64(W_kg_raw) : 0.0
+    W_kg     = W_kg >= 1000.0 ? W_kg / 1000.0 : W_kg
+
+    H_m_raw = scalar_tag(d0, (0x0010, 0x1020))
+    H_m     = H_m_raw === nothing ? 0.0 : H_m_raw
+
+    # dose e half-life from first slice (stable for the whole series)
+    r_seq_0  = get_tag(d0, (0x0054, 0x0016))
+    rp_item_0 = r_seq_0 !== nothing ? r_seq_0[1] : d0
+    D_adm      = get_dose(rp_item_0)
+    T_half_raw = scalar_tag(rp_item_0, (0x0018, 0x1075))
+    T_half     = T_half_raw === nothing ? 0.0 : T_half_raw
+
+    rows = Int(d0[(0x0028, 0x0010)])
+    cols = Int(d0[(0x0028, 0x0011)])
+    suv_vol = Array{Float32}(undef, rows, cols, length(dcms))
+
+    for (i, d) in enumerate(dcms)
+        # t_adm read for each slice, as recommended by the manual
+        r_seq_i   = get_tag(d, (0x0054, 0x0016))
+        rp_item_i = r_seq_i !== nothing ? r_seq_i[1] : d
+        t_acq_i   = parse_time(get_tag(d, (0x0008, 0x0032)))
+        t_adm_i   = get_tadm(rp_item_i, t_acq_i)
+
+        res, _ = compute_slice_suv(d, units, suv_type, sex,
+                                    W_kg, H_m, D_adm, T_half,
+                                    t_adm_i, manuf)
+        suv_vol[:, :, i] = res !== nothing ? res : zeros(Float32, rows, cols)
+    end
+
+    return suv_vol
 end
 
 """
