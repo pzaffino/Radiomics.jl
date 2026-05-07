@@ -714,16 +714,7 @@ end
     # Returns:
     -  features Dict{String, Any} with the radiomic features normalized in SUVbw.
 """
-function normalize_pet_and_extract_features(dcms, mask, spacing;
-    features=Symbol[],
-    labels=nothing,
-    n_bins=nothing,
-    bin_width=nothing,
-    weighting_norm=nothing,
-    keep_largest_only::Bool=true,
-    sample_rate=0.03,
-    get_raw_matrices::Bool=false,
-    verbose::Bool=false)
+function normalize_pet_and_extract_features(dcms, mask)
     
     sort!(dcms, by = d -> begin
         v = haskey(d, (0x0020, 0x1041)) ? d[(0x0020, 0x1041)] : 0.0
@@ -731,6 +722,10 @@ function normalize_pet_and_extract_features(dcms, mask, spacing;
     end)
 
     d0 = dcms[1]
+    pixel_spacing = d0[(0x0028, 0x0030)]  # PixelSpacing [row, col]
+    slice_thickness = scalar_tag(d0, (0x0018, 0x0050))  # SliceThickness
+
+    spacing = [Float64(pixel_spacing[1]), Float64(pixel_spacing[2]), Float64(slice_thickness)]
 
     units    = sanitize(get_tag(d0, (0x0054, 0x1001)))
     suv_type = sanitize(get_tag(d0, (0x0054, 0x1006)))
@@ -770,15 +765,10 @@ function normalize_pet_and_extract_features(dcms, mask, spacing;
 
     features = Radiomics.extract_radiomic_features(
             suv_vol, mask.raw, spacing;
-            features        = features,
-            labels          = labels,
-            n_bins          = n_bins,
-            bin_width       = bin_width,
-            weighting_norm  = weighting_norm,
-            keep_largest_only = keep_largest_only,
-            sample_rate     = sample_rate,
-            get_raw_matrices = get_raw_matrices,
-            verbose         = verbose
+            features        = [:first_order],
+            keep_largest_only = true,
+            sample_rate     = 1.0,
+            verbose = true
         )
 
     return features
