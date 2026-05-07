@@ -17,6 +17,9 @@ include("diagnostic_features.jl")
 using JSON3
 using TOML
 
+using DICOM
+using NIfTI
+
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                               features=Symbol[],
@@ -687,7 +690,10 @@ end
     # Returns:
     -  features Dict{String, Any} with the radiomic features normalized in SUVbw.
 """
-function normalize_pet_and_extract_features(dcms, mask)
+function normalize_pet_and_extract_features(path_dicom::String, path_mask::String)
+    
+    dcms = dcmdir_parse(path_dicom)
+    mask = niread(path_mask)
     
     sort!(dcms, by = d -> begin
         v = haskey(d, (0x0020, 0x1041)) ? d[(0x0020, 0x1041)] : 0.0
