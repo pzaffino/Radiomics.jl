@@ -676,18 +676,55 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
 end
 
 """
-    normalize_pet_and_extract_features(dcms)
+    function normalize_pet_and_extract_features(dcms, mask, spacing;
+        features=Symbol[],
+        labels=nothing,
+        n_bins=nothing,
+        bin_width=nothing,
+        weighting_norm=nothing,
+        keep_largest_only::Bool=true,
+        sample_rate=0.03,
+        get_raw_matrices::Bool=false,
+        verbose::Bool=false)
  
-    Converts raw PET DICOM slices to SUVbw-normalized volume.
+    Converts raw PET DICOM slices to SUVbw-normalized volume and extracts radiomic features.
  
     # Arguments:
     - `dcms`: Vector{DICOMData} – the slice DICOM ordered by SliceLocation
+    - `mask`: NIfTI.NIfTI{Float32, 3} – 3D mask with voxel values >= 1
+    - `spacing`: Vector{Float64} – voxel spacing in (x, y, z) dimensions
+    - `features`: Vector{Symbol} – symbols of feature classes to extract
+        - `:first_order` – first order statistics features
+        - `:glcm` – grey-level co-occurrence matrix features
+        - `:glszm` – grey-level size zone matrix features
+        - `:ngtdm` – grey-tone run length matrix features
+        - `:glrlm` – grey-level run length matrix features
+        - `:gldm` – grey-level dependency matrix features
+        - `:shape2d` – 2D shape features
+        - `:shape3d` – 3D shape features
+    - `labels`: Vector{Float32} – vector of region labels
+    - `n_bins`: Int – number of bins for discretization
+    - `bin_width`: Float64 – width of each bin
+    - `weighting_norm`: String – weighting norm for feature calculation
+    - `keep_largest_only`: Bool – whether to keep only the largest connected component
+    - `sample_rate`: Float64 – sampling rate for feature calculation
+    - `get_raw_matrices`: Bool – whether to return raw matrices
+    - `verbose`: Bool – whether to print verbose output
 
     # Returns:
-    - `Array{Float32, 3}` – normalized PET volume  (rows × cols × slices)
+    -  features Dict{String, Any} with the radiomic features normalized in SUVbw.
 """
-function normalize_pet_and_extract_features(dcms)
-
+function normalize_pet_and_extract_features(dcms, mask, spacing;
+    features=Symbol[],
+    labels=nothing,
+    n_bins=nothing,
+    bin_width=nothing,
+    weighting_norm=nothing,
+    keep_largest_only::Bool=true,
+    sample_rate=0.03,
+    get_raw_matrices::Bool=false,
+    verbose::Bool=false)
+    
     sort!(dcms, by = d -> begin
         v = haskey(d, (0x0020, 0x1041)) ? d[(0x0020, 0x1041)] : 0.0
         Float64(v isa AbstractArray ? first(v) : v)
@@ -731,7 +768,20 @@ function normalize_pet_and_extract_features(dcms)
         suv_vol[:, :, i] = res !== nothing ? res : zeros(Float32, rows, cols)
     end
 
-    return suv_vol
+    features = Radiomics.extract_radiomic_features(
+            suv_vol, mask.raw, spacing;
+            features        = features,
+            labels          = labels,
+            n_bins          = n_bins,
+            bin_width       = bin_width,
+            weighting_norm  = weighting_norm,
+            keep_largest_only = keep_largest_only,
+            sample_rate     = sample_rate,
+            get_raw_matrices = get_raw_matrices,
+            verbose         = verbose
+        )
+
+    return features
 end
 
 """
