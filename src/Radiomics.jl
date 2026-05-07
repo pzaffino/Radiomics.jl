@@ -676,40 +676,13 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
 end
 
 """
-    function normalize_pet_and_extract_features(dcms, mask, spacing;
-        features=Symbol[],
-        labels=nothing,
-        n_bins=nothing,
-        bin_width=nothing,
-        weighting_norm=nothing,
-        keep_largest_only::Bool=true,
-        sample_rate=0.03,
-        get_raw_matrices::Bool=false,
-        verbose::Bool=false)
+    function normalize_pet_and_extract_features(dcms, mask)
  
     Converts raw PET DICOM slices to SUVbw-normalized volume and extracts radiomic features.
  
     # Arguments:
     - `dcms`: Vector{DICOMData} – the slice DICOM ordered by SliceLocation
-    - `mask`: NIfTI.NIfTI{Float32, 3} – 3D mask with voxel values >= 1
-    - `spacing`: Vector{Float64} – voxel spacing in (x, y, z) dimensions
-    - `features`: Vector{Symbol} – symbols of feature classes to extract
-        - `:first_order` – first order statistics features
-        - `:glcm` – grey-level co-occurrence matrix features
-        - `:glszm` – grey-level size zone matrix features
-        - `:ngtdm` – grey-tone run length matrix features
-        - `:glrlm` – grey-level run length matrix features
-        - `:gldm` – grey-level dependency matrix features
-        - `:shape2d` – 2D shape features
-        - `:shape3d` – 3D shape features
-    - `labels`: Vector{Float32} – vector of region labels
-    - `n_bins`: Int – number of bins for discretization
-    - `bin_width`: Float64 – width of each bin
-    - `weighting_norm`: String – weighting norm for feature calculation
-    - `keep_largest_only`: Bool – whether to keep only the largest connected component
-    - `sample_rate`: Float64 – sampling rate for feature calculation
-    - `get_raw_matrices`: Bool – whether to return raw matrices
-    - `verbose`: Bool – whether to print verbose output
+    - `mask`: The mask defining the region of interest (Array) with same shape of `img_input`.
 
     # Returns:
     -  features Dict{String, Any} with the radiomic features normalized in SUVbw.
