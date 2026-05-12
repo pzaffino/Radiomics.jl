@@ -187,8 +187,8 @@ end
 function calculate_glszm_coefficients(P_glszm, gray_levels)
     ps = sum(P_glszm, dims=1)
     pg = sum(P_glszm, dims=2)
-    ivector = Float32.(gray_levels)
-    jvector = Float32.(1:size(P_glszm, 2))
+    ivector = Float64.(gray_levels)
+    jvector = Float64.(1:size(P_glszm, 2))
 
     Nz = sum(P_glszm)
     Nz = Nz == 0 ? 1.0f-6 : Nz

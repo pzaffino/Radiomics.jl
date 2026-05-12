@@ -4,13 +4,13 @@ using LinearAlgebra
     Extract 2D shape features from a binary mask.   
     # Arguments
     - `mask_array`: 2D BitArray representing the binary mask of the shape.
-    - `spacing`: Vector of Float32 representing the pixel spacing in each dimension.
+    - `spacing`: Vector of Float64 representing the pixel spacing in each dimension.
     - `verbose`: Bool indicating whether to print progress messages.    
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
     """
 function get_shape2d_features(mask_array::BitArray{2}, 
-                               spacing::Vector{Float32}; 
+                               spacing::Vector{Float64}; 
                                verbose::Bool=false,
                                keep_largest_only = true
                                )
@@ -71,40 +71,40 @@ end
 """Calculate the perimeter to surface ratio.
     Perimeter Surface Ratio = Perimeter / Surface
     # Arguments
-    - perimeter: Float32 representing the perimeter of the shape.
-    - surface: Float32 representing the surface area of the shape.
+    - perimeter: Float64 representing the perimeter of the shape.
+    - surface: Float64 representing the surface area of the shape.
     # Returns
-    - Float32 representing the perimeter to surface ratio.
+    - Float64 representing the perimeter to surface ratio.
     """
-function get_perimeter_surface_ratio(perimeter::Float32, surface::Float32)::Float32
-    return Float32(perimeter / surface)
+function get_perimeter_surface_ratio(perimeter::Float64, surface::Float64)::Float64
+    return Float64(perimeter / surface)
 end
 
 """Calculate the sphericity of a 2D shape.
     Sphericity = (2 * sqrt(π * Surface)) / Perimeter
     # Arguments
-    - perimeter: Float32 representing the perimeter of the shape.
-    - surface: Float32 representing the surface area of the shape.
+    - perimeter: Float64 representing the perimeter of the shape.
+    - surface: Float64 representing the surface area of the shape.
     # Returns
-    - Float32 representing the sphericity of the shape.
+    - Float64 representing the sphericity of the shape.
     """
-function get_sphericity(perimeter::Float32, surface::Float32)::Float32
-    return Float32((2 * sqrt(pi * surface)) / perimeter)
+function get_sphericity(perimeter::Float64, surface::Float64)::Float64
+    return Float64((2 * sqrt(pi * surface)) / perimeter)
 end
 
 """Calculate the eigenvalues of the covariance matrix of the shape's voxel coordinates.
     # Arguments
     - `mask`: 2D Boolean matrix representing the binary mask of the shape.
-    - `spacing`: Vector of Float32 representing the pixel spacing in each dimension.
+    - `spacing`: Vector of Float64 representing the pixel spacing in each dimension.
     # Returns
-    - Vector of Float32 containing the eigenvalues sorted in ascending order.
+    - Vector of Float64 containing the eigenvalues sorted in ascending order.
     """
-function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float32})::Vector{Float32}
+function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float64})::Vector{Float64}
     coords = Iterators.filter(i -> mask[i], CartesianIndices(mask))
     Np = count(_ -> true, coords)
 
     if Np == 0
-        return zeros(Float32, 2)
+        return zeros(Float64, 2)
     end
 
     offset_x = (0:size(mask, 1)-1) .* spacing[1]
@@ -113,7 +113,7 @@ function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float32})
     points = [(offset_x[c[1]], offset_y[c[2]]) for c in coords]
 
     if isempty(points)
-        return zeros(Float32, 2)
+        return zeros(Float64, 2)
     end
 
     xs = Float64[x for (x, _) in points]
@@ -128,18 +128,18 @@ function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float32})
 
     eigvals = eigen(covmat).values
 
-    return Float32.(sort(eigvals, rev=false))
+    return Float64.(sort(eigvals, rev=false))
 end
 
 """Calculate the pixel surface area of the shape represented by the binary mask.
     # Arguments
     - mask: 2D Boolean matrix representing the binary mask of the shape.
-    - spacing: Vector of Float32 representing the pixel spacing in each dimension.
+    - spacing: Vector of Float64 representing the pixel spacing in each dimension.
     # Returns
-    - Float32 representing the pixel surface area of the shape.
+    - Float64 representing the pixel surface area of the shape.
     """
-function get_pixel_surface(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float32})::Float32
-    return Float32(count(mask) * (spacing[1] * spacing[2]))
+function get_pixel_surface(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float64})::Float64
+    return Float64(count(mask) * (spacing[1] * spacing[2]))
 end
 
 """
@@ -147,8 +147,8 @@ end
     where eigenvalue[2] is the second largest eigenvalue of the covariance matrix.
     This is a measure of the size of the shape in the direction of its major axis.
     """
-function get_major_axis_length(ev::Vector{Float32})::Float32
-    return ev[2] >= 0 ? Float32(4*sqrt(ev[2])) : NaN
+function get_major_axis_length(ev::Vector{Float64})::Float64
+    return ev[2] >= 0 ? Float64(4*sqrt(ev[2])) : NaN
 end
 
 """
@@ -156,16 +156,16 @@ end
     where eigenvalue[1] is the smallest eigenvalue of the covariance matrix.
     This is a measure of the size of the shape in the direction of its minor axis.
     """
-function get_minor_axis_length(ev::Vector{Float32})::Float32
-    return ev[1] >= 0 ? Float32(4*sqrt(ev[1])) : NaN
+function get_minor_axis_length(ev::Vector{Float64})::Float64
+    return ev[1] >= 0 ? Float64(4*sqrt(ev[1])) : NaN
 end
 
 """
     Elongation is calculated as the ratio of the major axis length to the minor axis length.
     This is a measure of how elongated the shape is.
     """
-function get_elongation(ev::Vector{Float32})::Float32
-    return Float32(sqrt(ev[1]/ev[2]))
+function get_elongation(ev::Vector{Float64})::Float64
+    return Float64(sqrt(ev[1]/ev[2]))
 end
 
 """
@@ -243,11 +243,11 @@ end
 """Calculate perimeter, surface, and maximum diameter of a 2D shape represented by a binary mask.
     # Arguments
     - mask: 2D Integer matrix representing the binary mask of the shape.
-    - spacing: Vector of Float32 representing the pixel spacing in each dimension.
+    - spacing: Vector of Float64 representing the pixel spacing in each dimension.
     # Returns
-    - A tuple containing perimeter, surface, and maximum diameter as Float32 values.
+    - A tuple containing perimeter, surface, and maximum diameter as Float64 values.
     """
-function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float32})::Tuple{Float32, Float32, Float32}
+function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float64})::Tuple{Float64, Float64, Float64}
     """
     The marching squares algorithm iterates from iy = 1 to ny - 1, so row 0 and row ny - 1
     are never used as the top-left corner of a cell.
@@ -365,5 +365,5 @@ function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float
 
     surface = abs(surface) / 2.0
     diameter = calculate_mesh_diameter2d(vertices)
-    return Float32(perimeter), Float32(surface), Float32(diameter)
+    return Float64(perimeter), Float64(surface), Float64(diameter)
 end

@@ -72,9 +72,9 @@ function label_components(mask::AbstractArray{Bool})
 end
 
 """
-    discretize_image(img::Array{Float32,3}, mask::BitArray{3}; 
+    discretize_image(img::Array{<:Real}, mask::BitArray; 
                         n_bins::Union{Int,Nothing}=nothing,
-                        bin_width::Union{Float64,Nothing}=nothing)
+                        bin_width::Union{<:Real,Nothing}=nothing)
 
     Discretizes the input image for radiomics feature calculation. 
     Takes into account only the voxels within the provided mask.
@@ -82,12 +82,12 @@ end
     You can specify EITHER n_bins (number of bins) OR bin_width (width of each bin), but not both.
     - If n_bins is specified, bin_width is calculated automatically from the intensity range
     - If bin_width is specified, the number of bins is calculated automatically
-    - If neither is specified, defaults to bin_width=25.0f0
+    - If neither is specified, defaults to bin_width=25.0
 
     This function is compatible with all radiomics features: GLCM, GLDM, GLRLM, GLSZM, NGTDM, etc.
 
     # Arguments:
-        - `img`: The input 3D image as Float32 array.
+        - `img`: The input 3D image as Float64 array.
         - `mask`: The mask defining the region of interest as BitArray.
         - `n_bins`: The number of discrete gray levels (optional).
         - `bin_width`: The width of each bin (optional).
@@ -103,9 +103,9 @@ end
         disc, n_bins, levels, bw = discretize_image(img, mask, n_bins=64)
         
         # Using fixed bin width (number of bins calculated automatically)
-        disc, n_bins, levels, bw = discretize_image(img, mask, bin_width=25.0f0)
+        disc, n_bins, levels, bw = discretize_image(img, mask, bin_width=25.0)
         
-        # Default (bin_width=25.0f0)
+        # Default (bin_width=25.0)
         disc, n_bins, levels, bw = discretize_image(img, mask)
     """
 function discretize_image(img::Array{<:Real},
@@ -113,52 +113,51 @@ function discretize_image(img::Array{<:Real},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{<:Real,Nothing}=nothing)
 
-    # Convert to Float32 for backward compatibility
-    img_f32 = convert(Array{Float32}, img)
-    bin_width_f32 = isnothing(bin_width) ? nothing : Float32(bin_width)
+    # Convert to Float64 for backward compatibility
+    img_f64 = convert(Array{Float64}, img)
+    bin_width_f64 = isnothing(bin_width) ? nothing : Float64(bin_width)
 
     # Early check for empty mask
     if sum(mask) == 0
-        return zeros(Int, size(img_f32)), 0, Int[], 0.0f0
+        return zeros(Int, size(img_f64)), 0, Int[], 0.0
     end
 
     # Compute min/max from masked values
-    vals = view(img_f32, mask)
+    vals = view(img_f64, mask)
     vmin = minimum(vals)
     vmax = maximum(vals)
 
-    if !isnothing(n_bins) && !isnothing(bin_width_f32)
-        error("Specify either n_bins or bin_width, not both.")
+    disc = zeros(Int, size(img_f64))
 
-    elseif isnothing(n_bins) && isnothing(bin_width_f32)
-        bin_width_f32 = 25.0f0
+    if !isnothing(n_bins) && !isnothing(bin_width_f64)
+        error("Specify either n_bins or bin_width, not both.")
+    elseif isnothing(n_bins) && isnothing(bin_width_f64)
+        bin_width_f64 = 25.0
     end
 
-    disc = zeros(Int, size(img_f32))
-
     if !isnothing(n_bins)
-        bin_width_used = (vmax - vmin) / Float32(n_bins)
-        if bin_width_used ≈ 0.0f0
-            bin_width_used = 1.0f0
+        bin_width_used = (vmax - vmin) / Float64(n_bins)
+        if bin_width_used ≈ 0.0
+            bin_width_used = 1.0
         end
 
-        inv_bin_width = 1.0f0 / bin_width_used
+        inv_bin_width = 1.0 / bin_width_used
         # Iterate directly using linear indices without allocating index array
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img_f32[i]
+                v = img_f64[i]
                 b = min(Int(floor((v - vmin) * inv_bin_width)) + 1, n_bins)
                 disc[i] = b
             end
         end
     else
-        bin_width_used = bin_width_f32
-        inv_bin_width = 1.0f0 / bin_width_used
+        bin_width_used = bin_width_f64
+        inv_bin_width = 1.0 / bin_width_used
         bin_offset = Int(floor(vmin * inv_bin_width))
 
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img_f32[i]
+                v = img_f64[i]
                 b = Int(floor(v * inv_bin_width)) - bin_offset + 1
                 disc[i] = b
             end
@@ -360,18 +359,18 @@ function prepare_inputs(img_input::AbstractArray,
     voxel_spacing_input::AbstractVector)
     # Handle both 2D and 3D inputs
     if ndims(img_input) == 2
-        # 2D input: convert to 2D Float32 array
-        img = convert(Array{Float32,2}, img_input)
-        mask = BitArray(mask_input .!= 0.0f0)
+        # 2D input: convert to 2D Float64 array
+        img = convert(Array{Float64,2}, img_input)   
+        mask = BitArray(mask_input .!= 0.0)           
     elseif ndims(img_input) == 3
-        # 3D input: convert to 3D Float32 array
-        img = convert(Array{Float32,3}, img_input)
-        mask = BitArray(mask_input .!= 0.0f0)
+        # 3D input: convert to 3D Float64 array
+        img = convert(Array{Float64,3}, img_input)   
+        mask = BitArray(mask_input .!= 0.0)
     else
         throw(ArgumentError("Input image must be 2D or 3D, got $(ndims(img_input))D"))
     end
 
-    voxel_spacing = convert(Vector{Float32}, voxel_spacing_input)
+    voxel_spacing = convert(Vector{Float64}, voxel_spacing_input)
     return img, mask, voxel_spacing
 end
 
@@ -386,7 +385,7 @@ end
 function  validate_binning_parameters(img_input, mask_input, bin_width)
 
     # Calculate range and estimated number of bins
-    roi_vals = img_input[mask_input.!=0]
+    roi_vals = img_input[mask_input]
     val_min = minimum(roi_vals)
     val_max = maximum(roi_vals)
     val_range = val_max - val_min

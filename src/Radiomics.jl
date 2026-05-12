@@ -47,7 +47,7 @@ using TOML
     - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
     - `sample_rate`: The sample rate for feature extraction (optional).
     - `get_raw_matrices`: If true, computes raw (unnormalized, unweighted) GLCM matrices along all directions
-                           and stores them in the result as `"get_raw_matrices"` (Vector of Matrix{Float32}).
+                           and stores them in the result as `"get_raw_matrices"` (Vector of Matrix{Float64}).
     - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `verbose`: If true, prints progress messages.
@@ -462,13 +462,13 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     # Sanity check
     input_sanity_check(img, mask, verbose)
 
+    # Cast and prepare inputs
+    img, mask, voxel_spacing = prepare_inputs(img, mask, voxel_spacing)
+
     # Validate binning parameters
     if isnothing(n_bins) && !isnothing(bin_width) && voxel_count > 0
         validate_binning_parameters(img, mask, bin_width)
     end
-
-    # Cast and prepare inputs
-    img, mask, voxel_spacing = prepare_inputs(img, mask, voxel_spacing)
 
     # GLCM features
     if compute_all || :glcm in features 
@@ -681,9 +681,9 @@ end
 const LAST_JSON_RESULT = Ref{String}("")
 
 Base.@ccallable function c_extract_radiomic_features(
-    img_ptr::Ptr{Float32},
+    img_ptr::Ptr{Float64},
     img_size_x::Int64, img_size_y::Int64, img_size_z::Int64,
-    mask_ptr::Ptr{Float32},
+    mask_ptr::Ptr{Float64},
     spacing_x::Float64, spacing_y::Float64, spacing_z::Float64,
     binWidth::Float64
 )::Cstring

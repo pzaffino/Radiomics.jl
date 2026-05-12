@@ -1,13 +1,13 @@
 using LinearAlgebra
 using Statistics
 """ 
-    function calculate_glcm(img::Array{Float32,3}, mask::BitArray{3}, spacing::Vector{Float32}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
+    function calculate_glcm(img::Array{Float64,3}, mask::BitArray{3}, spacing::Vector{Float64}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
 
     Calculates the Gray Level Co-occurrence Matrix (GLCM) for a 3D image within a specified mask.
     You can specify EITHER n_bins OR bin_width, but not both.
 
     # Arguments
-        - `img`: The input 3D image as a Float32 array.
+        - `img`: The input 3D image as a Float64 array.
         - `mask`: A BitArray defining the region of interest within the image.
         - `spacing`: A vector specifying the voxel spacing in each dimension.
         - `n_bins`: The number of bins for discretizing intensity values (optional).
@@ -22,7 +22,7 @@ using Statistics
 """
 function calculate_glcm(img,
     mask,
-    spacing::Vector{Float32};
+    spacing::Vector{Float64};
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float64,Nothing}=nothing,
     weighting_norm::Union{String,Nothing}=nothing,
@@ -66,7 +66,7 @@ function calculate_glcm(img,
 
     Ng = length(gray_levels)
 
-    glcm_matrices = Vector{Matrix{Float32}}()
+    glcm_matrices = Vector{Matrix{Float64}}()
     sizehint!(glcm_matrices, length(dirs))
 
     # Pre-compute mapping from gray levels to indices directly into mapped_disc array
@@ -84,11 +84,11 @@ function calculate_glcm(img,
     end
 
     # Calculate weights if weighting is specified
-    weights = ones(Float32, length(dirs))
+    weights = ones(Float64, length(dirs))
     if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
         current_spacing = Tuple(spacing[1:dim])
         @inbounds for (a_idx, dir) in enumerate(dirs)
-            abs_angle_dist = abs.(Float32.(dir)) .* current_spacing
+            abs_angle_dist = abs.(Float64.(dir)) .* current_spacing
 
             if weighting_norm == "infinity"
                 weights[a_idx] = exp(-maximum(abs_angle_dist)^2)
@@ -117,7 +117,7 @@ function calculate_glcm(img,
         E.g: idx = CartesianIndex(3,4,2) + CartesianIndex(1,0,0) = CartesianIndex(4,4,2)
         """
         c_dir = CartesianIndex(dir)
-        G = zeros(Float32, Ng, Ng)
+        G = zeros(Float64, Ng, Ng)
 
         for idx in CartesianIndices(disc)
             if mask[idx]
@@ -163,28 +163,28 @@ function calculate_glcm(img,
 end
 
 """
-    function calculate_mcc(glcm::Matrix{Float32}, px, py)
+    function calculate_mcc(glcm::Matrix{Float64}, px, py)
 
     Calculates the Maximal Correlation Coefficient (MCC) from a given GLCM and its marginal
     probabilities. The @inbounds macro is used for performance optimization.
 
     # Arguments:
-        - `glcm`: The Gray Level Co-occurrence Matrix as a Float32 matrix.
+        - `glcm`: The Gray Level Co-occurrence Matrix as a Float64 matrix.
         - `px`: The marginal probability vector for rows.
         - `py`: The marginal probability vector for columns.
 
     # Returns:
-        - The Maximal Correlation Coefficient as a Float32 value.
+        - The Maximal Correlation Coefficient as a Float64 value.
 """
-function calculate_mcc(glcm::Matrix{Float32}, px, py)
+function calculate_mcc(glcm::Matrix{Float64}, px, py)
     Ng = length(px)
     eps = 2.2f-16
     Ng < 2 && return 1.0f0
 
-    Q = zeros(Float32, Ng, Ng)
+    Q = zeros(Float64, Ng, Ng)
 
     # Pre-compute inverse of py values
-    inv_py = Vector{Float32}(undef, Ng)
+    inv_py = Vector{Float64}(undef, Ng)
     @inbounds for k in 1:Ng
         inv_py[k] = py[k] > eps ? 1.0f0 / py[k] : 0.0f0
     end
@@ -215,29 +215,29 @@ function calculate_mcc(glcm::Matrix{Float32}, px, py)
 end
 
 """
-    function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
+    function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
 
     Extracts a set of GLCM features from a single GLCM matrix and its corresponding gray levels.
     The function utilizes the @inbounds macro for performance optimization.
 
     # Arguments:
-        - `glcm`: The Gray Level Co-occurrence Matrix as a Float32 matrix.
+        - `glcm`: The Gray Level Co-occurrence Matrix as a Float64 matrix.
         - `gray_levels`: A vector of gray levels corresponding to the GLCM.
 
     # Returns:
-        - A dictionary (Dict{String, Float32}) containing the extracted GLCM features.
+        - A dictionary (Dict{String, Float64}) containing the extracted GLCM features.
 """
-function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
-    features = Dict{String,Float32}()
+function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
+    features = Dict{String,Float64}()
     n_levels = length(gray_levels)
-    eps = Float32(2.2e-16)
+    eps = Float64(2.2e-16)
 
     # Compute marginal probabilities
     px = vec(sum(glcm, dims=2))
     py = vec(sum(glcm, dims=1))
 
     # Convert gray levels once
-    gray_levels_f32 = Float32.(gray_levels)
+    gray_levels_f32 = Float64.(gray_levels)
 
     # Compute means
     μx = 0.0f0
@@ -260,10 +260,10 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     # Pre-allocate marginal distributions using actual gray level values
     max_gray_level = maximum(gray_levels)
     min_gray_level = minimum(gray_levels)
-    gray_level_range = Float32(max_gray_level - min_gray_level)
+    gray_level_range = Float64(max_gray_level - min_gray_level)
 
-    p_xminusy = zeros(Float32, max_gray_level - min_gray_level + 1)
-    p_xplusy = zeros(Float32, 2 * max_gray_level + 1)
+    p_xminusy = zeros(Float64, max_gray_level - min_gray_level + 1)
+    p_xplusy = zeros(Float64, 2 * max_gray_level + 1)
 
     # Pre-compute correlation denominator
     corr_denom = σx * σy
@@ -288,7 +288,7 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     sum_squares = 0.0f0
     diff_avg = 0.0f0  # accumulated here to avoid a second i×j pass below
 
-    ng = Float32(max_gray_level - min_gray_level + 1)
+    ng = Float64(max_gray_level - min_gray_level + 1)
 
     # Main feature extraction loop — also accumulates diff_avg and populates
     # p_xminusy/p_xplusy, so we avoid two extra O(n_levels^2) passes
@@ -349,7 +349,7 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
                 p_xplusy[sum_val] += p
 
                 # Accumulate diff_avg in the same pass (avoids a second i×j loop)
-                diff_avg += Float32(diff_val) * p
+                diff_avg += Float64(diff_val) * p
             end
         end
     end
@@ -401,7 +401,7 @@ function extract_glcm_features(glcm::Matrix{Float32}, gray_levels::Vector{Int})
     sum_entropy = 0.0f0
     @inbounds for sum_k in min_k:max_k
         pk = p_xplusy[sum_k]
-        sum_avg += Float32(sum_k) * pk
+        sum_avg += Float64(sum_k) * pk
         if pk > 0
             sum_entropy -= pk * log2(pk + eps)
         end
@@ -466,7 +466,7 @@ end
     - If neither is specified, defaults to n_bins=32
 
     # Arguments
-        - `img`: The input 3D image as a Float32 array.
+        - `img`: The input 3D image as a Float64 array.
         - `mask`: A BitArray defining the region of interest within the image.
     - `voxel_spacing`: A vector specifying the voxel spacing in each dimension.
     - `n_bins`: The number of bins for discretizing intensity values (optional).
@@ -498,8 +498,8 @@ function get_glcm_features(img, mask, voxel_spacing;
     get_raw_matrices::Bool=false,
     verbose::Bool=false)
 
-    # Ensure spacing is Float32 and has the right length for the image dimensionality
-    spacing = convert(Vector{Float32}, voxel_spacing)
+    # Ensure spacing is Float64 and has the right length for the image dimensionality
+    spacing = convert(Vector{Float64}, voxel_spacing)
 
     glcm_matrices, gray_levels, bin_width_used = calculate_glcm(img, mask, spacing;
         n_bins=n_bins,
@@ -537,7 +537,7 @@ function get_glcm_features(img, mask, voxel_spacing;
         end
     end
 
-    inv_n = 1.0f0 / Float32(n_matrices)
+    inv_n = 1.0f0 / Float64(n_matrices)
     @inbounds for name in keys(sum_features)
         features[name] = sum_features[name] * inv_n
     end

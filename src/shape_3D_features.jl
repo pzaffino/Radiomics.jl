@@ -233,7 +233,7 @@ function voxel_volume(mask, spacing::Vector{<:Real})
            Float64(spacing[1]) * Float64(spacing[2]) * Float64(spacing[3])
 end
 """
-    get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
+    get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float64}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
     
     Extracts 3D shape features from the given mask.
     

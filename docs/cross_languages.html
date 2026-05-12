@@ -934,11 +934,11 @@ lib.init_julia(<span class="julia-literal">0</span>, <span class="julia-literal"
 
 <span class="julia-comment"># Define function signatures</span>
 lib.c_extract_radiomic_features.argtypes = [
-    ctypes.POINTER(ctypes.c_float),  <span class="julia-comment"># img_ptr   (Float32)</span>
+    ctypes.POINTER(ctypes.c_float),  <span class="julia-comment"># img_ptr   (Float64)</span>
     ctypes.c_int64,                  <span class="julia-comment"># size_x    (Int64)</span>
     ctypes.c_int64,                  <span class="julia-comment"># size_y    (Int64)</span>
     ctypes.c_int64,                  <span class="julia-comment"># size_z    (Int64)</span>
-    ctypes.POINTER(ctypes.c_float),  <span class="julia-comment"># mask_ptr  (Float32)</span>
+    ctypes.POINTER(ctypes.c_float),  <span class="julia-comment"># mask_ptr  (Float64)</span>
     ctypes.c_double,                 <span class="julia-comment"># spacing_x (Float64)</span>
     ctypes.c_double,                 <span class="julia-comment"># spacing_y (Float64)</span>
     ctypes.c_double,                 <span class="julia-comment"># spacing_z (Float64)</span>
@@ -952,8 +952,8 @@ ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/CT.nrrd'</span>)
 mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/left_parotid.nrrd'</span>)
 
 <span class="julia-comment"># Convert to numpy arrays (Fortran-contiguous)</span>
-ct = np.asfortranarray(sitk.GetArrayFromImage(ct_sitk), dtype=np.float32)
-mask = np.asfortranarray(sitk.GetArrayFromImage(mask_sitk), dtype=np.float32)
+ct = np.asfortranarray(sitk.GetArrayFromImage(ct_sitk), dtype=np.Float64)
+mask = np.asfortranarray(sitk.GetArrayFromImage(mask_sitk), dtype=np.Float64)
 
 <span class="julia-comment"># Get data pointers</span>
 ptr_ct = ct.ctypes.data_as(ctypes.POINTER(ctypes.c_float))

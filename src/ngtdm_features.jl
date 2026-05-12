@@ -112,7 +112,7 @@ function calculate_ngtdm_matrix(discretized_img, mask, verbose)
     num_gl = length(gray_levels)
     gl_map = Dict(gl => i for (i, gl) in enumerate(gray_levels))
 
-    P_ngtdm = zeros(Float32, num_gl, 3)
+    P_ngtdm = zeros(Float64, num_gl, 3)
 
     n_dims = ndims(discretized_img)
     neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
@@ -162,7 +162,7 @@ function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
     Nvp = sum(P_ngtdm[:, 1])
     p_i = P_ngtdm[:, 1] ./ Nvp
     s_i = P_ngtdm[:, 2]
-    ivector = Float32.(gray_levels)
+    ivector = Float64.(gray_levels)
     Ngp = sum(P_ngtdm[:, 1] .> 0)
 
     return Nvp, p_i, s_i, ivector, Ngp

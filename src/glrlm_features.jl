@@ -146,7 +146,7 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
     end
 
     num_angles = length(angles)
-    P_glrlm = zeros(Float32, num_gl, max_run_length, num_angles)
+    P_glrlm = zeros(Float64, num_gl, max_run_length, num_angles)
 
     cart_indices = CartesianIndices(size(discretized_img))
     lin_indices = LinearIndices(size(discretized_img))
@@ -188,9 +188,9 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
 
     # Weighted sum in-place without allocating intermediate arrays
     if !isnothing(weighting_norm)
-        weights = ones(Float32, num_angles)
+        weights = ones(Float64, num_angles)
         @inbounds for (a_idx, angle) in enumerate(angles)
-            angle_vec = Float32.([angle...])
+            angle_vec = Float64.([angle...])
             current_spacing = voxel_spacing[1:dim]
             abs_angle_dist = abs.(angle_vec) .* current_spacing
             if weighting_norm == "infinity"
@@ -202,7 +202,7 @@ function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_
             end
         end
 
-        P_out = zeros(Float32, num_gl, max_run_length)
+        P_out = zeros(Float64, num_gl, max_run_length)
         @inbounds for a_idx in 1:num_angles
             @views P_out .+= weights[a_idx] .* P_glrlm[:, :, a_idx]
         end
@@ -230,17 +230,17 @@ function extract_all_glrlm_features(P_glrlm, gray_levels, feature_names)
     num_angles = size(P_glrlm, 3)
     max_run_length = size(P_glrlm, 2)
     num_features = length(feature_names)
-    feature_sums = zeros(Float32, num_features)
+    feature_sums = zeros(Float64, num_features)
 
-    ivector = Float32.(gray_levels)
-    jvector = Float32.(1:max_run_length)
+    ivector = Float64.(gray_levels)
+    jvector = Float64.(1:max_run_length)
     # Pre-compute squared vectors outside the loop (constant across angles)
     ivector_sq = ivector .^ 2
     jvector_sq = jvector .^ 2
 
     # Pre-allocate marginal sum buffers outside the loop to avoid repeated allocations
-    pr = zeros(Float32, 1, max_run_length)
-    pg = zeros(Float32, num_gl, 1)
+    pr = zeros(Float64, 1, max_run_length)
+    pg = zeros(Float64, num_gl, 1)
 
     @inbounds for i in 1:num_angles
         p_slice = @view P_glrlm[:, :, i]
@@ -249,7 +249,7 @@ function extract_all_glrlm_features(P_glrlm, gray_levels, feature_names)
             continue
         end
 
-        inv_Nr = 1.0f0 / Float32(Nr)
+        inv_Nr = 1.0f0 / Float64(Nr)
         inv_Nr_sq = inv_Nr * inv_Nr
 
         # In-place marginal sums: zero allocations
@@ -270,7 +270,7 @@ function extract_all_glrlm_features(P_glrlm, gray_levels, feature_names)
         feature_sums[6] += sum(pr[j]^2 for j in 1:max_run_length) * inv_Nr_sq
         # 7. RunPercentage
         Np = sum(pr[j] * jvector[j] for j in 1:max_run_length)
-        feature_sums[7] += Float32(Nr) / Np
+        feature_sums[7] += Float64(Nr) / Np
         # 8. GrayLevelVariance
         u_i = sum(pg[g] * ivector[g] for g in 1:num_gl) * inv_Nr
         feature_sums[8] += sum(pg[g] * inv_Nr * (ivector[g] - u_i)^2 for g in 1:num_gl)

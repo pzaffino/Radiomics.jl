@@ -178,12 +178,12 @@ end
 """
 function calculate_gldm_coefficients(P_gldm, gray_levels)
     Nz = sum(P_gldm)
-    Nz = Nz == 0 ? 1.0f-6 : Float32(Nz)
+    Nz = Nz == 0 ? 1.0f-6 : Float64(Nz)
 
     pd = vec(sum(P_gldm, dims=1))
     pg = vec(sum(P_gldm, dims=2))
-    ivector = Float32.(gray_levels)
-    jvector = Float32.(1:size(P_gldm, 2))
+    ivector = Float64.(gray_levels)
+    jvector = Float64.(1:size(P_gldm, 2))
 
     return Nz, pd, pg, ivector, jvector
 end
