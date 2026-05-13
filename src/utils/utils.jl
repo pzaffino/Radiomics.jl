@@ -1,4 +1,53 @@
 """
+    bounding_box(img, mask, verbose::Bool)
+
+    Computes the bounding box of a binary mask and crops both the image and the mask
+    to the smallest region containing all voxels where `mask == 1`.
+    Works for both 2D and 3D arrays.
+
+    # Arguments
+    - `img`: The input image (2D or 3D array).
+    - `mask`: The binary mask defining the region of interest (same shape as `img`).
+    - `verbose`: If `true`, prints the original and cropped sizes with reduction percentage.
+
+    # Returns
+    - `cropped_img`: image array cropped to the bounding box of the mask.
+    - `cropped_mask`: binary mask array (`BitArray`) cropped to the same bounding box."""
+function bounding_box(img, mask, verbose::Bool)
+    if verbose
+        println("Calculating the bounding box")
+        println("Image data: $(size(img)) | $(prod(size(img))) voxels\nMask data: $(size(mask)) | $(count(mask .== 1)) voxels")
+    end
+
+    idx = findall(mask .== 1)
+    n = ndims(mask)
+
+    mins = [typemax(Int) for _ in 1:n]
+    maxs = [typemin(Int) for _ in 1:n]
+
+    for i in idx
+        for d in 1:n
+            if i[d] < mins[d]; mins[d] = i[d]; end
+            if i[d] > maxs[d]; maxs[d] = i[d]; end
+        end
+    end
+
+    ranges = [mins[d]:maxs[d] for d in 1:n]
+
+    cropped_img  = img[ranges...]
+    cropped_mask = mask[ranges...]
+
+    if verbose
+        img_size = size(cropped_img)
+        ct_voxels = prod(img_size)
+        image_crop_perc = 100 - prod(img_size) / prod(size(img)) * 100
+        println("Cropped image data: $img_size | $ct_voxels voxels | $(round(image_crop_perc, digits=2))% reduction ")
+    end
+
+    return cropped_img, BitArray(cropped_mask)
+end
+
+"""
     label_components(mask::AbstractArray{Bool})
 
     Labels connected components in a binary mask using 26-connectivity for 3D
@@ -361,11 +410,11 @@ function prepare_inputs(img_input::AbstractArray,
     if ndims(img_input) == 2
         # 2D input: convert to 2D Float64 array
         img = convert(Array{Float64,2}, img_input)   
-        mask = BitArray(mask_input .!= 0.0)           
+        mask = convert(Array{Int,2}, mask_input)           
     elseif ndims(img_input) == 3
         # 3D input: convert to 3D Float64 array
         img = convert(Array{Float64,3}, img_input)   
-        mask = BitArray(mask_input .!= 0.0)
+        mask = convert(Array{Int,3}, mask_input)
     else
         throw(ArgumentError("Input image must be 2D or 3D, got $(ndims(img_input))D"))
     end
