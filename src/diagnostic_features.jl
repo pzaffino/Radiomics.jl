@@ -1,5 +1,5 @@
 function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_time_real, 
-                                weighting_norm, n_bins, keep_largest_only, image, mask)
+                                weighting_norm, n_bins, keep_largest_only, image_input, img_to_use, mask_input, mask_to_use)
 
     diagnosis_features = Dict{String, Any}()
 
@@ -27,9 +27,11 @@ function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_tim
     
     #parameters of the image
     diagnosis_features["diagnosis_Voxel_spacing"] = collect(voxel_spacing)
-    diagnosis_features["diagnosis_Image_size"] = collect(size(image))
-    diagnosis_features["diagnosis_Mask_size"] = collect(size(mask))
-    diagnosis_features["diagnosis_Dimensionality_of_image"] = string(ndims(image)) * "D"
+    diagnosis_features["diagnosis_Image_size"] = collect(size(image_input))
+    diagnosis_features["diagnosis_Image_size_cropped"] = collect(size(img_to_use))
+    diagnosis_features["diagnosis_Mask_size"] = collect(size(mask_input))
+    diagnosis_features["diagnosis_Mask_size_cropped"] = collect(size(mask_to_use))
+    diagnosis_features["diagnosis_Dimensionality_of_image"] = string(ndims(image_input)) * "D"
     
     #parameters of the system
     diagnosis_features["diagnosis_Number_of_threads"] = Threads.nthreads()

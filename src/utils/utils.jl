@@ -13,10 +13,19 @@
     # Returns
     - `cropped_img`: image array cropped to the bounding box of the mask.
     - `cropped_mask`: binary mask array (`BitArray`) cropped to the same bounding box."""
-function bounding_box(img, mask, verbose::Bool)
+function bounding_box(img, mask, verbose::Bool; log_buffer::Union{Vector{String}, Nothing}=nothing)
+    function _bb_log(msg)
+        if !isnothing(log_buffer)
+            push!(log_buffer, msg)
+        else
+            println(msg)
+        end
+    end
+
     if verbose
-        println("Calculating the bounding box")
-        println("Image data: $(size(img)) | $(prod(size(img))) voxels\nMask data: $(size(mask)) | $(count(mask .== 1)) voxels")
+        _bb_log("Calculating the bounding box")
+        _bb_log("Image data: $(size(img)) | $(prod(size(img))) voxels")
+        _bb_log("Mask data: $(size(mask)) | $(count(mask .== 1)) voxels")
     end
 
     idx = findall(mask .== 1)
@@ -41,7 +50,7 @@ function bounding_box(img, mask, verbose::Bool)
         img_size = size(cropped_img)
         ct_voxels = prod(img_size)
         image_crop_perc = 100 - prod(img_size) / prod(size(img)) * 100
-        println("Cropped image data: $img_size | $ct_voxels voxels | $(round(image_crop_perc, digits=2))% reduction ")
+        _bb_log("Cropped image data: $img_size | $ct_voxels voxels | $(round(image_crop_perc, digits=2))% reduction ")
     end
 
     return cropped_img, BitArray(cropped_mask)
