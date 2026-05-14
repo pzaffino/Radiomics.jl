@@ -191,7 +191,7 @@ end
 # Feature implementations - optimized for vectorized operations
 function gldm_small_dependence_emphasis(pd, jvector, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for j in eachindex(jvector)
         result += pd[j] / (jvector[j]^2)
     end
@@ -200,7 +200,7 @@ end
 
 function gldm_large_dependence_emphasis(pd, jvector, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for j in eachindex(jvector)
         result += pd[j] * (jvector[j]^2)
     end
@@ -208,7 +208,7 @@ function gldm_large_dependence_emphasis(pd, jvector, Nz)
 end
 
 function gldm_gray_level_non_uniformity(pg, Nz)
-    sum_sq = 0.0f0
+    sum_sq = 0.0
     @inbounds for val in pg
         sum_sq += val^2
     end
@@ -216,7 +216,7 @@ function gldm_gray_level_non_uniformity(pg, Nz)
 end
 
 function gldm_dependence_non_uniformity(pd, Nz)
-    sum_sq = 0.0f0
+    sum_sq = 0.0
     @inbounds for val in pd
         sum_sq += val^2
     end
@@ -237,13 +237,13 @@ gldm_dependence_non_uniformity_normalized(pd, Nz) = gldm_dependence_non_uniformi
 """
 function gldm_gray_level_variance(pg, ivector, Nz)
     inv_Nz = 1.0f0 / Nz
-    u_i = 0.0f0
+    u_i = 0.0
     @inbounds for i in eachindex(ivector)
         u_i += pg[i] * ivector[i]
     end
     u_i *= inv_Nz
 
-    variance = 0.0f0
+    variance = 0.0
     @inbounds for i in eachindex(ivector)
         diff = ivector[i] - u_i
         variance += pg[i] * diff * diff
@@ -262,13 +262,13 @@ end
     - The calculated Dependence Variance feature value."""
 function gldm_dependence_variance(pd, jvector, Nz)
     inv_Nz = 1.0f0 / Nz
-    u_j = 0.0f0
+    u_j = 0.0
     @inbounds for j in eachindex(jvector)
         u_j += pd[j] * jvector[j]
     end
     u_j *= inv_Nz
 
-    variance = 0.0f0
+    variance = 0.0
     @inbounds for j in eachindex(jvector)
         diff = jvector[j] - u_j
         variance += pd[j] * diff * diff
@@ -287,7 +287,7 @@ end
     """
 function gldm_dependence_entropy(P_gldm, Nz)
     inv_Nz = 1.0f0 / Nz
-    entropy = 0.0f0
+    entropy = 0.0
     @inbounds for val in P_gldm
         if val > 0
             p = val * inv_Nz
@@ -299,7 +299,7 @@ end
 
 function gldm_low_gray_level_emphasis(pg, ivector, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for i in eachindex(ivector)
         result += pg[i] / (ivector[i]^2)
     end
@@ -308,7 +308,7 @@ end
 
 function gldm_high_gray_level_emphasis(pg, ivector, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for i in eachindex(ivector)
         result += pg[i] * (ivector[i]^2)
     end
@@ -328,7 +328,7 @@ end
     - The calculated Small Dependence Low Gray Level Emphasis feature value."""
 function gldm_small_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
         if P_gldm[i, j] > 0
             result += P_gldm[i, j] / (i_sq[i] * j_sq[j])
@@ -349,7 +349,7 @@ end
     - The calculated Small Dependence High Gray Level Emphasis feature value."""
 function gldm_small_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
         if P_gldm[i, j] > 0
             result += P_gldm[i, j] * i_sq[i] / j_sq[j]
@@ -371,7 +371,7 @@ end
     """
 function gldm_large_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
         if P_gldm[i, j] > 0
             result += P_gldm[i, j] * j_sq[j] / i_sq[i]
@@ -392,7 +392,7 @@ end
     - The calculated Large Dependence High Gray Level Emphasis feature value."""
 function gldm_large_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
     inv_Nz = 1.0f0 / Nz
-    result = 0.0f0
+    result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
         if P_gldm[i, j] > 0
             result += P_gldm[i, j] * i_sq[i] * j_sq[j]

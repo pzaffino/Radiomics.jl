@@ -107,6 +107,8 @@ function calculate_glcm(img,
         end
     end
 
+    mask_indices = findall(mask)
+
     @inbounds for (dir_idx, dir) in enumerate(dirs)
         """
         CartesianIndex represents a multidimensional index in Julia.
@@ -119,16 +121,14 @@ function calculate_glcm(img,
         c_dir = CartesianIndex(dir)
         G = zeros(Float64, Ng, Ng)
 
-        for idx in CartesianIndices(disc)
-            if mask[idx]
-                nidx = idx + c_dir
-                if checkbounds(Bool, disc, nidx) && mask[nidx]
-                    i = mapped_disc[idx]
-                    j = mapped_disc[nidx]
-                    # Symmetrize the GLCM
-                    G[i, j] += 1.0f0
-                    G[j, i] += 1.0f0
-                end
+        for idx in mask_indices
+            nidx = idx + c_dir
+            if checkbounds(Bool, disc, nidx) && mask[nidx]
+                i = mapped_disc[idx]
+                j = mapped_disc[nidx]
+                # Symmetrize the GLCM
+                G[i, j] += 1.0f0
+                G[j, i] += 1.0f0
             end
         end
 
@@ -186,7 +186,7 @@ function calculate_mcc(glcm::Matrix{Float64}, px, py)
     # Pre-compute inverse of py values
     inv_py = Vector{Float64}(undef, Ng)
     @inbounds for k in 1:Ng
-        inv_py[k] = py[k] > eps ? 1.0f0 / py[k] : 0.0f0
+        inv_py[k] = py[k] > eps ? 1.0f0 / py[k] : 0.0
     end
 
     # Compute Q matrix
@@ -194,7 +194,7 @@ function calculate_mcc(glcm::Matrix{Float64}, px, py)
         if px[i] > eps
             inv_pxi = 1.0f0 / px[i]
             for j in 1:Ng
-                s = 0.0f0
+                s = 0.0
                 for k in 1:Ng
                     if py[k] > eps
                         s += glcm[i, k] * glcm[j, k] * inv_py[k]
@@ -208,9 +208,9 @@ function calculate_mcc(glcm::Matrix{Float64}, px, py)
     try
         eigs = eigvals(Q)
         vals = sort(real.(eigs), rev=true)
-        (length(vals) >= 2 && vals[2] > 0) ? sqrt(vals[2]) : 0.0f0
+        (length(vals) >= 2 && vals[2] > 0) ? sqrt(vals[2]) : 0.0
     catch
-        0.0f0
+        0.0
     end
 end
 
@@ -240,16 +240,16 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
     gray_levels_f32 = Float64.(gray_levels)
 
     # Compute means
-    μx = 0.0f0
-    μy = 0.0f0
+    μx = 0.0
+    μy = 0.0
     for i in 1:n_levels
         μx += gray_levels_f32[i] * px[i]
         μy += gray_levels_f32[i] * py[i]
     end
 
     # Compute standard deviations
-    σx_sq = 0.0f0
-    σy_sq = 0.0f0
+    σx_sq = 0.0
+    σy_sq = 0.0
     for i in 1:n_levels
         σx_sq += (gray_levels_f32[i] - μx)^2 * px[i]
         σy_sq += (gray_levels_f32[i] - μy)^2 * py[i]
@@ -268,25 +268,28 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
     # Pre-compute correlation denominator
     corr_denom = σx * σy
     use_corr = corr_denom > 0
-    inv_corr_denom = use_corr ? 1.0f0 / corr_denom : 0.0f0
+    inv_corr_denom = use_corr ? 1.0 / corr_denom : 0.0
 
     # Initialize feature accumulators
-    autocorr = 0.0f0
-    cluster_prom = 0.0f0
-    cluster_shade = 0.0f0
-    cluster_tend = 0.0f0
-    contrast = 0.0f0
-    correlation = 0.0f0
-    joint_energy = 0.0f0
-    joint_entropy = 0.0f0
-    idm = 0.0f0
-    idmn = 0.0f0
-    id = 0.0f0
-    idn = 0.0f0
-    inv_var = 0.0f0
-    max_prob = 0.0f0
-    sum_squares = 0.0f0
-    diff_avg = 0.0f0  # accumulated here to avoid a second i×j pass below
+    autocorr = 0.0
+    cluster_prom = 0.0
+    cluster_shade = 0.0
+    cluster_tend = 0.0
+    contrast = 0.0
+    correlation = 0.0
+    joint_energy = 0.0
+    joint_entropy = 0.0
+    idm = 0.0
+    idmn = 0.0
+    id = 0.0
+    idn = 0.0
+    inv_var = 0.0
+    max_prob = 0.0
+    sum_squares = 0.0
+    diff_avg = 0.0
+    diff_sq_avg = 0.0
+    HXY1 = 0.0
+    HXY2 = 0.0
 
     ng = Float64(max_gray_level - min_gray_level + 1)
 
@@ -298,6 +301,17 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
 
         for j in 1:n_levels
             p = glcm[i, j]
+
+            # Information measures
+            pxpy = px[i] * py[j]
+            if pxpy > 0
+                log_pxpy = log2(pxpy + eps)
+                HXY2 -= pxpy * log_pxpy
+                if p > 0
+                    HXY1 -= p * log_pxpy
+                end
+            end
+
             if p > 0
                 yj = gray_levels_f32[j]
                 yj_minus_μy = yj - μy
@@ -350,6 +364,7 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
 
                 # Accumulate diff_avg in the same pass (avoids a second i×j loop)
                 diff_avg += Float64(diff_val) * p
+                diff_sq_avg += Float64(diff_val)^2 * p
             end
         end
     end
@@ -371,7 +386,7 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
     features["glcm_DifferenceAverage"] = diff_avg
 
     # Difference entropy from p_xminusy (single pass over p_xminusy, no extra i×j loop)
-    diff_entropy = 0.0f0
+    diff_entropy = 0.0
     @inbounds for k in 1:length(p_xminusy)
         pk = p_xminusy[k]
         if pk > 0
@@ -379,16 +394,8 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
         end
     end
 
-    # Difference variance — requires diff_avg, which was computed in the main loop above,
-    # so this is now the only remaining extra i×j pass (unavoidable without two-pass logic)
-    diff_var = 0.0f0
-    @inbounds for i in 1:n_levels, j in 1:n_levels
-        p = glcm[i, j]
-        if p > 0
-            diff_val = abs(gray_levels_f32[i] - gray_levels_f32[j])
-            diff_var += (diff_val - diff_avg)^2 * p
-        end
-    end
+    # Difference variance
+    diff_var = diff_sq_avg - diff_avg^2
 
     features["glcm_DifferenceEntropy"] = diff_entropy
     features["glcm_DifferenceVariance"] = diff_var
@@ -397,8 +404,8 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
     min_k = 2 * min_gray_level
     max_k = 2 * max_gray_level
 
-    sum_avg = 0.0f0
-    sum_entropy = 0.0f0
+    sum_avg = 0.0
+    sum_entropy = 0.0
     @inbounds for sum_k in min_k:max_k
         pk = p_xplusy[sum_k]
         sum_avg += Float64(sum_k) * pk
@@ -415,8 +422,8 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
     features["glcm_JointAverage"] = μx
 
     # Marginal entropies
-    HX = 0.0f0
-    HY = 0.0f0
+    HX = 0.0
+    HY = 0.0
     @inbounds for i in 1:n_levels
         pxi = px[i]
         pyi = py[i]
@@ -429,24 +436,9 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
     end
     HXY = joint_entropy
 
-    # Information measures of correlation
-    HXY1 = 0.0f0
-    HXY2 = 0.0f0
-    @inbounds for i in 1:n_levels, j in 1:n_levels
-        pij = glcm[i, j]
-        pxpy = px[i] * py[j]
-        if pxpy > 0
-            log_pxpy = log2(pxpy + eps)
-            HXY2 -= pxpy * log_pxpy
-            if pij > 0
-                HXY1 -= pij * log_pxpy
-            end
-        end
-    end
-
     div = max(HX, HY)
-    features["glcm_Imc1"] = div > 0 ? (HXY - HXY1) / div : 0.0f0
-    features["glcm_Imc2"] = HXY2 > HXY ? sqrt(1.0f0 - exp(-2.0f0 * (HXY2 - HXY))) : 0.0f0
+    features["glcm_Imc1"] = div > 0 ? (HXY - HXY1) / div : 0.0
+    features["glcm_Imc2"] = HXY2 > HXY ? sqrt(1.0f0 - exp(-2.0f0 * (HXY2 - HXY))) : 0.0
 
     features["glcm_Mcc"] = calculate_mcc(glcm, px, py)
 
@@ -475,10 +467,10 @@ end
     - `get_raw_matrices`: If true, returns one raw (unnormalized, unweighted) GLCM matrix per direction instead of the standard aggregated result.
     - `verbose`: If true, enables verbose output for debugging or detailed processing information.
     
-# Returns:
+    # Returns:
     - `feats`: A dictionary containing the mean GLCM features across all directions.
     
-# Examples:
+    # Examples:
     # Using fixed number of bins (bin_width calculated automatically)
     features = get_glcm_features(img, mask, spacing, n_bins=64)
         
