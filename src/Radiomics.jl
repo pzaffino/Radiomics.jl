@@ -1,6 +1,9 @@
-using Base.Threads
-
 module Radiomics
+
+using Base.Threads
+using PrecompileTools
+using JSON3
+using TOML
 
 include("utils/utils.jl")
 include("glcm_features.jl")
@@ -12,9 +15,6 @@ include("ngtdm_features.jl")
 include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
-
-using JSON3
-using TOML
 
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
@@ -717,6 +717,26 @@ Base.@ccallable function c_extract_radiomic_features(
         err_msg = "{\"error\": \"$e\"}\0"
         LAST_JSON_RESULT[] = err_msg
         return pointer(LAST_JSON_RESULT[])
+    end
+end
+
+# @setup_workload for precompile and warm up the code.
+# - Precompilation: executed automatically at the first `using Radiomics`.
+# - Reduces the TTFX (Time To First eXecution) for the package users.
+@setup_workload begin
+    # Small synthetic data only to "warm up" the code for precompile
+    img_small  = Float64.(reshape(1:1000, 10, 10, 10))
+    mask_small = zeros(Float64, 10, 10, 10)
+    mask_small[3:7, 3:7, 3:7] .= 1.0
+    spacing    = [1.0, 1.0, 1.0]
+
+    @compile_workload begin
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            sample_rate = 1.0,
+            keep_largest_only = false,
+            verbose  = false
+        )
     end
 end
 
