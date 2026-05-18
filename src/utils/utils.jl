@@ -136,10 +136,12 @@ function label_components(mask::AbstractArray{Bool})::Array{Int}
 end
 
 """
-    discretize_image(img::AbstractArray{Float64},
-                     mask::BitArray;
-                     n_bins::Union{Int,Nothing}=nothing,
-                     bin_width::Union{Float64,Nothing}=nothing)::Tuple{Array{Int}, Int, Vector{Int}, Float64}
+    function discretize_image(img::AbstractArray{Float64},
+                               mask::BitArray;
+                               n_bins::Union{Int,Nothing}=nothing,
+                               bin_width::Union{Float64,Nothing}=nothing,
+                               vmin::Union{Float64,Nothing}=nothing,
+                               vmax::Union{Float64,Nothing}=nothing)::Tuple{Array{Int}, Int, Vector{Int}, Float64}
 
     Discretizes the input image for radiomics feature calculation. 
     Takes into account only the voxels within the provided mask.
@@ -174,30 +176,28 @@ end
         disc, n_bins, levels, bw = discretize_image(img, mask)
     """
 function discretize_image(img::AbstractArray{Float64},
-                            mask::BitArray;
-                            n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float64,Nothing}=nothing)::Tuple{Array{Int}, Int, Vector{Int}, Float64}
+    mask::BitArray;
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    vmin::Union{Float64,Nothing}=nothing,
+    vmax::Union{Float64,Nothing}=nothing)::Tuple{Array{Int}, Int, Vector{Int}, Float64}
 
-    # Convert to Float64 for backward compatibility
-    img_f64 = convert(Array{Float64}, img)
-    bin_width_f64 = isnothing(bin_width) ? nothing : Float64(bin_width)
-
-    # Early check for empty mask
     if sum(mask) == 0
-        return zeros(Int, size(img_f64)), 0, Int[], 0.0
+        return zeros(Int, size(img)), 0, Int[], 0.0
     end
 
-    # Compute min/max from masked values
-    vals = view(img_f64, mask)
-    vmin = minimum(vals)
-    vmax = maximum(vals)
+    if isnothing(vmin) || isnothing(vmax)
+        vals = view(img, mask)
+        vmin = minimum(vals)
+        vmax = maximum(vals)
+    end
 
-    disc = zeros(Int, size(img_f64))
+    disc = zeros(Int, size(img))
 
-    if !isnothing(n_bins) && !isnothing(bin_width_f64)
+    if !isnothing(n_bins) && !isnothing(bin_width)
         error("Specify either n_bins or bin_width, not both.")
-    elseif isnothing(n_bins) && isnothing(bin_width_f64)
-        bin_width_f64 = 25.0
+    elseif isnothing(n_bins) && isnothing(bin_width)
+        bin_width = 25.0
     end
 
     if !isnothing(n_bins)
@@ -205,24 +205,21 @@ function discretize_image(img::AbstractArray{Float64},
         if bin_width_used ≈ 0.0
             bin_width_used = 1.0
         end
-
         inv_bin_width = 1.0 / bin_width_used
-        # Iterate directly using linear indices without allocating index array
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img_f64[i]
+                v = img[i]
                 b = min(Int(floor((v - vmin) * inv_bin_width)) + 1, n_bins)
                 disc[i] = b
             end
         end
     else
-        bin_width_used = bin_width_f64
+        bin_width_used = bin_width  # già Float64
         inv_bin_width = 1.0 / bin_width_used
         bin_offset = Int(floor(vmin * inv_bin_width))
-
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img_f64[i]
+                v = img[i]
                 b = Int(floor(v * inv_bin_width)) - bin_offset + 1
                 disc[i] = b
             end

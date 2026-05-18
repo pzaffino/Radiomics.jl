@@ -109,38 +109,40 @@ function calculate_glcm(img::AbstractArray{Float64},
 
     mask_indices = findall(mask)
 
-    @inbounds for (dir_idx, dir) in enumerate(dirs)
-        """
+    """
         CartesianIndex represents a multidimensional index in Julia.
         By converting the direction (tuple) into a CartesianIndex, we can directly
         sum the current voxel index (idx) with the direction (c_dir) to obtain
         the neighboring voxel (nidx), without extracting individual coordinates.
         This works automatically for both 2D and 3D images.
         E.g: idx = CartesianIndex(3,4,2) + CartesianIndex(1,0,0) = CartesianIndex(4,4,2)
-        """
-        c_dir = CartesianIndex(dir)
-        G = zeros(Float64, Ng, Ng)
+    """
 
-        for idx in mask_indices
+    # Pre-allocating all the GLCMs
+    c_dirs = [CartesianIndex(dir) for dir in dirs]
+    G_all = [zeros(Float64, Ng, Ng) for _ in 1:length(dirs)]
+
+    @inbounds for idx in mask_indices
+        i_val = mapped_disc[idx]
+        for (dir_idx, c_dir) in enumerate(c_dirs)
             nidx = idx + c_dir
             if checkbounds(Bool, disc, nidx) && mask[nidx]
-                i = mapped_disc[idx]
-                j = mapped_disc[nidx]
-                # Symmetrize the GLCM
-                G[i, j] += 1.0f0
-                G[j, i] += 1.0f0
+                j_val = mapped_disc[nidx]
+                G_all[dir_idx][i_val, j_val] += 1.0
+                G_all[dir_idx][j_val, i_val] += 1.0
             end
         end
+    end
 
-        # Handle normalization based on weighting
+    # Normalization and weighting
+    @inbounds for dir_idx in 1:length(dirs)
+        G = G_all[dir_idx]
         if !isnothing(weighting_norm) && weighting_norm != "no_weighting"
-            # Apply weight WITHOUT normalizing yet
             if sum(G) > 0
                 @. G *= weights[dir_idx]
                 push!(glcm_matrices, G)
             end
         else
-            # No weighting: normalize each matrix separately
             total = sum(G)
             if total > 0
                 @. G /= total

@@ -120,60 +120,63 @@ end
 function calculate_glszm_matrix(discretized_img::Array{Int},
                                  mask::BitArray,
                                  verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
+
     if verbose
         println("Calculating GLSZM matrix...")
     end
 
+    sz = size(discretized_img)
+    n_dims = ndims(discretized_img)
     masked_img = discretized_img[mask]
-    min_gl = minimum(masked_img)
-    max_gl = maximum(masked_img)
     gray_levels = sort(unique(masked_img))
     num_gl = length(gray_levels)
     gl_map = Dict(gl => i for (i, gl) in enumerate(gray_levels))
 
-    max_size = count(mask)
-    P_glszm = zeros(Int, num_gl, max_size)
-
-    visited = falses(size(discretized_img))
-
-    n_dims = ndims(discretized_img)
+    visited = falses(sz)
+    max_mask_size = count(mask)
+    bfs_queue = Vector{Int}(undef, max_mask_size)
     neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
+
+    zone_counts = Dict{Tuple{Int,Int}, Int}()
 
     for i in eachindex(discretized_img)
         if mask[i] && !visited[i]
             gl = discretized_img[i]
             gl_idx = gl_map[gl]
 
-            zone_size = 0
-            q = [i]
+            bfs_queue[1] = i
             visited[i] = true
-
             head = 1
-            while head <= length(q)
-                curr_idx = q[head]
-                head += 1
-                zone_size += 1
+            tail = 1
 
-                n_count = get_neighbors!(neighbors_buffer, curr_idx, size(discretized_img))
+            while head <= tail
+                curr_idx = bfs_queue[head]
+                head += 1
+
+                n_count = get_neighbors!(neighbors_buffer, curr_idx, sz)
                 for k in 1:n_count
-                    neighbor_idx = neighbors_buffer[k]
-                    if mask[neighbor_idx] && !visited[neighbor_idx] && discretized_img[neighbor_idx] == gl
-                        visited[neighbor_idx] = true
-                        push!(q, neighbor_idx)
+                    nb = neighbors_buffer[k]
+                    if mask[nb] && !visited[nb] && discretized_img[nb] == gl
+                        visited[nb] = true
+                        tail += 1
+                        bfs_queue[tail] = nb
                     end
                 end
             end
 
-            if zone_size > 0
-                P_glszm[gl_idx, zone_size] += 1
-            end
+            zone_size = tail
+            key = (gl_idx, zone_size)
+            zone_counts[key] = get(zone_counts, key, 0) + 1
         end
     end
 
-    # Trim empty columns
-    last_col = findlast(sum(P_glszm, dims=1) .> 0)
-    last_col = last_col === nothing ? 0 : last_col[2]
-    P_glszm = P_glszm[:, 1:last_col]
+    isempty(zone_counts) && return zeros(Int, num_gl, 1), gray_levels
+
+    max_zone_size = maximum(j for ((_,j), _) in zone_counts)  
+    P_glszm = zeros(Int, num_gl, max_zone_size)
+    for ((gl_idx, zone_size), cnt) in zone_counts
+        P_glszm[gl_idx, zone_size] += cnt
+    end
 
     return P_glszm, gray_levels
 end

@@ -17,64 +17,71 @@ function get_first_order_features(img::AbstractArray{Float64},
                                    n_bins::Union{Int,Nothing}=nothing,
                                    bin_width::Union{Float64,Nothing}=nothing,
                                    verbose::Bool=false)::Dict{String,Any}
-    if verbose
-        println("Extracting first order features...")
+
+    verbose && println("Extracting first order features...")
+
+    roi_voxels = img[mask]
+    any(isnan, roi_voxels) && error("Image contains NaN values")
+    n = length(roi_voxels)
+
+    voxel_volume = prod(voxel_spacing)
+
+    sorted_voxels = sort(roi_voxels)
+    vmin = sorted_voxels[1]
+    vmax = sorted_voxels[end]
+
+    function _percentile(sv::Vector{Float64}, p::Float64)
+        idx = clamp(round(Int, p / 100.0 * length(sv)), 1, length(sv))
+        return sv[idx]
     end
 
-    roi_voxels = Float64.(img[mask])
-    any(isnan, roi_voxels) && error("Image contains NaN values")
-    
-    voxel_volume::Float64 = prod(Float64.(voxel_spacing)) 
+    p10 = _percentile(sorted_voxels, 10.0)
+    p25 = _percentile(sorted_voxels, 25.0)
+    p50 = _percentile(sorted_voxels, 50.0)
+    p75 = _percentile(sorted_voxels, 75.0)
+    p90 = _percentile(sorted_voxels, 90.0)
+
+    mean_val = sum(roi_voxels) / n
+
+    disc, n_bins_actual, gray_levels, bin_width_used = discretize_image(
+        img, mask;
+        n_bins=n_bins,
+        bin_width=bin_width,
+        vmin=vmin,
+        vmax=vmax
+    )
+    discretized_roi_voxels = disc[mask]
+    p_probs = get_voxel_probabilities(discretized_roi_voxels)
 
     first_order_features = Dict{String,Any}()
 
-    disc, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
-    discretized_roi_voxels::Vector{Int} = disc[mask]
+    energy_val = get_energy_feature_value(roi_voxels)
+    first_order_features["firstorder_energy"] = energy_val
+    first_order_features["firstorder_total_energy"] = get_total_energy_feature_value(voxel_volume, energy_val)
 
-    p = get_voxel_probabilities(discretized_roi_voxels)
+    first_order_features["firstorder_entropy"] = get_entropy_feature_value(p_probs)
 
-    # Calculate in batch all percentiles in a single pass
-    perc = percentile(roi_voxels, [10, 25, 50, 75, 90])
-    percentile10 = perc[1]
-    percentile25 = perc[2]
-    median_val   = perc[3]
-    percentile75 = perc[4]
-    percentile90 = perc[5]
+    first_order_features["firstorder_minimum"] = vmin
+    first_order_features["firstorder_maximum"] = vmax
+    first_order_features["firstorder_mean"] = mean_val
+    first_order_features["firstorder_median"] = p50
+    first_order_features["firstorder_percentile10"] = p10
+    first_order_features["firstorder_percentile90"] = p90
+    first_order_features["firstorder_interquartile_range"] = p75 - p25
+    first_order_features["firstorder_range"] = vmax - vmin
 
-    mean_feature_value = mean(roi_voxels)
-    minimum_feature_value = minimum(roi_voxels)
-    maximum_feature_value = maximum(roi_voxels)
-
-    # Energy & Total Energy
-    energy_feature_value = get_energy_feature_value(roi_voxels)
-    first_order_features["firstorder_energy"] = energy_feature_value
-    first_order_features["firstorder_total_energy"] = get_total_energy_feature_value(voxel_volume, energy_feature_value)
-    
-    # Entropy
-    first_order_features["firstorder_entropy"] = get_entropy_feature_value(p)
-    
-    # Basic Stats
-    first_order_features["firstorder_minimum"] = minimum_feature_value
-    first_order_features["firstorder_percentile10"] = percentile10
-    first_order_features["firstorder_percentile90"] = percentile90
-    first_order_features["firstorder_maximum"] = maximum_feature_value
-    first_order_features["firstorder_mean"] = mean_feature_value
-    first_order_features["firstorder_median"] = median_val
-    first_order_features["firstorder_interquartile_range"] = percentile75 - percentile25
-    first_order_features["firstorder_range"] = maximum_feature_value - minimum_feature_value
-    first_order_features["firstorder_standard_deviation"] = std(roi_voxels)
-    
-    # Advanced Stats (Optimized to avoid dynamic allocations)
-    first_order_features["firstorder_mean_absolute_deviation"] = get_mean_absolute_deviation_feature_value(roi_voxels, mean_feature_value)
-    first_order_features["firstorder_robust_mean_absolute_deviation"] = get_robust_mean_absolute_deviation_feature_value(roi_voxels, percentile10, percentile90)
+    first_order_features["firstorder_mean_absolute_deviation"] = get_mean_absolute_deviation_feature_value(roi_voxels, mean_val)
+    first_order_features["firstorder_robust_mean_absolute_deviation"] = get_robust_mean_absolute_deviation_feature_value(roi_voxels, p10, p90)
     first_order_features["firstorder_root_mean_squared"] = get_root_mean_squared_feature_value(roi_voxels)
-    
-    skewness_val, kurtosis_val = get_skewness_and_kurtosis(roi_voxels, mean_feature_value)
+
+    skewness_val, kurtosis_val = get_skewness_and_kurtosis(roi_voxels, mean_val)
     first_order_features["firstorder_skewness"] = skewness_val
     first_order_features["firstorder_kurtosis"] = kurtosis_val
-    
-    first_order_features["firstorder_variance"] = get_variance_feature_value(roi_voxels, mean_feature_value)
-    first_order_features["firstorder_uniformity"] = get_uniformity_feature_value(p)
+
+    first_order_features["firstorder_variance"] = get_variance_feature_value(roi_voxels, mean_val)
+    first_order_features["firstorder_uniformity"] = get_uniformity_feature_value(p_probs)
+
+    first_order_features["firstorder_standard_deviation"] = sqrt(first_order_features["firstorder_variance"] * n / (n - 1))
 
     return first_order_features
 end
