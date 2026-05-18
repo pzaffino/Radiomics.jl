@@ -11,7 +11,12 @@ using StatsBase
     - first_order_features::Dict{String, Float64}: Dictionary containing the extracted first order
       features
     """ 
-function get_first_order_features(img::Array{<:Real}, mask::BitArray, voxel_spacing::Vector{<:Real}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
+function get_first_order_features(img::AbstractArray{Float64},
+                                   mask::BitArray,
+                                   voxel_spacing::Vector{Float64};
+                                   n_bins::Union{Int,Nothing}=nothing,
+                                   bin_width::Union{Float64,Nothing}=nothing,
+                                   verbose::Bool=false)::Dict{String,Any}
     if verbose
         println("Extracting first order features...")
     end

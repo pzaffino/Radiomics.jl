@@ -20,13 +20,13 @@ using Statistics
         - `gray_levels`: A vector of unique gray levels present in the ROI.
         - `bin_width_used`: The bin width used for discretization.
 """
-function calculate_glcm(img,
-    mask,
-    spacing::Vector{Float64};
-    n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float64,Nothing}=nothing,
-    weighting_norm::Union{String,Nothing}=nothing,
-    verbose::Bool=false)
+function calculate_glcm(img::AbstractArray{Float64},
+                         mask::BitArray,
+                         spacing::Vector{Float64};
+                         n_bins::Union{Int,Nothing}=nothing,
+                         bin_width::Union{Float64,Nothing}=nothing,
+                         weighting_norm::Union{String,Nothing}=nothing,
+                         verbose::Bool=false)::Tuple{Vector{Matrix{Float64}}, Vector{Int}, Float64}
 
     disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
@@ -163,7 +163,7 @@ function calculate_glcm(img,
 end
 
 """
-    function calculate_mcc(glcm::Matrix{Float64}, px, py)
+    function calculate_mcc(glcm::Matrix{Float64}, px::Vector{Float64}, py::Vector{Float64})::Float64
 
     Calculates the Maximal Correlation Coefficient (MCC) from a given GLCM and its marginal
     probabilities. The @inbounds macro is used for performance optimization.
@@ -176,7 +176,7 @@ end
     # Returns:
         - The Maximal Correlation Coefficient as a Float64 value.
 """
-function calculate_mcc(glcm::Matrix{Float64}, px, py)
+function calculate_mcc(glcm::Matrix{Float64}, px::Vector{Float64}, py::Vector{Float64})::Float64
     Ng = length(px)
     eps = 2.2f-16
     Ng < 2 && return 1.0f0
@@ -215,7 +215,7 @@ function calculate_mcc(glcm::Matrix{Float64}, px, py)
 end
 
 """
-    function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
+    function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})::Dict{String,Float64}
 
     Extracts a set of GLCM features from a single GLCM matrix and its corresponding gray levels.
     The function utilizes the @inbounds macro for performance optimization.
@@ -227,7 +227,7 @@ end
     # Returns:
         - A dictionary (Dict{String, Float64}) containing the extracted GLCM features.
 """
-function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})
+function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int})::Dict{String,Float64}
     features = Dict{String,Float64}()
     n_levels = length(gray_levels)
     eps = Float64(2.2e-16)
@@ -483,12 +483,14 @@ end
     # With weighting
     features = get_glcm_features(img, mask, spacing, weighting_norm="euclidean")
 """
-function get_glcm_features(img, mask, voxel_spacing;
-    n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float64,Nothing}=nothing,
-    weighting_norm::Union{String,Nothing}=nothing,
-    get_raw_matrices::Bool=false,
-    verbose::Bool=false)
+function get_glcm_features(img::AbstractArray{Float64},
+                            mask::BitArray,
+                            voxel_spacing::Vector{Float64};
+                            n_bins::Union{Int,Nothing}=nothing,
+                            bin_width::Union{Float64,Nothing}=nothing,
+                            weighting_norm::Union{String,Nothing}=nothing,
+                            get_raw_matrices::Bool=false,
+                            verbose::Bool=false)::Dict{String,Any}
 
     # Ensure spacing is Float64 and has the right length for the image dimensionality
     spacing = convert(Vector{Float64}, voxel_spacing)

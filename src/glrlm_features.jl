@@ -33,12 +33,14 @@ using StatsBase
         # Default (32 bins, no weighting)
         features = get_glrlm_features(img, mask, spacing)
 """
-function get_glrlm_features(img, mask, voxel_spacing;
-    n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float64,Nothing}=nothing,
-    weighting_norm::Union{String,Nothing}=nothing,
-    get_raw_matrices::Bool=false,
-    verbose=false)
+function get_glrlm_features(img::AbstractArray{Float64},
+                             mask::BitArray,
+                             voxel_spacing::Vector{Float64};
+                             n_bins::Union{Int,Nothing}=nothing,
+                             bin_width::Union{Float64,Nothing}=nothing,
+                             weighting_norm::Union{String,Nothing}=nothing,
+                             get_raw_matrices::Bool=false,
+                             verbose::Bool=false)::Dict{String,Any}
     
     if verbose
         if !isnothing(n_bins)
@@ -111,7 +113,14 @@ end
     # Returns
     - A tuple containing the GLRLM matrix and the angles used for calculation.
 """
-function calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, verbose)
+
+const Angle = Union{Tuple{Int,Int}, Tuple{Int,Int,Int}}
+
+function calculate_glrlm_matrix(discretized_img::Array{Int},
+                                 mask::BitArray,
+                                 voxel_spacing::Vector{Float64},
+                                 weighting_norm::Union{String,Nothing},
+                                 verbose::Bool)::Tuple{Array{Float64,3}, Vector{Angle}}
     if verbose
         println("Calculating GLRLM matrix...")
     end
@@ -225,7 +234,9 @@ end
     # Returns
     - A dictionary containing all calculated feature values.
 """
-function extract_all_glrlm_features(P_glrlm, gray_levels, feature_names)
+function extract_all_glrlm_features(P_glrlm::Array{Float64,3},
+                                     gray_levels::Vector{Int},
+                                     feature_names::Vector{String})::Dict{String,Any}
     num_gl = length(gray_levels)
     num_angles = size(P_glrlm, 3)
     max_run_length = size(P_glrlm, 2)

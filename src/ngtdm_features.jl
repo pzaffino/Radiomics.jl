@@ -32,11 +32,13 @@ using StatsBase
         # Default (32 bins)
         features = get_ngtdm_features(img, mask, spacing)
     """
-function get_ngtdm_features(img, mask, voxel_spacing; 
-                           n_bins::Union{Int,Nothing}=nothing,
-                           bin_width::Union{Float64,Nothing}=nothing,
-                           get_raw_matrices::Bool=false,
-                           verbose=false)
+function get_ngtdm_features(img::AbstractArray{Float64},
+                             mask::BitArray,
+                             voxel_spacing::Vector{Float64};
+                             n_bins::Union{Int,Nothing}=nothing,
+                             bin_width::Union{Float64,Nothing}=nothing,
+                             get_raw_matrices::Bool=false,
+                             verbose::Bool=false)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("NGTDM calculation with $(n_bins) bins...")
@@ -102,7 +104,10 @@ end
     # Returns
     - A tuple containing the NGTDM matrix and the gray levels present in the ROI.
     """
-function calculate_ngtdm_matrix(discretized_img, mask, verbose)
+function calculate_ngtdm_matrix(discretized_img::Array{Int},
+                                 mask::BitArray,
+                                 verbose::Bool)::Tuple{Matrix{Float64}, Vector{Int}}
+
     if verbose
         println("Calculating NGTDM matrix...")
     end
@@ -147,8 +152,8 @@ function calculate_ngtdm_matrix(discretized_img, mask, verbose)
 end
 
 """
-    calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
-
+    calculate_ngtdm_coefficients(P_ngtdm::Matrix{Float64},
+                                 gray_levels::Vector{Int})::Tuple{Float64,Vector{Float64},Vector{Float64},Vector{Float64},Int}
     Calculates the coefficients used in the NGTDM feature calculations.
 
     # Arguments
@@ -158,7 +163,8 @@ end
     # Returns
     - A tuple containing the number of voxels with a valid region, the gray level probability vector, the sum of absolute differences vector, the gray level vector, and the number of gray levels for which `p_i` > 0.
     """
-function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
+function calculate_ngtdm_coefficients(P_ngtdm::Matrix{Float64},
+                                      gray_levels::Vector{Int})::Tuple{Float64,Vector{Float64},Vector{Float64},Vector{Float64},Int}
     Nvp = sum(P_ngtdm[:, 1])
     p_i = P_ngtdm[:, 1] ./ Nvp
     s_i = P_ngtdm[:, 2]
@@ -169,19 +175,23 @@ function calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
 end
 
 """
-    coarseness(p_i, s_i)
+    coarseness(p_i::Vector{Float64}, s_i::Vector{Float64})::Float64
     Calculates the Coarseness feature.
     """
-function coarseness(p_i, s_i)
+function coarseness(p_i::Vector{Float64}, s_i::Vector{Float64})::Float64
     sum_coarse = sum(p_i .* s_i)
     return sum_coarse == 0 ? 1e6 : 1 / sum_coarse
 end
 
 """
-    contrast(p_i, s_i, i, Ngp, Nvp)
+    contrast(p_i::Vector{Float64}, s_i::Vector{Float64}, i::Vector{Float64}, Ngp::Int, Nvp::Float64)::Float64
     Calculates the Contrast feature.
     """
-function contrast(p_i, s_i, i, Ngp, Nvp)
+function contrast(p_i::Vector{Float64},
+                  s_i::Vector{Float64},
+                  i::Vector{Float64},
+                  Ngp::Int,
+                  Nvp::Float64)::Float64
     if Ngp <= 1
         return 0.0
     end
@@ -194,10 +204,12 @@ function contrast(p_i, s_i, i, Ngp, Nvp)
 end
 
 """
-    busyness(p_i, s_i, i)
+    busyness(p_i::Vector{Float64}, s_i::Vector{Float64}, i::Vector{Float64})::Float64
     Calculates the Busyness feature.
     """
-function busyness(p_i, s_i, i)
+function busyness(p_i::Vector{Float64},
+                  s_i::Vector{Float64},
+                  i::Vector{Float64})::Float64
     p_zero_mask = p_i .== 0
     i_pi = i .* p_i
 
@@ -215,10 +227,13 @@ function busyness(p_i, s_i, i)
 end
 
 """
-    complexity(p_i, s_i, i, Nvp)
+    complexity(p_i::Vector{Float64}, s_i::Vector{Float64}, i::Vector{Float64}, Nvp::Float64)::Float64
     Calculates the Complexity feature.
     """
-function complexity(p_i, s_i, i, Nvp)
+function complexity(p_i::Vector{Float64},
+                  s_i::Vector{Float64},
+                  i::Vector{Float64},
+                  Nvp::Float64)::Float64
     p_zero_mask = p_i .== 0
     pi_si = p_i .* s_i
 
@@ -234,10 +249,12 @@ function complexity(p_i, s_i, i, Nvp)
 end
 
 """
-    strength(p_i, s_i, i)
+    strength(p_i::Vector{Float64}, s_i::Vector{Float64}, i::Vector{Float64})::Float64
     Calculates the Strength feature.
     """
-function strength(p_i, s_i, i)
+function strength(p_i::Vector{Float64},
+                  s_i::Vector{Float64},
+                  i::Vector{Float64})::Float64
     sum_s_i = sum(s_i)
     if sum_s_i == 0
         return 0.0

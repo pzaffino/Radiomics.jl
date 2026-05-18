@@ -9,11 +9,10 @@ using LinearAlgebra
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
     """
-function get_shape2d_features(mask_array::BitArray{2}, 
-                               spacing::Vector{Float64}; 
+function get_shape2d_features(mask_array::BitArray{2},
+                               spacing::Vector{Float64};
                                verbose::Bool=false,
-                               keep_largest_only = true
-                               )
+                               keep_largest_only::Bool=true)::Dict{String,Any}
 
     verbose && println("Extracting 2D shape features...")
 

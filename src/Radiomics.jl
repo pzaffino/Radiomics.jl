@@ -57,16 +57,16 @@ include("diagnostic_features.jl")
     - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
 """
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-    features=Symbol[],
-    labels=nothing,
-    n_bins=nothing,
-    bin_width=nothing,
-    weighting_norm=nothing,
+    features::Vector{Symbol}=Symbol[],
+    labels::Union{Nothing,Int,Vector{Int}}=nothing,
+    n_bins::Union{Nothing,Int}=nothing,
+    bin_width::Union{Nothing,Float64}=nothing,
+    weighting_norm::Union{Nothing,String}=nothing,
     keep_largest_only::Bool=true,
-    sample_rate=0.03,
+    sample_rate::Float64=0.03,
     get_raw_matrices::Bool=false,
-    slices_2d =nothing,
-    verbose::Bool=false)
+    slices_2d=nothing,
+    verbose::Bool=false)::Union{Dict{String,Any}, Dict{Int,Dict{String,Any}}}
 
     # Convert parameters to correct types
     bin_width = isnothing(bin_width) ? nothing : Float64(bin_width)
@@ -453,7 +453,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     compute_all::Bool=true,
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
-    log_buffer::Union{Nothing,Vector{String}}=nothing)
+    log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any}, Float64}
     
     radiomic_features = Dict{String,Any}()
     total_time_accumulated = 0.0

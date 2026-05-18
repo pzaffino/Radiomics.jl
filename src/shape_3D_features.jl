@@ -254,12 +254,12 @@ end
         - By default, only the largest connected component is kept to ensure meaningful shape features.
 """
 function get_shape3d_features(mask::AbstractArray{<:Real,3},
-                               spacing::Vector{<:Real};
-                               verbose           = false,
-                               keep_largest_only = true,
-                               pad_width         = 1,
-                               threshold         = 0.5,
-                               sample_rate       = 0.03)
+                               spacing::Vector{Float64};
+                               verbose::Bool           = false,
+                               keep_largest_only::Bool = true,
+                               pad_width::Int          = 1,
+                               threshold::Float64      = 0.5,
+                               sample_rate::Float64    = 0.03)::Dict{String,Any}
 
     spacing_f64 = convert(Vector{Float64}, spacing)
     verbose && println("Extracting 3D shape features...")

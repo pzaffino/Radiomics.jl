@@ -34,12 +34,14 @@ using StatsBase
         # Default (32 bins)
         features = get_gldm_features(img, mask, spacing)
 """
-function get_gldm_features(img, mask, voxel_spacing;
-    n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{Float64,Nothing}=nothing,
-    gldm_a=0,
-    get_raw_matrices::Bool=false,
-    verbose=false)
+function get_gldm_features(img::AbstractArray{Float64},
+                            mask::BitArray,
+                            voxel_spacing::Vector{Float64};
+                            n_bins::Union{Int,Nothing}=nothing,
+                            bin_width::Union{Float64,Nothing}=nothing,
+                            gldm_a::Int=0,
+                            get_raw_matrices::Bool=false,
+                            verbose::Bool=false)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("Calculating GLDM with $(n_bins) bins...")
@@ -104,7 +106,10 @@ function get_gldm_features(img, mask, voxel_spacing;
 end
 
 """
-    calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
+    calculate_gldm_matrix(discretized_img::Array{Int},
+                                mask::BitArray,
+                                gldm_a::Int,
+                                verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
 
     Calculates the Gray Level Dependence Matrix (GLDM).
 
@@ -117,7 +122,10 @@ end
     # Returns
     - A tuple containing the GLDM matrix and the gray levels present in the ROI.
 """
-function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
+function calculate_gldm_matrix(discretized_img::Array{Int},
+                                mask::BitArray,
+                                gldm_a::Int,
+                                verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
     if verbose
         println("Calculating GLDM matrix...")
     end
@@ -165,7 +173,8 @@ function calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
 end
 
 """
-    calculate_gldm_coefficients(P_gldm, gray_levels)
+    calculate_gldm_coefficients(P_gldm::Matrix{Int},
+                                 gray_levels::Vector{Int})::Tuple{Float64, Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}}
 
     Calculates the coefficients used in the GLDM feature calculations.
 
@@ -176,7 +185,8 @@ end
     # Returns
     - A tuple containing the number of zones, sum over sizes, sum over gray levels, gray level vector, and size vector.
 """
-function calculate_gldm_coefficients(P_gldm, gray_levels)
+function calculate_gldm_coefficients(P_gldm::Matrix{Int},
+                                     gray_levels::Vector{Int})::Tuple{Float64, Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}}
     Nz = sum(P_gldm)
     Nz = Nz == 0 ? 1.0f-6 : Float64(Nz)
 
@@ -188,8 +198,8 @@ function calculate_gldm_coefficients(P_gldm, gray_levels)
     return Nz, pd, pg, ivector, jvector
 end
 
-# Feature implementations - optimized for vectorized operations
-function gldm_small_dependence_emphasis(pd, jvector, Nz)
+# Feature implementations
+function gldm_small_dependence_emphasis(pd::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for j in eachindex(jvector)
@@ -198,7 +208,7 @@ function gldm_small_dependence_emphasis(pd, jvector, Nz)
     return result * inv_Nz
 end
 
-function gldm_large_dependence_emphasis(pd, jvector, Nz)
+function gldm_large_dependence_emphasis(pd::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for j in eachindex(jvector)
@@ -207,7 +217,7 @@ function gldm_large_dependence_emphasis(pd, jvector, Nz)
     return result * inv_Nz
 end
 
-function gldm_gray_level_non_uniformity(pg, Nz)
+function gldm_gray_level_non_uniformity(pg::Vector{Float64}, Nz::Float64)::Float64
     sum_sq = 0.0
     @inbounds for val in pg
         sum_sq += val^2
@@ -215,7 +225,7 @@ function gldm_gray_level_non_uniformity(pg, Nz)
     return sum_sq / Nz
 end
 
-function gldm_dependence_non_uniformity(pd, Nz)
+function gldm_dependence_non_uniformity(pd::Vector{Float64}, Nz::Float64)::Float64
     sum_sq = 0.0
     @inbounds for val in pd
         sum_sq += val^2
@@ -223,7 +233,9 @@ function gldm_dependence_non_uniformity(pd, Nz)
     return sum_sq / Nz
 end
 
-gldm_dependence_non_uniformity_normalized(pd, Nz) = gldm_dependence_non_uniformity(pd, Nz) / Nz
+function gldm_dependence_non_uniformity_normalized(pd::Vector{Float64}, Nz::Float64)::Float64
+    return gldm_dependence_non_uniformity(pd, Nz) / Nz
+end
 
 """
     gldm_gray_level_variance(pg, ivector, Nz)
@@ -235,7 +247,7 @@ gldm_dependence_non_uniformity_normalized(pd, Nz) = gldm_dependence_non_uniformi
     # Returns
     - The calculated Gray Level Variance feature value.
 """
-function gldm_gray_level_variance(pg, ivector, Nz)
+function gldm_gray_level_variance(pg::Vector{Float64}, ivector::Vector{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     u_i = 0.0
     @inbounds for i in eachindex(ivector)
@@ -260,7 +272,7 @@ end
     - `Nz`: The number of zones.
     # Returns
     - The calculated Dependence Variance feature value."""
-function gldm_dependence_variance(pd, jvector, Nz)
+function gldm_dependence_variance(pd::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     u_j = 0.0
     @inbounds for j in eachindex(jvector)
@@ -285,7 +297,7 @@ end
     # Returns
     - The calculated Dependence Entropy feature value.
     """
-function gldm_dependence_entropy(P_gldm, Nz)
+function gldm_dependence_entropy(P_gldm::Matrix{Int}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     entropy = 0.0
     @inbounds for val in P_gldm
@@ -297,7 +309,7 @@ function gldm_dependence_entropy(P_gldm, Nz)
     return entropy
 end
 
-function gldm_low_gray_level_emphasis(pg, ivector, Nz)
+function gldm_low_gray_level_emphasis(pg::Vector{Float64}, ivector::Vector{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for i in eachindex(ivector)
@@ -306,7 +318,7 @@ function gldm_low_gray_level_emphasis(pg, ivector, Nz)
     return result * inv_Nz
 end
 
-function gldm_high_gray_level_emphasis(pg, ivector, Nz)
+function gldm_high_gray_level_emphasis(pg::Vector{Float64}, ivector::Vector{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for i in eachindex(ivector)
@@ -316,17 +328,16 @@ function gldm_high_gray_level_emphasis(pg, ivector, Nz)
 end
 
 """
-    gldm_small_dependence_low_gray_level_emphasis(P_gldm, ivector
-    , jvector, Nz)
+    gldm_small_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     Calculates the Small Dependence Low Gray Level Emphasis feature.
     # Arguments
     - `P_gldm`: The GLDM matrix.
-    - `ivector`: The gray level vector.
-    - `jvector`: The size vector.
+    - `i_sq`: The square of the gray level vector.
+    - `j_sq`: The square of the size vector.
     - `Nz`: The number of zones.
     # Returns
     - The calculated Small Dependence Low Gray Level Emphasis feature value."""
-function gldm_small_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+function gldm_small_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
@@ -338,7 +349,7 @@ function gldm_small_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
 end
 
 """
-    gldm_small_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
+    gldm_small_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     Calculates the Small Dependence High Gray Level Emphasis feature.
     # Arguments
     - `P_gldm`: The GLDM matrix.
@@ -347,7 +358,7 @@ end
     - `Nz`: The number of zones.
     # Returns
     - The calculated Small Dependence High Gray Level Emphasis feature value."""
-function gldm_small_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+function gldm_small_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
@@ -359,7 +370,7 @@ function gldm_small_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
 end
 
 """
-    gldm_large_dependence_low_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
+    gldm_large_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     Calculates the Large Dependence Low Gray Level Emphasis feature.
     # Arguments
     - `P_gldm`: The GLDM matrix.
@@ -369,7 +380,7 @@ end
     # Returns
     - The calculated Large Dependence Low Gray Level Emphasis feature value.   
     """
-function gldm_large_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+function gldm_large_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
@@ -381,7 +392,7 @@ function gldm_large_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
 end
 
 """
-    gldm_large_dependence_high_gray_level_emphasis(P_gldm, ivector, jvector, Nz)
+    gldm_large_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     Calculates the Large Dependence High Gray Level Emphasis feature.
     # Arguments
     - `P_gldm`: The GLDM matrix.          
@@ -390,7 +401,7 @@ end
     - `Nz`: The number of zones.
     # Returns
     - The calculated Large Dependence High Gray Level Emphasis feature value."""
-function gldm_large_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+function gldm_large_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
     inv_Nz = 1.0f0 / Nz
     result = 0.0
     @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)

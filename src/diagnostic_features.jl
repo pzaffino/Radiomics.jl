@@ -1,5 +1,14 @@
-function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_time_real, 
-                                weighting_norm, n_bins, keep_largest_only, image_input, img_to_use, mask_input, mask_to_use)
+function get_diagnosis_features(sample_rate::Float64,
+                                 bin_width::Union{Float64,Nothing},
+                                 voxel_spacing::Vector{Float64},
+                                 total_time_real::Float64,
+                                 weighting_norm::Union{String,Nothing},
+                                 n_bins::Union{Int,Nothing},
+                                 keep_largest_only::Bool,
+                                 image_input::AbstractArray,
+                                 img_to_use::AbstractArray,
+                                 mask_input::AbstractArray,
+                                 mask_to_use::AbstractArray)::Dict{String,Any}
 
     diagnosis_features = Dict{String, Any}()
 
@@ -40,7 +49,9 @@ function get_diagnosis_features(sample_rate, bin_width, voxel_spacing, total_tim
     return diagnosis_features
 end
     
-function print_features_diagnosis(title::String, features::Dict{String, Any}; log_buffer::Union{Vector{String}, Nothing}=nothing)
+function print_features_diagnosis(title::String,
+                                   features::Dict{String,Any};
+                                   log_buffer::Union{Vector{String},Nothing}=nothing)::Nothing
     output = String[]
     
     push!(output, "\n--- $title ---")
@@ -59,4 +70,7 @@ function print_features_diagnosis(title::String, features::Dict{String, Any}; lo
         
         append!(log_buffer, output)
     end
+
+    return nothing
+    
 end
