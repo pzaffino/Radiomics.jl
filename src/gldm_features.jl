@@ -106,51 +106,79 @@ function calculate_gldm_matrix(discretized_img::Array{Int},
                                 mask::BitArray,
                                 gldm_a::Int,
                                 verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
-    if verbose
-        println("Calculating GLDM matrix...")
-    end
+    verbose && println("Calculating GLDM matrix...")
 
-    masked_img = discretized_img[mask]
+    masked_img  = discretized_img[mask]
     gray_levels = sort(unique(masked_img))
-    num_gl = length(gray_levels)
-    
-    gl_map = Dict{Int,Int}()
-    sizehint!(gl_map, num_gl)
+    num_gl      = length(gray_levels)
+
+    # Lookup on the Array instead of using a dictionary
+    min_gl = minimum(gray_levels)
+    max_gl = maximum(gray_levels)
+    gl_map = zeros(Int, max_gl - min_gl + 1)
     @inbounds for (i, gl) in enumerate(gray_levels)
-        gl_map[gl] = i
+        gl_map[gl - min_gl + 1] = i
     end
 
-    # Absolute maximum possible dependence size for 3D is 3^3 = 27
-    n_dims = ndims(discretized_img)
+    n_dims        = ndims(discretized_img)
     max_dependence = 3^n_dims
-    P_gldm = zeros(Int, num_gl, max_dependence)
+    P_gldm        = zeros(Int, num_gl, max_dependence)
 
-    neighbors_buffer = Vector{Int}(undef, max_dependence - 1)
-    img_size = size(discretized_img)
+    # Offsets CartesianIndex for the neighbors
+    offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
+               if !all(iszero, o)]
 
-    #Extracting flat linear indices (Int64) instead of CartesianIndex
-    masked_indices = findall(vec(mask))
+    sz           = size(discretized_img)
+    mask_indices = findall(mask)
 
-    @inbounds for i in masked_indices
-        gl = discretized_img[i]
-        gl_idx = gl_map[gl]
+    # Classification interior/border
+    interior_mask = eltype(mask_indices)[]
+    border_mask   = eltype(mask_indices)[]
+    sizehint!(interior_mask, length(mask_indices))
+    sizehint!(border_mask,   length(mask_indices))
 
-        dependence_count = 0
-        n_count = get_neighbors!(neighbors_buffer, i, img_size)
-        
-        for k in 1:n_count
-            neighbor_idx = neighbors_buffer[k]
-            if mask[neighbor_idx] && abs(gl - discretized_img[neighbor_idx]) <= gldm_a
+    for idx in mask_indices
+        t = Tuple(idx)
+        if all(t[k] > 1 && t[k] < sz[k] for k in 1:n_dims)
+            push!(interior_mask, idx)
+        else
+            push!(border_mask, idx)
+        end
+    end
+
+    # Interior: no checkbounds needed
+    @inbounds for idx in interior_mask
+        gl     = discretized_img[idx]
+        gl_idx = gl_map[gl - min_gl + 1]
+
+        dependence_count = 1  # center always dependent
+        for o in offsets
+            nidx = idx + o
+            if mask[nidx] && abs(gl - discretized_img[nidx]) <= gldm_a
                 dependence_count += 1
             end
         end
 
-        # Add center voxel (always dependent)
-        dependence_count += 1
         P_gldm[gl_idx, dependence_count] += 1
     end
 
-    # Trim trailing empty columns efficiently without high-allocation summing routines
+    # Border: checkbounds needed
+    for idx in border_mask
+        gl     = discretized_img[idx]
+        gl_idx = gl_map[gl - min_gl + 1]
+
+        dependence_count = 1
+        for o in offsets
+            nidx = idx + o
+            if checkbounds(Bool, discretized_img, nidx) && mask[nidx] && abs(gl - discretized_img[nidx]) <= gldm_a
+                dependence_count += 1
+            end
+        end
+
+        P_gldm[gl_idx, dependence_count] += 1
+    end
+
+    # Trim empty columns
     last_col = 0
     for j in size(P_gldm, 2):-1:1
         if any(!iszero, @view P_gldm[:, j])

@@ -233,43 +233,6 @@ function discretize_image(img::AbstractArray{Float64},
 end
 
 """
-    get_neighbors!(neighbors::AbstractVector{Int},
-                     idx::Int,
-                     dims::NTuple{N,Int} where N)::Int
-
-    Gets the 26-connected neighbors of a voxel in a 3D image securely into a pre-allocated array.
-
-    # Arguments
-    - `neighbors`: The pre-allocated vector to store the linear indices of the neighbors.
-    - `idx`: The linear index of the voxel.
-    - `dims`: The dimensions of the image.
-
-    # Returns
-    - The number of valid neighbors found.
-    """
-@inline function get_neighbors!(neighbors::AbstractVector{Int},
-                                 idx::Int,
-                                 dims::NTuple{N,Int} where N)::Int
-    n = ndims(CartesianIndices(dims))
-    count = 0
-
-    cartesian_idx = CartesianIndices(dims)[idx]
-    linear_indices = LinearIndices(dims)
-    cartesian_range = CartesianIndices(dims)
-
-    @inbounds for offset in CartesianIndices(ntuple(_ -> -1:1, n))
-        all(t -> t == 0, Tuple(offset)) && continue
-        new_cartesian_idx = cartesian_idx + offset
-        if checkbounds(Bool, cartesian_range, new_cartesian_idx)
-            count += 1
-            neighbors[count] = linear_indices[new_cartesian_idx]
-        end
-    end
-
-    return count
-end
-
-"""
     get_neighbors(idx::Int,
                    dims::NTuple{N,Int} where N)::Vector{Int}
 
