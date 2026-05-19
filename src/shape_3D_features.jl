@@ -55,7 +55,7 @@ function marching_cubes_surface(mask::BitArray{3},
     triangles  = Vector{Triangle3D}()
     sizehint!(triangles, count(mask) * 2)
 
-    for z in 1:nz-1, y in 1:ny-1, x in 1:nx-1
+    @inbounds for z in 1:nz-1, y in 1:ny-1, x in 1:nx-1
 
         v0 = Float64(mask[x,   y,   z  ])
         v1 = Float64(mask[x+1, y,   z  ])
@@ -149,13 +149,16 @@ function maximum_3d_diameter(triangles::Vector{Triangle3D};
                               min_samples::Int     = 100)
     isempty(triangles) && return 0.0
 
-    uniq = Set{Point3D}()
-    sizehint!(uniq, length(triangles) * 3)
+    verts = Vector{Point3D}(undef, length(triangles) * 3)
+    k = 1
     @inbounds for (a, b, c) in triangles
-        push!(uniq, a); push!(uniq, b); push!(uniq, c)
+        verts[k]   = a
+        verts[k+1] = b
+        verts[k+2] = c
+        k += 3
     end
-    verts = collect(uniq)
-    n     = length(verts)
+    unique!(verts)
+    n = length(verts)
     n < 2 && return 0.0
 
     if sample_rate < 1.0

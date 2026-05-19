@@ -1,4 +1,3 @@
-
 using StatsBase
 
 """
@@ -75,31 +74,12 @@ function get_gldm_features(img::AbstractArray{Float64},
         return gldm_features
     end
 
-    Nz, pd, pg, ivector, jvector = calculate_gldm_coefficients(P_gldm, gray_levels)
-
-    # Pre-compute matrices for combined features to avoid redundant reshaping
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    i_sq = i_mat .^ 2
-    j_sq = j_mat .^ 2
-
-    gldm_features["gldm_SmallDependenceEmphasis"] = gldm_small_dependence_emphasis(pd, jvector, Nz)
-    gldm_features["gldm_LargeDependenceEmphasis"] = gldm_large_dependence_emphasis(pd, jvector, Nz)
-    gldm_features["gldm_GrayLevelNonUniformity"] = gldm_gray_level_non_uniformity(pg, Nz)
-    gldm_features["gldm_DependenceNonUniformity"] = gldm_dependence_non_uniformity(pd, Nz)
-    gldm_features["gldm_DependenceNonUniformityNormalized"] = gldm_dependence_non_uniformity_normalized(pd, Nz)
-    gldm_features["gldm_GrayLevelVariance"] = gldm_gray_level_variance(pg, ivector, Nz)
-    gldm_features["gldm_DependenceVariance"] = gldm_dependence_variance(pd, jvector, Nz)
-    gldm_features["gldm_DependenceEntropy"] = gldm_dependence_entropy(P_gldm, Nz)
-    gldm_features["gldm_LowGrayLevelEmphasis"] = gldm_low_gray_level_emphasis(pg, ivector, Nz)
-    gldm_features["gldm_HighGrayLevelEmphasis"] = gldm_high_gray_level_emphasis(pg, ivector, Nz)
-    gldm_features["gldm_SmallDependenceLowGrayLevelEmphasis"] = gldm_small_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
-    gldm_features["gldm_SmallDependenceHighGrayLevelEmphasis"] = gldm_small_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
-    gldm_features["gldm_LargeDependenceLowGrayLevelEmphasis"] = gldm_large_dependence_low_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
-    gldm_features["gldm_LargeDependenceHighGrayLevelEmphasis"] = gldm_large_dependence_high_gray_level_emphasis(P_gldm, i_sq, j_sq, Nz)
+    # Extract all features in a unified pass
+    extracted_features = extract_all_gldm_features(P_gldm, gray_levels)
+    merge!(gldm_features, extracted_features)
 
     if verbose
-        println("Completed! Extract $(length(gldm_features)) features.")
+        println("Completed! Extracted $(length(gldm_features)) features.")
     end
 
     return gldm_features
@@ -133,281 +113,189 @@ function calculate_gldm_matrix(discretized_img::Array{Int},
     masked_img = discretized_img[mask]
     gray_levels = sort(unique(masked_img))
     num_gl = length(gray_levels)
-    gl_map = Dict(gl => i for (i, gl) in enumerate(gray_levels))
-
-    # Max dependence is 26 (neighbors) + 1 (center) = 27 for 3D
-    max_dependence = 27
-    P_gldm = zeros(Int, num_gl, max_dependence)
-
-    n_dims = ndims(discretized_img)
-    neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
-
-    for i in eachindex(discretized_img)
-        if mask[i]
-            gl = discretized_img[i]
-            gl_idx = gl_map[gl]
-
-            dependence_count = 0
-
-            n_count = get_neighbors!(neighbors_buffer, i, size(discretized_img))
-            for k in 1:n_count
-                neighbor_idx = neighbors_buffer[k]
-                if mask[neighbor_idx] && abs(gl - discretized_img[neighbor_idx]) <= gldm_a
-                    dependence_count += 1
-                end
-            end
-
-            # Add center voxel (always dependent)
-            dependence_count += 1
-
-            P_gldm[gl_idx, dependence_count] += 1
-        end
+    
+    gl_map = Dict{Int,Int}()
+    sizehint!(gl_map, num_gl)
+    @inbounds for (i, gl) in enumerate(gray_levels)
+        gl_map[gl] = i
     end
 
-    # Trim empty columns
-    last_col = findlast(sum(P_gldm, dims=1) .> 0)
-    last_col = last_col === nothing ? 0 : last_col[2]
+    # Absolute maximum possible dependence size for 3D is 3^3 = 27
+    n_dims = ndims(discretized_img)
+    max_dependence = 3^n_dims
+    P_gldm = zeros(Int, num_gl, max_dependence)
+
+    neighbors_buffer = Vector{Int}(undef, max_dependence - 1)
+    img_size = size(discretized_img)
+
+    #Extracting flat linear indices (Int64) instead of CartesianIndex
+    masked_indices = findall(vec(mask))
+
+    @inbounds for i in masked_indices
+        gl = discretized_img[i]
+        gl_idx = gl_map[gl]
+
+        dependence_count = 0
+        n_count = get_neighbors!(neighbors_buffer, i, img_size)
+        
+        for k in 1:n_count
+            neighbor_idx = neighbors_buffer[k]
+            if mask[neighbor_idx] && abs(gl - discretized_img[neighbor_idx]) <= gldm_a
+                dependence_count += 1
+            end
+        end
+
+        # Add center voxel (always dependent)
+        dependence_count += 1
+        P_gldm[gl_idx, dependence_count] += 1
+    end
+
+    # Trim trailing empty columns efficiently without high-allocation summing routines
+    last_col = 0
+    for j in size(P_gldm, 2):-1:1
+        if any(!iszero, @view P_gldm[:, j])
+            last_col = j
+            break
+        end
+    end
     P_gldm = P_gldm[:, 1:last_col]
 
     return P_gldm, gray_levels
 end
 
 """
-    calculate_gldm_coefficients(P_gldm::Matrix{Int},
-                                 gray_levels::Vector{Int})::Tuple{Float64, Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}}
+    extract_all_gldm_features(P_gldm::Matrix{Int}, gray_levels::Vector{Int})::Dict{String, Any}
 
-    Calculates the coefficients used in the GLDM feature calculations.
-
-    # Arguments
-    - `P_gldm`: The GLDM matrix.
+    Arguments
+    - `P_gldm`: The Gray Level Dependence Matrix (GLDM).
     - `gray_levels`: The gray levels present in the ROI.
 
-    # Returns
-    - A tuple containing the number of zones, sum over sizes, sum over gray levels, gray level vector, and size vector.
+    Returns
+    - A dictionary where keys are the feature names and values are the calculated feature values.
+    
+    Performs a consolidated single-pass calculation over the matrix profile.
+    Replaces 14 disjoint feature functions to reduce iteration overhead and cache misses.
 """
-function calculate_gldm_coefficients(P_gldm::Matrix{Int},
-                                     gray_levels::Vector{Int})::Tuple{Float64, Vector{Float64}, Vector{Float64}, Vector{Float64}, Vector{Float64}}
+function extract_all_gldm_features(P_gldm::Matrix{Int}, gray_levels::Vector{Int})::Dict{String, Any}
     Nz = sum(P_gldm)
-    Nz = Nz == 0 ? 1.0f-6 : Float64(Nz)
+    Nz_scaled = Nz == 0 ? 1e-6 : Float64(Nz)
+    inv_Nz = 1.0 / Nz_scaled
+    inv_Nz_sq = inv_Nz * inv_Nz
 
+    num_gl = size(P_gldm, 1)
+    max_dep = size(P_gldm, 2)
+
+    # Clean 1D Vector definitions preventing multi-dimensional matrix layout allocations
+    ivector = Float64.(gray_levels)
+    jvector = Float64.(1:max_dep)
+    ivector_sq = ivector .^ 2
+    jvector_sq = jvector .^ 2
+
+    # Linear marginal sums
     pd = vec(sum(P_gldm, dims=1))
     pg = vec(sum(P_gldm, dims=2))
-    ivector = Float64.(gray_levels)
-    jvector = Float64.(1:size(P_gldm, 2))
 
-    return Nz, pd, pg, ivector, jvector
-end
+    # Initialize feature metric accumulators
+    f_SDE = 0.0
+    f_LDE = 0.0
+    f_GLNU = 0.0
+    f_DNU = 0.0
+    f_GLV = 0.0
+    f_DV = 0.0
+    f_DE = 0.0
+    f_LGLE = 0.0
+    f_HGLE = 0.0
+    f_SDLGLE = 0.0
+    f_SDHGLE = 0.0
+    f_LDLGLE = 0.0
+    f_LDHGLE = 0.0
 
-# Feature implementations
-function gldm_small_dependence_emphasis(pd::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for j in eachindex(jvector)
-        result += pd[j] / (jvector[j]^2)
-    end
-    return result * inv_Nz
-end
-
-function gldm_large_dependence_emphasis(pd::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for j in eachindex(jvector)
-        result += pd[j] * (jvector[j]^2)
-    end
-    return result * inv_Nz
-end
-
-function gldm_gray_level_non_uniformity(pg::Vector{Float64}, Nz::Float64)::Float64
-    sum_sq = 0.0
-    @inbounds for val in pg
-        sum_sq += val^2
-    end
-    return sum_sq / Nz
-end
-
-function gldm_dependence_non_uniformity(pd::Vector{Float64}, Nz::Float64)::Float64
-    sum_sq = 0.0
-    @inbounds for val in pd
-        sum_sq += val^2
-    end
-    return sum_sq / Nz
-end
-
-function gldm_dependence_non_uniformity_normalized(pd::Vector{Float64}, Nz::Float64)::Float64
-    return gldm_dependence_non_uniformity(pd, Nz) / Nz
-end
-
-"""
-    gldm_gray_level_variance(pg, ivector, Nz)
-    Calculates the Gray Level Variance feature.
-    # Arguments
-    - `pg`: The sum over gray levels vector.
-    - `ivector`: The gray level vector.
-    - `Nz`: The number of zones.
-    # Returns
-    - The calculated Gray Level Variance feature value.
-"""
-function gldm_gray_level_variance(pg::Vector{Float64}, ivector::Vector{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    u_i = 0.0
-    @inbounds for i in eachindex(ivector)
-        u_i += pg[i] * ivector[i]
-    end
-    u_i *= inv_Nz
-
-    variance = 0.0
-    @inbounds for i in eachindex(ivector)
-        diff = ivector[i] - u_i
-        variance += pg[i] * diff * diff
-    end
-    return variance * inv_Nz
-end
-
-"""
-    gldm_dependence_variance(pd, jvector, Nz)
-    Calculates the Dependence Variance feature.
-    # Arguments
-    - `pd`: The sum over sizes vector.
-    - `jvector`: The size vector.
-    - `Nz`: The number of zones.
-    # Returns
-    - The calculated Dependence Variance feature value."""
-function gldm_dependence_variance(pd::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    u_j = 0.0
-    @inbounds for j in eachindex(jvector)
-        u_j += pd[j] * jvector[j]
-    end
-    u_j *= inv_Nz
-
-    variance = 0.0
-    @inbounds for j in eachindex(jvector)
-        diff = jvector[j] - u_j
-        variance += pd[j] * diff * diff
-    end
-    return variance * inv_Nz
-end
-
-"""
-    gldm_dependence_entropy(P_gldm, Nz)
-    Calculates the Dependence Entropy feature.
-    # Arguments
-    - `P_gldm`: The GLDM matrix.
-    - `Nz`: The number of zones.
-    # Returns
-    - The calculated Dependence Entropy feature value.
-    """
-function gldm_dependence_entropy(P_gldm::Matrix{Int}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    entropy = 0.0
-    @inbounds for val in P_gldm
-        if val > 0
-            p = val * inv_Nz
-            entropy -= p * log2(p)
+    # 1D Row / Column Performance Blocks (Marginal dependence calculations)
+    u_j_sum = 0.0
+    @inbounds for j in 1:max_dep
+        val = Float64(pd[j])
+        if val > 0.0
+            j_sq = jvector_sq[j]
+            f_SDE += val / j_sq
+            f_LDE += val * j_sq
+            f_DNU += val^2
+            u_j_sum += val * jvector[j]
         end
     end
-    return entropy
-end
+    f_SDE *= inv_Nz
+    f_LDE *= inv_Nz
+    f_DNUN = (f_DNU * inv_Nz) * inv_Nz
+    f_DNU *= inv_Nz
+    u_j = u_j_sum * inv_Nz
 
-function gldm_low_gray_level_emphasis(pg::Vector{Float64}, ivector::Vector{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for i in eachindex(ivector)
-        result += pg[i] / (ivector[i]^2)
-    end
-    return result * inv_Nz
-end
-
-function gldm_high_gray_level_emphasis(pg::Vector{Float64}, ivector::Vector{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for i in eachindex(ivector)
-        result += pg[i] * (ivector[i]^2)
-    end
-    return result * inv_Nz
-end
-
-"""
-    gldm_small_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    Calculates the Small Dependence Low Gray Level Emphasis feature.
-    # Arguments
-    - `P_gldm`: The GLDM matrix.
-    - `i_sq`: The square of the gray level vector.
-    - `j_sq`: The square of the size vector.
-    - `Nz`: The number of zones.
-    # Returns
-    - The calculated Small Dependence Low Gray Level Emphasis feature value."""
-function gldm_small_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
-        if P_gldm[i, j] > 0
-            result += P_gldm[i, j] / (i_sq[i] * j_sq[j])
+    @inbounds for j in 1:max_dep
+        val = Float64(pd[j])
+        if val > 0.0
+            f_DV += val * (jvector[j] - u_j)^2
         end
     end
-    return result * inv_Nz
-end
+    f_DV *= inv_Nz
 
-"""
-    gldm_small_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    Calculates the Small Dependence High Gray Level Emphasis feature.
-    # Arguments
-    - `P_gldm`: The GLDM matrix.
-    - `ivector`: The gray level vector.
-    - `jvector`: The size vector.
-    - `Nz`: The number of zones.
-    # Returns
-    - The calculated Small Dependence High Gray Level Emphasis feature value."""
-function gldm_small_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
-        if P_gldm[i, j] > 0
-            result += P_gldm[i, j] * i_sq[i] / j_sq[j]
+    u_i_sum = 0.0
+    @inbounds for i in 1:num_gl
+        val = Float64(pg[i])
+        if val > 0.0
+            i_sq = ivector_sq[i]
+            f_GLNU += val^2
+            f_LGLE += val / i_sq
+            f_HGLE += val * i_sq
+            u_i_sum += val * ivector[i]
         end
     end
-    return result * inv_Nz
-end
+    f_GLNU *= inv_Nz
+    f_LGLE *= inv_Nz
+    f_HGLE *= inv_Nz
+    u_i = u_i_sum * inv_Nz
 
-"""
-    gldm_large_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    Calculates the Large Dependence Low Gray Level Emphasis feature.
-    # Arguments
-    - `P_gldm`: The GLDM matrix.
-    - `ivector`: The gray level vector.
-    - `jvector`: The size vector.
-    - `Nz`: The number of zones.
-    # Returns
-    - The calculated Large Dependence Low Gray Level Emphasis feature value.   
-    """
-function gldm_large_dependence_low_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
-        if P_gldm[i, j] > 0
-            result += P_gldm[i, j] * j_sq[j] / i_sq[i]
+    @inbounds for i in 1:num_gl
+        val = Float64(pg[i])
+        if val > 0.0
+            f_GLV += val * (ivector[i] - u_i)^2
         end
     end
-    return result * inv_Nz
-end
+    f_GLV *= inv_Nz
 
-"""
-    gldm_large_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    Calculates the Large Dependence High Gray Level Emphasis feature.
-    # Arguments
-    - `P_gldm`: The GLDM matrix.          
-    - `ivector`: The gray level vector.
-    - `jvector`: The size vector.
-    - `Nz`: The number of zones.
-    # Returns
-    - The calculated Large Dependence High Gray Level Emphasis feature value."""
-function gldm_large_dependence_high_gray_level_emphasis(P_gldm::Matrix{Int}, i_sq::Matrix{Float64}, j_sq::Matrix{Float64}, Nz::Float64)::Float64
-    inv_Nz = 1.0f0 / Nz
-    result = 0.0
-    @inbounds for j in axes(P_gldm, 2), i in axes(P_gldm, 1)
-        if P_gldm[i, j] > 0
-            result += P_gldm[i, j] * i_sq[i] * j_sq[j]
+    # Unified 2D loop running in Column-Major order (j outer, i inner) for maximum cache locality
+    @inbounds for j in 1:max_dep
+        j_sq = jvector_sq[j]
+        for i in 1:num_gl
+            val = Float64(P_gldm[i, j])
+            if val > 0.0
+                i_sq = ivector_sq[i]
+                p = val * inv_Nz
+                
+                f_DE -= p * log2(p)
+                f_SDLGLE += val / (i_sq * j_sq)
+                f_SDHGLE += val * i_sq / j_sq
+                f_LDLGLE += val * j_sq / i_sq
+                f_LDHGLE += val * i_sq * j_sq
+            end
         end
     end
-    return result * inv_Nz
+    f_SDLGLE *= inv_Nz
+    f_SDHGLE *= inv_Nz
+    f_LDLGLE *= inv_Nz
+    f_LDHGLE *= inv_Nz
+
+    return Dict{String, Any}(
+        "gldm_SmallDependenceEmphasis" => f_SDE,
+        "gldm_LargeDependenceEmphasis" => f_LDE,
+        "gldm_GrayLevelNonUniformity" => f_GLNU,
+        "gldm_DependenceNonUniformity" => f_DNU,
+        "gldm_DependenceNonUniformityNormalized" => f_DNUN,
+        "gldm_GrayLevelVariance" => f_GLV,
+        "gldm_DependenceVariance" => f_DV,
+        "gldm_DependenceEntropy" => f_DE,
+        "gldm_LowGrayLevelEmphasis" => f_LGLE,
+        "gldm_HighGrayLevelEmphasis" => f_HGLE,
+        "gldm_SmallDependenceLowGrayLevelEmphasis" => f_SDLGLE,
+        "gldm_SmallDependenceHighGrayLevelEmphasis" => f_SDHGLE,
+        "gldm_LargeDependenceLowGrayLevelEmphasis" => f_LDLGLE,
+        "gldm_LargeDependenceHighGrayLevelEmphasis" => f_LDHGLE
+    )
 end

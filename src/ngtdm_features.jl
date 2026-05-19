@@ -108,43 +108,88 @@ function calculate_ngtdm_matrix(discretized_img::Array{Int},
                                  mask::BitArray,
                                  verbose::Bool)::Tuple{Matrix{Float64}, Vector{Int}}
 
-    if verbose
-        println("Calculating NGTDM matrix...")
-    end
+    verbose && println("Calculating NGTDM matrix...")
 
-    masked_img = discretized_img[mask]
+    masked_img  = discretized_img[mask]
     gray_levels = sort(unique(masked_img))
-    num_gl = length(gray_levels)
-    gl_map = Dict(gl => i for (i, gl) in enumerate(gray_levels))
+    num_gl      = length(gray_levels)
+
+    # Lookup array invece di Dict
+    min_gl = minimum(gray_levels)
+    max_gl = maximum(gray_levels)
+    gl_map = zeros(Int, max_gl - min_gl + 1)
+    @inbounds for (i, gl) in enumerate(gray_levels)
+        gl_map[gl - min_gl + 1] = i
+    end
 
     P_ngtdm = zeros(Float64, num_gl, 3)
 
-    n_dims = ndims(discretized_img)
-    neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
+    n_dims  = ndims(discretized_img)
+    offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
+               if !all(iszero, o)]
 
-    for i in eachindex(discretized_img)
-        if mask[i]
-            gl = discretized_img[i]
-            gl_idx = gl_map[gl]
+    sz            = size(discretized_img)
+    cart_indices  = CartesianIndices(sz)
+    linear_indices = LinearIndices(sz)
 
-            neighborhood_sum = 0
-            neighborhood_count = 0
+    mask_indices  = findall(mask)
+    interior_mask = eltype(mask_indices)[]
+    border_mask   = eltype(mask_indices)[]
+    sizehint!(interior_mask, length(mask_indices))
+    sizehint!(border_mask,   length(mask_indices))
 
-            n_count = get_neighbors!(neighbors_buffer, i, size(discretized_img))
-            for k in 1:n_count
-                neighbor_idx = neighbors_buffer[k]
-                if mask[neighbor_idx]
-                    neighborhood_sum += discretized_img[neighbor_idx]
-                    neighborhood_count += 1
-                end
+    for idx in mask_indices
+        t = Tuple(idx)
+        if all(t[k] > 1 && t[k] < sz[k] for k in 1:n_dims)
+            push!(interior_mask, idx)
+        else
+            push!(border_mask, idx)
+        end
+    end
+
+    @inbounds for idx in interior_mask
+        gl     = discretized_img[idx]
+        gl_idx = gl_map[gl - min_gl + 1]
+
+        neighborhood_sum   = 0
+        neighborhood_count = 0
+
+        for o in offsets
+            nidx = idx + o
+            if mask[nidx]
+                neighborhood_sum   += discretized_img[nidx]
+                neighborhood_count += 1
             end
+        end
 
-            if neighborhood_count > 0
-                neighborhood_avg = neighborhood_sum / neighborhood_count
-                P_ngtdm[gl_idx, 1] += 1
-                P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
-                P_ngtdm[gl_idx, 3] = gl
+        if neighborhood_count > 0
+            neighborhood_avg    = neighborhood_sum / neighborhood_count
+            P_ngtdm[gl_idx, 1] += 1
+            P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
+            P_ngtdm[gl_idx, 3]  = gl
+        end
+    end
+
+    for idx in border_mask
+        gl     = discretized_img[idx]
+        gl_idx = gl_map[gl - min_gl + 1]
+
+        neighborhood_sum   = 0
+        neighborhood_count = 0
+
+        for o in offsets
+            nidx = idx + o
+            if checkbounds(Bool, discretized_img, nidx) && mask[nidx]
+                neighborhood_sum   += discretized_img[nidx]
+                neighborhood_count += 1
             end
+        end
+
+        if neighborhood_count > 0
+            neighborhood_avg    = neighborhood_sum / neighborhood_count
+            P_ngtdm[gl_idx, 1] += 1
+            P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
+            P_ngtdm[gl_idx, 3]  = gl
         end
     end
 
@@ -192,15 +237,13 @@ function contrast(p_i::Vector{Float64},
                   i::Vector{Float64},
                   Ngp::Int,
                   Nvp::Float64)::Float64
-    if Ngp <= 1
-        return 0.0
+    Ngp <= 1 && return 0.0
+    n = length(p_i)
+    val = 0.0
+    @inbounds for a in 1:n, b in 1:n
+        val += p_i[a] * p_i[b] * (i[a] - i[b])^2
     end
-
-    div = Ngp * (Ngp - 1)
-
-    contrast_val = (sum(p_i' .* p_i .* (i' .- i) .^ 2) * sum(s_i) / Nvp)
-
-    return contrast_val / div
+    return val * sum(s_i) / Nvp / (Ngp * (Ngp - 1))
 end
 
 """
@@ -210,20 +253,20 @@ end
 function busyness(p_i::Vector{Float64},
                   s_i::Vector{Float64},
                   i::Vector{Float64})::Float64
-    p_zero_mask = p_i .== 0
-    i_pi = i .* p_i
-
-    abs_diff = abs.(i_pi' .- i_pi)
-    abs_diff[p_zero_mask, :] .= 0
-    abs_diff[:, p_zero_mask] .= 0
-
-    sum_abs_diff = sum(abs_diff)
-
-    if sum_abs_diff == 0
-        return 0.0
+    n = length(p_i)
+    num = 0.0
+    den = 0.0
+    @inbounds for k in 1:n
+        num += p_i[k] * s_i[k]
     end
-
-    return sum(p_i .* s_i) / sum_abs_diff
+    @inbounds for a in 1:n
+        p_i[a] == 0 && continue
+        for b in 1:n
+            p_i[b] == 0 && continue
+            den += abs(i[a] * p_i[a] - i[b] * p_i[b])
+        end
+    end
+    return den == 0 ? 0.0 : num / den
 end
 
 """
@@ -231,21 +274,20 @@ end
     Calculates the Complexity feature.
     """
 function complexity(p_i::Vector{Float64},
-                  s_i::Vector{Float64},
-                  i::Vector{Float64},
-                  Nvp::Float64)::Float64
-    p_zero_mask = p_i .== 0
-    pi_si = p_i .* s_i
-
-    numerator = pi_si' .+ pi_si
-    numerator[p_zero_mask, :] .= 0
-    numerator[:, p_zero_mask] .= 0
-
-    divisor = p_i' .+ p_i
-    divisor[divisor .== 0] .= 1 # Avoid division by zero
-
-    complexity_val = sum(abs.(i' .- i) .* numerator ./ divisor) / Nvp
-    return complexity_val
+                    s_i::Vector{Float64},
+                    i::Vector{Float64},
+                    Nvp::Float64)::Float64
+    n = length(p_i)
+    val = 0.0
+    @inbounds for a in 1:n
+        p_i[a] == 0 && continue
+        for b in 1:n
+            p_i[b] == 0 && continue
+            denom = p_i[a] + p_i[b]
+            val += abs(i[a] - i[b]) * (p_i[a] * s_i[a] + p_i[b] * s_i[b]) / denom
+        end
+    end
+    return val / Nvp
 end
 
 """
@@ -256,14 +298,15 @@ function strength(p_i::Vector{Float64},
                   s_i::Vector{Float64},
                   i::Vector{Float64})::Float64
     sum_s_i = sum(s_i)
-    if sum_s_i == 0
-        return 0.0
+    sum_s_i == 0 && return 0.0
+    n = length(p_i)
+    val = 0.0
+    @inbounds for a in 1:n
+        p_i[a] == 0 && continue
+        for b in 1:n
+            p_i[b] == 0 && continue
+            val += (p_i[a] + p_i[b]) * (i[a] - i[b])^2
+        end
     end
-
-    p_zero_mask = p_i .== 0
-    strength_val = (p_i' .+ p_i) .* (i' .- i) .^ 2
-    strength_val[p_zero_mask, :] .= 0
-    strength_val[:, p_zero_mask] .= 0
-
-    return sum(strength_val) / sum_s_i
+    return val / sum_s_i
 end

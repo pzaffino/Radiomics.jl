@@ -121,44 +121,58 @@ function calculate_glszm_matrix(discretized_img::Array{Int},
                                  mask::BitArray,
                                  verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
 
-    if verbose
-        println("Calculating GLSZM matrix...")
+    verbose && println("Calculating GLSZM matrix...")
+
+    sz     = size(discretized_img)
+    n_dims = ndims(discretized_img)
+
+    masked_img  = discretized_img[mask]
+    gray_levels = sort(unique(masked_img))
+    num_gl      = length(gray_levels)
+
+    # Lookup array invece di Dict
+    min_gl = minimum(gray_levels)
+    max_gl = maximum(gray_levels)
+    gl_map = zeros(Int, max_gl - min_gl + 1)
+    @inbounds for (i, gl) in enumerate(gray_levels)
+        gl_map[gl - min_gl + 1] = i
     end
 
-    sz = size(discretized_img)
-    n_dims = ndims(discretized_img)
-    masked_img = discretized_img[mask]
-    gray_levels = sort(unique(masked_img))
-    num_gl = length(gray_levels)
-    gl_map = Dict(gl => i for (i, gl) in enumerate(gray_levels))
-
-    visited = falses(sz)
+    visited       = falses(sz)
     max_mask_size = count(mask)
-    bfs_queue = Vector{Int}(undef, max_mask_size)
-    neighbors_buffer = Vector{Int}(undef, 3^n_dims - 1)
+    bfs_queue     = Vector{Int}(undef, max_mask_size)
+
+    # Offsets CartesianIndex per i vicini (come GLCM)
+    offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
+               if !all(iszero, o)]
+
+    cart_indices   = CartesianIndices(sz)
+    linear_indices = LinearIndices(sz)
 
     zone_counts = Dict{Tuple{Int,Int}, Int}()
 
-    for i in eachindex(discretized_img)
+    @inbounds for i in eachindex(discretized_img)
         if mask[i] && !visited[i]
-            gl = discretized_img[i]
-            gl_idx = gl_map[gl]
+            gl     = discretized_img[i]
+            gl_idx = gl_map[gl - min_gl + 1]
 
             bfs_queue[1] = i
-            visited[i] = true
+            visited[i]   = true
             head = 1
             tail = 1
 
             while head <= tail
-                curr_idx = bfs_queue[head]
-                head += 1
+                curr_idx      = bfs_queue[head]
+                curr_cart     = cart_indices[curr_idx]
+                head         += 1
 
-                n_count = get_neighbors!(neighbors_buffer, curr_idx, sz)
-                for k in 1:n_count
-                    nb = neighbors_buffer[k]
+                for o in offsets
+                    nb_cart = curr_cart + o
+                    checkbounds(Bool, discretized_img, nb_cart) || continue
+                    nb = linear_indices[nb_cart]
                     if mask[nb] && !visited[nb] && discretized_img[nb] == gl
-                        visited[nb] = true
-                        tail += 1
+                        visited[nb]  = true
+                        tail        += 1
                         bfs_queue[tail] = nb
                     end
                 end
@@ -172,7 +186,7 @@ function calculate_glszm_matrix(discretized_img::Array{Int},
 
     isempty(zone_counts) && return zeros(Int, num_gl, 1), gray_levels
 
-    max_zone_size = maximum(j for ((_,j), _) in zone_counts)  
+    max_zone_size = maximum(j for ((_, j), _) in zone_counts)
     P_glszm = zeros(Int, num_gl, max_zone_size)
     for ((gl_idx, zone_size), cnt) in zone_counts
         P_glszm[gl_idx, zone_size] += cnt
@@ -234,9 +248,18 @@ zone_percentage(Nz::Float64, Np::Float64)::Float64 = Nz / Np
     - The calculated Gray Level Variance value.
     """
 function gray_level_variance(pg::Matrix{Int}, ivector::Vector{Float64}, Nz::Float64)::Float64
-    p_g = pg ./ Nz
-    u_i = sum(p_g .* ivector)
-    sum(p_g .* (ivector .- u_i) .^ 2)
+    inv_Nz = 1.0 / Nz
+    u_i = 0.0
+    @inbounds for i in eachindex(ivector)
+        u_i += pg[i] * ivector[i]
+    end
+    u_i *= inv_Nz
+    result = 0.0
+    @inbounds for i in eachindex(ivector)
+        diff = ivector[i] - u_i
+        result += pg[i] * diff * diff
+    end
+    return result * inv_Nz
 end
 
 """
@@ -250,9 +273,18 @@ end
     - The calculated Zone Variance value.
     """
 function zone_variance(ps::Matrix{Int}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    p_s = ps' ./ Nz
-    u_j = sum(p_s .* jvector)
-    sum(p_s .* (jvector .- u_j) .^ 2)
+    inv_Nz = 1.0 / Nz
+    u_j = 0.0
+    @inbounds for j in eachindex(jvector)
+        u_j += ps[j] * jvector[j]
+    end
+    u_j *= inv_Nz
+    result = 0.0
+    @inbounds for j in eachindex(jvector)
+        diff = jvector[j] - u_j
+        result += ps[j] * diff * diff
+    end
+    return result * inv_Nz
 end
 
 """
@@ -265,8 +297,14 @@ end
     - The calculated Zone Entropy value.
     """
 function zone_entropy(P_glszm::Matrix{Int}, Nz::Float64)::Float64
-    p_glszm = P_glszm ./ Nz
-    -sum(p_glszm .* log2.(p_glszm .+ 1.0e-16))
+    inv_Nz = 1.0 / Nz
+    result = 0.0
+    @inbounds for v in P_glszm
+        v == 0 && continue
+        p = v * inv_Nz
+        result -= p * log2(p + 1.0e-16)
+    end
+    return result
 end
 
 low_gray_level_zone_emphasis(pg::Matrix{Int}, ivector::Vector{Float64}, Nz::Float64)::Float64 = sum(pg ./ (ivector .^ 2)) / Nz
@@ -283,9 +321,13 @@ high_gray_level_zone_emphasis(pg::Matrix{Int}, ivector::Vector{Float64}, Nz::Flo
     - The calculated Small Area Low Gray Level Emphasis value.
     """
 function small_area_low_gray_level_emphasis(P_glszm::Matrix{Int}, ivector::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_glszm ./ ((i_mat .^ 2) .* (j_mat .^ 2))) / Nz
+    result = 0.0
+    @inbounds for j in axes(P_glszm, 2), i in axes(P_glszm, 1)
+        v = P_glszm[i, j]
+        v == 0 && continue
+        result += v / (ivector[i]^2 * jvector[j]^2)
+    end
+    return result / Nz
 end
 
 """small_area_high_gray_level_emphasis(P_glszm::Matrix{Int}, ivector::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
@@ -299,9 +341,13 @@ end
     - The calculated Small Area High Gray Level Emphasis value.
     """
 function small_area_high_gray_level_emphasis(P_glszm::Matrix{Int}, ivector::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_glszm .* (i_mat .^ 2) ./ (j_mat .^ 2)) / Nz
+    result = 0.0
+    @inbounds for j in axes(P_glszm, 2), i in axes(P_glszm, 1)
+        v = P_glszm[i, j]
+        v == 0 && continue
+        result += v * ivector[i]^2 / jvector[j]^2
+    end
+    return result / Nz
 end
 
 """large_area_low_gray_level_emphasis(P_glszm::Matrix{Int}, ivector::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
@@ -315,9 +361,13 @@ end
     - The calculated Large Area Low Gray Level Emphasis value.
     """
 function large_area_low_gray_level_emphasis(P_glszm::Matrix{Int}, ivector::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_glszm .* (j_mat .^ 2) ./ (i_mat .^ 2)) / Nz
+    result = 0.0
+    @inbounds for j in axes(P_glszm, 2), i in axes(P_glszm, 1)
+        v = P_glszm[i, j]
+        v == 0 && continue
+        result += v * jvector[j]^2 / ivector[i]^2
+    end
+    return result / Nz
 end
 
 """large_area_high_gray_level_emphasis(P_glszm::Matrix{Int}, ivector::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
@@ -331,7 +381,11 @@ end
     - The calculated Large Area High Gray Level Emphasis value.
     """
 function large_area_high_gray_level_emphasis(P_glszm::Matrix{Int}, ivector::Vector{Float64}, jvector::Vector{Float64}, Nz::Float64)::Float64
-    i_mat = reshape(ivector, :, 1)
-    j_mat = reshape(jvector, 1, :)
-    sum(P_glszm .* (i_mat .^ 2) .* (j_mat .^ 2)) / Nz
+    result = 0.0
+    @inbounds for j in axes(P_glszm, 2), i in axes(P_glszm, 1)
+        v = P_glszm[i, j]
+        v == 0 && continue
+        result += v * ivector[i]^2 * jvector[j]^2
+    end
+    return result / Nz
 end
