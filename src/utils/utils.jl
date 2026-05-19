@@ -233,28 +233,6 @@ function discretize_image(img::AbstractArray{Float64},
 end
 
 """
-    get_neighbors(idx::Int,
-                   dims::NTuple{N,Int} where N)::Vector{Int}
-
-    Gets the 26-connected neighbors of a voxel in a 3D image.
-
-    # Arguments
-    - `idx`: The linear index of the voxel.
-    - `dims`: The dimensions of the image.
-
-    # Returns
-    - A vector of linear indices of the neighbors.
-    """
-@inline function get_neighbors(idx::Int,
-                                dims::NTuple{N,Int} where N)::Vector{Int}
-    n = ndims(CartesianIndices(dims))
-    max_neighbors = 3^n - 1  # 8 per 2D, 26 per 3D
-    neighbors = Vector{Int}(undef, max_neighbors)
-    count = get_neighbors!(neighbors, idx, dims)
-    return resize!(neighbors, count)
-end
-
-"""
     keep_largest_component(mask::AbstractArray{Bool})::Tuple{AbstractArray{Bool}, Int}
 
     Keeps only the largest connected component in the binary mask. All other components are removed. 
