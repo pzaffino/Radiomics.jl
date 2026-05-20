@@ -24,7 +24,6 @@ include("diagnostic_features.jl")
                               bin_width=nothing,
                               weighting_norm=nothing,
                               keep_largest_only::Bool=true,
-                              sample_rate=0.03,
                               get_raw_matrices::Bool=false,
                               slices_2d=nothing,
                               verbose::Bool=false)
@@ -45,7 +44,6 @@ include("diagnostic_features.jl")
     - `weighting_norm`: Performs weight-normalized radiomic feature extraction on the input image and mask (optional).
                         Options: "infinity", "euclidean", "manhattan", and "no_weighting".
     - `keep_largest_only`: If true, keeps only the largest connected component for 3D shape features (default: true).
-    - `sample_rate`: The sample rate for feature extraction (optional).
     - `get_raw_matrices`: If true, computes raw (unnormalized, unweighted) GLCM matrices along all directions
                            and stores them in the result as `"get_raw_matrices"` (Vector of Matrix{Float64}).
     - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
@@ -63,14 +61,12 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     bin_width::Union{Nothing,Float64}=nothing,
     weighting_norm::Union{Nothing,String}=nothing,
     keep_largest_only::Bool=true,
-    sample_rate::Float64=0.03,
     get_raw_matrices::Bool=false,
     slices_2d=nothing,
     verbose::Bool=false)::Union{Dict{String,Any}, Dict{Int,Dict{String,Any}}, Dict{Tuple{Int,Int},Any}}
 
     # Convert parameters to correct types
     bin_width = isnothing(bin_width) ? nothing : Float64(bin_width)
-    sample_rate = Float64(sample_rate)
     
     # Convert features (supports String, Vector{String}, Symbol, Vector{Symbol})
     if features isa String
@@ -167,7 +163,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 bin_width=bin_width,
                 weighting_norm=weighting_norm,
                 keep_largest_only=keep_largest_only,
-                sample_rate=sample_rate,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
             )
@@ -233,9 +228,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 else
                     push!(log_buffer, "Using bin_width = $bin_width")
                 end
-                if sample_rate != 0.03
-                    push!(log_buffer, "Using explicit sample_rate = $sample_rate")
-                end
                 if keep_largest_only
                     push!(log_buffer, "keep_largest_only = true (will be applied to selected label)")
                 end
@@ -251,7 +243,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         bin_width=bin_width,
                         weighting_norm=weighting_norm,
                         verbose=verbose,
-                        sample_rate=sample_rate,
                         keep_largest_only=keep_largest_only,
                         compute_all=compute_all,
                         features=features,
@@ -268,7 +259,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     push!(log_buffer, "Real time (end-to-end): $(total_time_real) sec")
                     push!(log_buffer, "Overhead: $(total_time_real - total_time_accumulated) sec")
                     
-                    diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real, 
+                    diagnosis_features = get_diagnosis_features(bin_width, voxel_spacing_input, total_time_real, 
                                             weighting_norm, n_bins, keep_largest_only,
                                             img_input, img_to_use, mask_input, mask_to_use)
                     merge!(radiomic_features, diagnosis_features)
@@ -368,9 +359,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         else
             println("Using default bin width: 25.0")
         end
-        if sample_rate != 0.03
-            println("Using explicit sample_rate = $sample_rate")
-        end
         if keep_largest_only
             println("keep_largest_only = true (will be applied to selected label)")
         end
@@ -384,7 +372,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         bin_width=bin_width,
         weighting_norm=weighting_norm,
         verbose=verbose,
-        sample_rate=sample_rate,
         keep_largest_only=keep_largest_only,
         compute_all=compute_all,
         features=features,
@@ -399,7 +386,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
         println("Real time (end-to-end): $(total_time_real) sec")
         println("Overhead: $(total_time_real - total_time_accumulated) sec")
-        diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real, 
+        diagnosis_features = get_diagnosis_features(bin_width, voxel_spacing_input, total_time_real, 
                                                     weighting_norm, n_bins, keep_largest_only,
                                                     img_input, img_to_use, mask_input, mask_to_use)
         merge!(radiomic_features, diagnosis_features)
@@ -419,7 +406,7 @@ end
 """
     _compute_radiomics_impl(img, mask, voxel_spacing; 
                            n_bins, bin_width,
-                           weighting_norm, verbose, sample_rate, 
+                           weighting_norm, verbose, 
                            keep_largest_only, compute_all, features, log_buffer)
     
     Internal function that handles parallel computation of radiomic features.
@@ -434,7 +421,6 @@ end
     - `bin_width`: Bin width
     - `weighting_norm`: Weighting norm for features
     - `verbose`: Print progress messages
-    - `sample_rate`: Sample rate for shape features
     - `keep_largest_only`: Keep only largest connected component
     - `compute_all`: Compute all features or only selected ones
     - `features`: Vector of feature symbols to compute
@@ -448,7 +434,6 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     bin_width::Union{Nothing,Float64}=nothing,
     weighting_norm::Union{Nothing,String}=nothing,
     verbose::Bool=false,
-    sample_rate::Float64=0.03,
     keep_largest_only::Bool=true,
     compute_all::Bool=true,
     features::Vector{Symbol}=Symbol[],
@@ -568,7 +553,6 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
                 result = @timed get_shape3d_features(
                     mask, voxel_spacing;
                     verbose=verbose,
-                    sample_rate=sample_rate,
                     keep_largest_only=keep_largest_only
                 )
                 (result.value, result.time)
@@ -756,7 +740,6 @@ end
         # --- Default bin_width ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            sample_rate       = 1.0,
             keep_largest_only = false,
             verbose           = false
         )
@@ -765,7 +748,6 @@ end
         extract_radiomic_features(
             img_small, mask_small, spacing;
             n_bins            = 32,
-            sample_rate       = 1.0,
             keep_largest_only = false,
             verbose           = false
         )
@@ -774,7 +756,6 @@ end
         extract_radiomic_features(
             img_small, mask_small, spacing;
             bin_width         = 25.0,
-            sample_rate       = 1.0,
             keep_largest_only = false,
             verbose           = false
         )
@@ -784,7 +765,6 @@ end
             extract_radiomic_features(
                 img_small, mask_small, spacing;
                 weighting_norm    = wn,
-                sample_rate       = 1.0,
                 keep_largest_only = false,
                 verbose           = false
             )
@@ -805,7 +785,6 @@ end
             extract_radiomic_features(
                 img_small, mask_small, spacing;
                 features          = feat,
-                sample_rate       = 1.0,
                 keep_largest_only = false,
                 verbose           = false
             )
@@ -814,7 +793,6 @@ end
         # --- keep_largest_only = true ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            sample_rate       = 1.0,
             keep_largest_only = true,
             verbose           = false
         )
@@ -823,7 +801,6 @@ end
         extract_radiomic_features(
             img_small, mask_multi, spacing;
             labels            = [1, 2],
-            sample_rate       = 1.0,
             keep_largest_only = false,
             verbose           = false
         )
@@ -832,7 +809,6 @@ end
         extract_radiomic_features(
             img_small, mask_small, spacing;
             labels            = 1,
-            sample_rate       = 1.0,
             keep_largest_only = false,
             verbose           = false
         )
@@ -841,7 +817,6 @@ end
         extract_radiomic_features(
             img_small, mask_small, spacing;
             get_raw_matrices  = true,
-            sample_rate       = 1.0,
             keep_largest_only = false,
             verbose           = false
         )
@@ -850,7 +825,6 @@ end
         extract_radiomic_features(
             img_small, mask_small, spacing;
             slices_2d         = [(1, 5)],
-            sample_rate       = 1.0,
             keep_largest_only = true,
             verbose           = false
         )
@@ -885,15 +859,12 @@ end
     # Compute all texture features (uses default label=1)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         features=[:glcm, :glszm, :glrlm, :gldm, :ngtdm], verbose=true);
-    
-    # Compute with sample_rate personalized (uses default label=1)
-    features = Radiomics.extract_radiomic_features(img, mask, spacing; sample_rate=1.0, verbose=true)
-
+                                        
     # Compute with keep_largest_only personalized (uses default label=1)
-    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false);
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true, keep_largest_only=false);
 
     # Compute with weighting_norm personalized (uses default label=1)
-    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, weighting_norm="euclidean");
+    features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose = true, weighting_norm="euclidean");
     
     # Extract features for a specific label (e.g., label 2)
     features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; labels=2, verbose=true);
@@ -901,7 +872,6 @@ end
     # Extract features for multiple labels in parallel
     results = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; 
                                         labels=[1, 2, 30], 
-                                        sample_rate=1.0, 
                                         verbose=true, 
                                         keep_largest_only=true);
     # Access features for label 1: results[1]

@@ -34,8 +34,7 @@ end
 Collects execution metadata, system properties, and image metrics.
 Optimized to use a static version cache and eliminate redundant logic checks on primitive types.
 """
-function get_diagnosis_features(sample_rate::Float64,
-                                 bin_width::Union{Float64,Nothing},
+function get_diagnosis_features(bin_width::Union{Float64,Nothing},
                                  voxel_spacing::Vector{Float64},
                                  total_time_real::Float64,
                                  weighting_norm::Union{String,Nothing},
@@ -56,7 +55,6 @@ function get_diagnosis_features(sample_rate::Float64,
     diagnosis_features["diagnosis_Version_of_Julia"] = julia_version
     
     # Parameters of the image processing (Removed redundant isnothing checks on non-nullable primitive types)
-    diagnosis_features["diagnosis_Sample_rate"] = sample_rate
     diagnosis_features["diagnosis_Bin_width"] = isnothing(bin_width) ? 25.0 : bin_width
     diagnosis_features["diagnosis_Number_of_bins"] = isnothing(n_bins) ? 32 : n_bins
     diagnosis_features["diagnosis_Weighting_norm"] = isnothing(weighting_norm) ? "no_weighting" : weighting_norm
