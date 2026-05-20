@@ -66,7 +66,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     sample_rate::Float64=0.03,
     get_raw_matrices::Bool=false,
     slices_2d=nothing,
-    verbose::Bool=false)::Union{Dict{String,Any}, Dict{Int,Dict{String,Any}}}
+    verbose::Bool=false)::Union{Dict{String,Any}, Dict{Int,Dict{String,Any}}, Dict{Tuple{Int,Int},Any}}
 
     # Convert parameters to correct types
     bin_width = isnothing(bin_width) ? nothing : Float64(bin_width)
@@ -740,18 +740,127 @@ end
 # - Precompilation: executed automatically at the first `using Radiomics`.
 # - Reduces the TTFX (Time To First eXecution) for the package users.
 @setup_workload begin
-    # Small synthetic data only to "warm up" the code for precompile
+    # Small synthetic data for precompilation warmup
     img_small  = Float64.(reshape(1:1000, 10, 10, 10))
     mask_small = zeros(Float64, 10, 10, 10)
     mask_small[3:7, 3:7, 3:7] .= 1.0
-    spacing    = [1.0, 1.0, 1.0]
+
+    # Multi-label mask
+    mask_multi = zeros(Float64, 10, 10, 10)
+    mask_multi[2:4, 2:4, 2:4] .= 1.0
+    mask_multi[6:8, 6:8, 6:8] .= 2.0
+
+    spacing = [1.0, 1.0, 1.0]
 
     @compile_workload begin
+        # --- Default bin_width ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            sample_rate = 1.0,
+            sample_rate       = 1.0,
             keep_largest_only = false,
-            verbose  = false
+            verbose           = false
+        )
+
+        # --- n_bins ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            n_bins            = 32,
+            sample_rate       = 1.0,
+            keep_largest_only = false,
+            verbose           = false
+        )
+
+        # --- bin_width explicit ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            bin_width         = 25.0,
+            sample_rate       = 1.0,
+            keep_largest_only = false,
+            verbose           = false
+        )
+
+        # --- Weighting norms ---
+        for wn in ["euclidean", "infinity", "manhattan", "no_weighting"]
+            extract_radiomic_features(
+                img_small, mask_small, spacing;
+                weighting_norm    = wn,
+                sample_rate       = 1.0,
+                keep_largest_only = false,
+                verbose           = false
+            )
+        end
+
+        # --- Selective features ---
+        for feat in [
+            [:glcm],
+            [:first_order],
+            [:shape3d],
+            [:glszm],
+            [:ngtdm],
+            [:glrlm],
+            [:gldm],
+            [:glcm, :first_order],
+            [:glcm, :glszm, :glrlm, :gldm, :ngtdm],
+        ]
+            extract_radiomic_features(
+                img_small, mask_small, spacing;
+                features          = feat,
+                sample_rate       = 1.0,
+                keep_largest_only = false,
+                verbose           = false
+            )
+        end
+
+        # --- keep_largest_only = true ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            sample_rate       = 1.0,
+            keep_largest_only = true,
+            verbose           = false
+        )
+
+        # --- Multi-label ---
+        extract_radiomic_features(
+            img_small, mask_multi, spacing;
+            labels            = [1, 2],
+            sample_rate       = 1.0,
+            keep_largest_only = false,
+            verbose           = false
+        )
+
+        # --- Single explicit label ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            labels            = 1,
+            sample_rate       = 1.0,
+            keep_largest_only = false,
+            verbose           = false
+        )
+
+        # --- get_raw_matrices ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            get_raw_matrices  = true,
+            sample_rate       = 1.0,
+            keep_largest_only = false,
+            verbose           = false
+        )
+
+        # --- 2D slice extraction ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            slices_2d         = [(1, 5)],
+            sample_rate       = 1.0,
+            keep_largest_only = true,
+            verbose           = false
+        )
+
+        # --- Multiple slices ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            slices_2d         = [(1, 5), (2, 5), (3, 5)],
+            keep_largest_only = false,
+            verbose           = false
         )
     end
 end
