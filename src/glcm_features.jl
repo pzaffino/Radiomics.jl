@@ -69,17 +69,20 @@ function calculate_glcm(img::AbstractArray{Float64},
     glcm_matrices = Vector{Matrix{Float64}}()
     sizehint!(glcm_matrices, length(dirs))
 
-    # Pre-compute mapping from gray levels to indices directly into mapped_disc array
-    map_bin = Dict{Int,Int}()
-    sizehint!(map_bin, Ng)
+    # Pre-compute mapping using LUT
+    min_gl = Int(minimum(gray_levels))
+    max_gl = Int(maximum(gray_levels))
+    lut = zeros(Int, max_gl - min_gl + 1)
+
     @inbounds for (i, gl) in enumerate(gray_levels)
-        map_bin[Int(gl)] = i
+        lut[Int(gl) - min_gl + 1] = i
     end
 
     mapped_disc = zeros(Int, size(disc))
     @inbounds for i in CartesianIndices(disc)
         if mask[i]
-            mapped_disc[i] = map_bin[disc[i]]
+            #Direct access O(1) in memory.
+            mapped_disc[i] = lut[disc[i] - min_gl + 1]
         end
     end
 
@@ -180,37 +183,35 @@ end
 """
 function calculate_mcc(glcm::Matrix{Float64}, px::Vector{Float64}, py::Vector{Float64})::Float64
     Ng = length(px)
-    eps = 2.2f-16
-    Ng < 2 && return 1.0f0
+    eps = 2.2e-16
+    Ng < 2 && return 1.0
 
-    Q = zeros(Float64, Ng, Ng)
-
-    # Pre-compute inverse of py values
-    inv_py = Vector{Float64}(undef, Ng)
-    @inbounds for k in 1:Ng
-        inv_py[k] = py[k] > eps ? 1.0f0 / py[k] : 0.0
+    # Create the scaling factor
+    inv_sqrt_p = Vector{Float64}(undef, Ng)
+    @inbounds for i in 1:Ng
+        inv_sqrt_p[i] = px[i] > eps ? 1.0 / sqrt(px[i]) : 0.0
     end
 
-    # Compute Q matrix
-    @inbounds for i in 1:Ng
-        if px[i] > eps
-            inv_pxi = 1.0f0 / px[i]
-            for j in 1:Ng
-                s = 0.0
-                for k in 1:Ng
-                    if py[k] > eps
-                        s += glcm[i, k] * glcm[j, k] * inv_py[k]
-                    end
-                end
-                Q[i, j] = s * inv_pxi
-            end
+    # Construct the symmetric matrix S in O(Ng^2) instead of O(Ng^3)
+    S = zeros(Float64, Ng, Ng)
+    @inbounds for j in 1:Ng
+        inv_sqrt_pj = inv_sqrt_p[j]
+        for i in 1:Ng
+            S[i, j] = glcm[i, j] * inv_sqrt_p[i] * inv_sqrt_pj
         end
     end
 
     try
-        eigs = eigvals(Q)
-        vals = sort(real.(eigs), rev=true)
-        (length(vals) >= 2 && vals[2] > 0) ? sqrt(vals[2]) : 0.0
+        # Inform Julia that the matrix is symmetric.
+        # This activates native LA-PACK algorithms much faster.
+        eigs = eigvals(Symmetric(S))
+
+        # The eigenvalues of Q are the squares of eigs.
+        # Since the MCC is the square root of the second eigenvalue of Q,
+        # sqrt(λ^2) is simply the absolute value |λ|.
+        vals = sort(abs.(eigs), rev=true)
+        
+        length(vals) >= 2 ? vals[2] : 0.0
     catch
         0.0
     end
@@ -239,22 +240,22 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
     py = vec(sum(glcm, dims=1))
 
     # Convert gray levels once
-    gray_levels_f32 = Float64.(gray_levels)
+    gl = Float64.(gray_levels)
 
     # Compute means
     μx = 0.0
     μy = 0.0
     for i in 1:n_levels
-        μx += gray_levels_f32[i] * px[i]
-        μy += gray_levels_f32[i] * py[i]
+        μx += gl[i] * px[i]
+        μy += gl[i] * py[i]
     end
 
     # Compute standard deviations
     σx_sq = 0.0
     σy_sq = 0.0
     for i in 1:n_levels
-        σx_sq += (gray_levels_f32[i] - μx)^2 * px[i]
-        σy_sq += (gray_levels_f32[i] - μy)^2 * py[i]
+        σx_sq += (gl[i] - μx)^2 * px[i]
+        σy_sq += (gl[i] - μy)^2 * py[i]
     end
     σx = sqrt(σx_sq)
     σy = sqrt(σy_sq)
@@ -295,10 +296,8 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
 
     ng = Float64(max_gray_level - min_gray_level + 1)
 
-    # Main feature extraction loop — also accumulates diff_avg and populates
-    # p_xminusy/p_xplusy, so we avoid two extra O(n_levels^2) passes
-    @inbounds for i in 1:n_levels
-        xi = gray_levels_f32[i]
+    @inbounds @fastmath for i in 1:n_levels
+        xi = gl[i]
         xi_minus_μx = xi - μx
 
         for j in 1:n_levels
@@ -315,7 +314,7 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
             end
 
             if p > 0
-                yj = gray_levels_f32[j]
+                yj = gl[j]
                 yj_minus_μy = yj - μy
 
                 # Autocorrelation
@@ -364,9 +363,8 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
                 p_xminusy[diff_val + 1] += p
                 p_xplusy[sum_val] += p
 
-                # Accumulate diff_avg in the same pass (avoids a second i×j loop)
-                diff_avg += Float64(diff_val) * p
-                diff_sq_avg += Float64(diff_val)^2 * p
+                diff_avg += absd * p
+                diff_sq_avg += (absd^2) * p
             end
         end
     end
@@ -387,7 +385,7 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
     features["glcm_MaximumProbability"] = max_prob
     features["glcm_DifferenceAverage"] = diff_avg
 
-    # Difference entropy from p_xminusy (single pass over p_xminusy, no extra i×j loop)
+    # Difference entropy from p_xminusy
     diff_entropy = 0.0
     @inbounds for k in 1:length(p_xminusy)
         pk = p_xminusy[k]
@@ -494,51 +492,50 @@ function get_glcm_features(img::AbstractArray{Float64},
                             get_raw_matrices::Bool=false,
                             verbose::Bool=false)::Dict{String,Any}
 
-    # Ensure spacing is Float64 and has the right length for the image dimensionality
-    spacing = convert(Vector{Float64}, voxel_spacing)
-
-    glcm_matrices, gray_levels, bin_width_used = calculate_glcm(img, mask, spacing;
+    glcm_matrices, gray_levels, bin_width_used = calculate_glcm(img, mask, voxel_spacing;
         n_bins=n_bins,
         bin_width=bin_width,
         weighting_norm=weighting_norm,
         verbose=verbose)
 
-    features = Dict{String, Any}()
-
     if isempty(glcm_matrices)
-        return features
+        return Dict{String, Any}() 
     end
 
     if get_raw_matrices
         if verbose
             println("=================================")
-            println("GLCM Matrix Dimensions: $(size(glcm_matrices[1]))  →  $(size(glcm_matrices[1],1)) gray levels × $(size(glcm_matrices[1],2)) gray levels")
+            println("GLCM Matrix Dimensions: $(size(glcm_matrices[1]))")
             println("Number of directional matrices saved: $(length(glcm_matrices))")
-            println("GLCM saved in dictionary.")
             println("=================================")
         end
-        features["raw_glcm_matrices"] = glcm_matrices
-        return features
+
+        return Dict{String, Any}("raw_glcm_matrices" => glcm_matrices)
     end
 
-    # Accumulate features directly into a single sum dictionary instead of
-    # allocating N separate feature dicts and averaging after — saves N-1 Dict allocations
     n_matrices = length(glcm_matrices)
-    sum_features = extract_glcm_features(glcm_matrices[1], gray_levels)
+    inv_n = 1.0 / Float64(n_matrices)
+    
+    final_features = Dict{String, Any}()
+
+
+    f1 = extract_glcm_features(glcm_matrices[1], gray_levels)
+    for (name, val) in f1
+        final_features[name] = val
+    end
 
     @inbounds for k in 2:n_matrices
         f = extract_glcm_features(glcm_matrices[k], gray_levels)
         for (name, val) in f
-            sum_features[name] += val
+            final_features[name] += val
         end
     end
 
-    inv_n = 1.0f0 / Float64(n_matrices)
-    @inbounds for name in keys(sum_features)
-        features[name] = sum_features[name] * inv_n
+    for (name, val) in final_features
+        final_features[name] = val * inv_n
     end
 
-    verbose && println("Completed! Extracted $(length(features)) features.")
+    verbose && println("Completed! Extracted $(length(final_features)) features.")
 
-    return features
+    return final_features 
 end
