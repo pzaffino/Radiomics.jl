@@ -130,7 +130,7 @@ end
     - entropy_feature_value::Float64: Calculated entropy feature value
     """
 function get_entropy_feature_value(p::Vector{Float64})::Float64
-    eps = 2.2204460492503131e-16
+    eps::Float64 = 2.2204460492503131e-16
     return -sum(p .* log2.(p .+ eps))
 end
 
