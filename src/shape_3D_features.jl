@@ -157,20 +157,76 @@ function maximum_3d_diameter(triangles::Vector{Triangle3D})::Float64
         k += 3
     end
     unique!(verts)
-    n = length(verts)
-    n < 2 && return 0.0
-
-    max_sq = 0.0
     nv = length(verts)
-    @inbounds for i in 1:nv-1
-        pi = verts[i]
-        for j in i+1:nv
-            pj = verts[j]
-            d  = (pi[1]-pj[1])^2 + (pi[2]-pj[2])^2 + (pi[3]-pj[3])^2
-            d > max_sq && (max_sq = d)
+    nv < 2 && return 0.0
+
+    # Find the center of the bounding box
+    min_x = min_y = min_z = Inf
+    max_x = max_y = max_z = -Inf
+    @inbounds for p in verts
+        p[1] < min_x && (min_x = p[1])
+        p[1] > max_x && (max_x = p[1])
+        p[2] < min_y && (min_y = p[2])
+        p[2] > max_y && (max_y = p[2])
+        p[3] < min_z && (min_z = p[3])
+        p[3] > max_z && (max_z = p[3])
+    end
+    cx = (min_x + max_x) / 2
+    cy = (min_y + max_y) / 2
+    cz = (min_z + max_z) / 2
+
+    # Calculate the squared distance from the center for each point
+    d2_center = Vector{Float64}(undef, nv)
+    @inbounds for i in 1:nv
+        p = verts[i]
+        d2_center[i] = (p[1]-cx)^2 + (p[2]-cy)^2 + (p[3]-cz)^2
+    end
+
+    # Sort the points by distance from the center in descending order
+    perm = sortperm(d2_center, rev=true)
+    verts_sorted = verts[perm]
+    d_center_sorted = sqrt.(d2_center[perm])
+
+    # Search for the maximum diameter with Pruning (Triangle Inequality)
+    max_sq = 0.0
+    max_d = 0.0
+
+    # Heuristics to get a good lower-bound (distances from the first point, the most external)
+    p1 = verts_sorted[1]
+    @inbounds for j in 2:nv
+        p2 = verts_sorted[j]
+        d2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2 + (p1[3]-p2[3])^2
+        if d2 > max_sq
+            max_sq = d2
+            max_d = sqrt(max_sq)
         end
     end
-    return sqrt(max_sq)
+
+    @inbounds for i in 1:nv-1
+        # Outer pruning: if twice the distance of P_i from the center does not exceed the current diameter,
+        # no subsequent point (being closer to the center) can ever form a larger diameter.
+        if 2.0 * d_center_sorted[i] <= max_d
+            break
+        end
+
+        pi = verts_sorted[i]
+        for j in i+1:nv
+            # Inner pruning: if the sum of the distances of P_i and P_j from the center does not exceed the diameter,
+            # the same applies to all points P_k with k >= j.
+            if d_center_sorted[i] + d_center_sorted[j] <= max_d
+                break
+            end
+
+            pj = verts_sorted[j]
+            d2 = (pi[1]-pj[1])^2 + (pi[2]-pj[2])^2 + (pi[3]-pj[3])^2
+            if d2 > max_sq
+                max_sq = d2
+                max_d = sqrt(max_sq)
+            end
+        end
+    end
+    
+    return max_d
 end
 """
     This function is used to get the voxel coordinates of a mesh.
