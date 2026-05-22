@@ -14,7 +14,7 @@ RUN apt-get update && apt-get install -y \
 # Install Julia packages
 RUN julia -e 'using Pkg; \
     Pkg.add(url="https://github.com/pzaffino/Radiomics.jl"); \
-    Pkg.add(["NIfTI", "ArgParse", "CSV", "DataFrames"]); \
+    Pkg.add(["NIfTI", "ArgParse", "CSV", "DataFrames", "PrecompileTools"]); \
     Pkg.precompile()'
 
 # Set working directory and generate the embedded Julia script
