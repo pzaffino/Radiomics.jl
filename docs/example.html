@@ -602,7 +602,6 @@
                           weighting_norm<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
                           keep_largest_only<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">true</span>,
                           get_raw_matrices<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
-                          sample_rate<span class="julia-keyword">=</span><span class="julia-literal">0.03</span>,
                           slices_2d<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
                           verbose<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>)
 
@@ -621,7 +620,6 @@
 <span class="julia-comment">#  weighting_norm      – Norm used for GLCM distance weighting.</span>
 <span class="julia-comment">#  keep_largest_only   – If true, only the largest connected component is used.</span>
 <span class="julia-comment">#  get_raw_matrices    – If true, returns the raw matrices for texture features.</span>
-<span class="julia-comment">#  sample_rate         – Fraction of voxel pairs sampled for GLCM (0–1).</span>
 <span class="julia-comment">#  slices_2d           – If present, calculate all features on 2D slices - mask. When this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index.</span>
 <span class="julia-comment">#  verbose             – Print progress information during extraction.</span>
@@ -786,7 +784,7 @@ ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sa
 mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
 spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
 
-features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, <span class="julia-literal">keep_largest_only=false</span>)</code></pre>
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; verbose = true, <span class="julia-literal">keep_largest_only=false</span>)</code></pre>
                 </div>
             </div>
             <!-- SNIPPET 7 -->
@@ -807,7 +805,7 @@ ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sa
 mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
 spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
 
-features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; sample_rate = 1.0, verbose = true, keep_largest_only=false, <span class="julia-literal">weighting_norm="euclidean"</span>);</code></pre>
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; verbose = true, keep_largest_only=false, <span class="julia-literal">weighting_norm="euclidean"</span>);</code></pre>
                 </div>
             </div>
 

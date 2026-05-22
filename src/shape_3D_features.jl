@@ -50,12 +50,12 @@ end
 """
 function marching_cubes_surface(mask::BitArray{3},
                                  spacing::Vector{Float64},
-                                 isolevel::Float64=0.5)
+                                 isolevel::Float64=0.5)::Vector{Triangle3D}
     nx, ny, nz = size(mask)
     triangles  = Vector{Triangle3D}()
     sizehint!(triangles, count(mask) * 2)
 
-    for z in 1:nz-1, y in 1:ny-1, x in 1:nx-1
+    @inbounds for z in 1:nz-1, y in 1:ny-1, x in 1:nx-1
 
         v0 = Float64(mask[x,   y,   z  ])
         v1 = Float64(mask[x+1, y,   z  ])
@@ -116,7 +116,7 @@ end
     This function is used to calculate the surface area and volume of a mesh.
     It is used by the marching cubes algorithm to create a surface mesh from a 3D binary mask.
 """
-function calculate_mesh_metrics(triangles::Vector{Triangle3D})
+function calculate_mesh_metrics(triangles::Vector{Triangle3D})::Tuple{Float64, Float64}
     area   = 0.0
     volume = 0.0
     @inbounds for (p1, p2, p3) in triangles
@@ -136,7 +136,7 @@ end
     This function is used to calculate the sphericity of a mesh.
     It is used by the marching cubes algorithm to create a surface mesh from a 3D binary mask.
 """
-function sphericity(area::Float64, volume::Float64)
+function sphericity(area::Float64, volume::Float64)::Float64
     (area <= 0.0 || volume <= 0.0) && return 0.0
     return (π^(1/3) * (6.0 * volume)^(2/3)) / area
 end
@@ -144,45 +144,95 @@ end
     This function is used to calculate the maximum 3D diameter of a mesh.
     It is used by the marching cubes algorithm to create a surface mesh from a 3D binary mask.
 """
-function maximum_3d_diameter(triangles::Vector{Triangle3D};
-                              sample_rate::Float64 = 0.03,
-                              min_samples::Int     = 100)
+function maximum_3d_diameter(triangles::Vector{Triangle3D})::Float64
+
     isempty(triangles) && return 0.0
 
-    uniq = Set{Point3D}()
-    sizehint!(uniq, length(triangles) * 3)
+    verts = Vector{Point3D}(undef, length(triangles) * 3)
+    k = 1
     @inbounds for (a, b, c) in triangles
-        push!(uniq, a); push!(uniq, b); push!(uniq, c)
+        verts[k]   = a
+        verts[k+1] = b
+        verts[k+2] = c
+        k += 3
     end
-    verts = collect(uniq)
-    n     = length(verts)
-    n < 2 && return 0.0
-
-    if sample_rate < 1.0
-        ns = min(n, max(min_samples, Int(ceil(n * sample_rate))))
-        if ns < n
-            Random.seed!(42)
-            verts = verts[randperm(n)[1:ns]]
-        end
-    end
-
-    max_sq = 0.0
+    unique!(verts)
     nv = length(verts)
-    @inbounds for i in 1:nv-1
-        pi = verts[i]
-        for j in i+1:nv
-            pj = verts[j]
-            d  = (pi[1]-pj[1])^2 + (pi[2]-pj[2])^2 + (pi[3]-pj[3])^2
-            d > max_sq && (max_sq = d)
+    nv < 2 && return 0.0
+
+    # Find the center of the bounding box
+    min_x = min_y = min_z = Inf
+    max_x = max_y = max_z = -Inf
+    @inbounds for p in verts
+        p[1] < min_x && (min_x = p[1])
+        p[1] > max_x && (max_x = p[1])
+        p[2] < min_y && (min_y = p[2])
+        p[2] > max_y && (max_y = p[2])
+        p[3] < min_z && (min_z = p[3])
+        p[3] > max_z && (max_z = p[3])
+    end
+    cx = (min_x + max_x) / 2
+    cy = (min_y + max_y) / 2
+    cz = (min_z + max_z) / 2
+
+    # Calculate the squared distance from the center for each point
+    d2_center = Vector{Float64}(undef, nv)
+    @inbounds for i in 1:nv
+        p = verts[i]
+        d2_center[i] = (p[1]-cx)^2 + (p[2]-cy)^2 + (p[3]-cz)^2
+    end
+
+    # Sort the points by distance from the center in descending order
+    perm = sortperm(d2_center, rev=true)
+    verts_sorted = verts[perm]
+    d_center_sorted = sqrt.(d2_center[perm])
+
+    # Search for the maximum diameter with Pruning (Triangle Inequality)
+    max_sq = 0.0
+    max_d = 0.0
+
+    # Heuristics to get a good lower-bound (distances from the first point, the most external)
+    p1 = verts_sorted[1]
+    @inbounds for j in 2:nv
+        p2 = verts_sorted[j]
+        d2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2 + (p1[3]-p2[3])^2
+        if d2 > max_sq
+            max_sq = d2
+            max_d = sqrt(max_sq)
         end
     end
-    return sqrt(max_sq)
+
+    @inbounds for i in 1:nv-1
+        # Outer pruning: if twice the distance of P_i from the center does not exceed the current diameter,
+        # no subsequent point (being closer to the center) can ever form a larger diameter.
+        if 2.0 * d_center_sorted[i] <= max_d
+            break
+        end
+
+        pi = verts_sorted[i]
+        for j in i+1:nv
+            # Inner pruning: if the sum of the distances of P_i and P_j from the center does not exceed the diameter,
+            # the same applies to all points P_k with k >= j.
+            if d_center_sorted[i] + d_center_sorted[j] <= max_d
+                break
+            end
+
+            pj = verts_sorted[j]
+            d2 = (pi[1]-pj[1])^2 + (pi[2]-pj[2])^2 + (pi[3]-pj[3])^2
+            if d2 > max_sq
+                max_sq = d2
+                max_d = sqrt(max_sq)
+            end
+        end
+    end
+    
+    return max_d
 end
 """
     This function is used to get the voxel coordinates of a mesh.
     It is used by the marching cubes algorithm to create a surface mesh from a 3D binary mask.
 """
-function get_voxel_coords(mask::AbstractArray{Bool,3}, spacing::Vector{<:Real})
+function get_voxel_coords(mask::AbstractArray{Bool,3}, spacing::Vector{Float64})::Vector{Point3D}
     n      = count(mask)
     coords = Vector{Point3D}(undef, n)
     k      = 1
@@ -200,7 +250,7 @@ end
     This function is used to calculate the principal axes features of a mesh.
     It is used by the marching cubes algorithm to create a surface mesh from a 3D binary mask.
 """
-function principal_axes_features(coords::Vector{Point3D})
+function principal_axes_features(coords::Vector{Point3D})::Tuple{Vector{Float64}, Float64, Float64}
     n = length(coords)
     n < 2 && return zeros(Float64, 3), NaN, NaN
 
@@ -228,12 +278,12 @@ end
     This function is used to calculate the voxel volume of a mesh.
     It is used by the marching cubes algorithm to create a surface mesh from a 3D binary mask.
 """
-function voxel_volume(mask, spacing::Vector{<:Real})
+function voxel_volume(mask::AbstractArray, spacing::Vector{Float64})::Float64
     return Float64(count(mask)) *
            Float64(spacing[1]) * Float64(spacing[2]) * Float64(spacing[3])
 end
 """
-    get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float32}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
+    get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float64}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
     
     Extracts 3D shape features from the given mask.
     
@@ -254,14 +304,12 @@ end
         - By default, only the largest connected component is kept to ensure meaningful shape features.
 """
 function get_shape3d_features(mask::AbstractArray{<:Real,3},
-                               spacing::Vector{<:Real};
-                               verbose           = false,
-                               keep_largest_only = true,
-                               pad_width         = 1,
-                               threshold         = 0.5,
-                               sample_rate       = 0.03)
+                               spacing::Vector{Float64};
+                               verbose::Bool           = false,
+                               keep_largest_only::Bool = true,
+                               pad_width::Int          = 1,
+                               threshold::Float64      = 0.5)::Dict{String,Any}
 
-    spacing_f64 = convert(Vector{Float64}, spacing)
     verbose && println("Extracting 3D shape features...")
 
     if keep_largest_only
@@ -280,12 +328,12 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
 
     task_axes = Threads.@spawn begin
         verbose && println("[Thread 1] Calculating principal axes...")
-        coords = get_voxel_coords(processed_mask, spacing_f64)
+        coords = get_voxel_coords(processed_mask, spacing)
         principal_axes_features(coords)
     end
 
     verbose && println("[Main Thread] Running Marching Cubes...")
-    triangles = marching_cubes_surface(processed_mask, spacing_f64)
+    triangles = marching_cubes_surface(processed_mask, spacing)
 
     task_geom = Threads.@spawn begin
         verbose && println("[Thread 2] Calculating surface features...")
@@ -297,10 +345,10 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
 
     task_diam = Threads.@spawn begin
         verbose && println("[Thread 3] Calculating maximum diameter...")
-        maximum_3d_diameter(triangles; sample_rate=Float64(sample_rate))
+        maximum_3d_diameter(triangles)
     end
 
-    vol_voxel                          = voxel_volume(processed_mask, spacing_f64)
+    vol_voxel                          = voxel_volume(processed_mask, spacing)
     axes_lengths, elongation, flatness = fetch(task_axes)
     area, meshvol, vol_ratio, sph      = fetch(task_geom)
     maxdiam                            = fetch(task_diam)

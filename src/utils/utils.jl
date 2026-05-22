@@ -1,5 +1,69 @@
 """
-    label_components(mask::AbstractArray{Bool})
+    bounding_box(img::AbstractArray{Float64},
+                 mask::AbstractArray,
+                 verbose::Bool;
+                 log_buffer::Union{Vector{String},Nothing}=nothing)::Tuple{AbstractArray{Float64}, BitArray}
+
+    Computes the bounding box of a binary mask and crops both the image and the mask
+    to the smallest region containing all voxels where `mask == 1`.
+    Works for both 2D and 3D arrays.
+
+    # Arguments
+    - `img`: The input image (2D or 3D array).
+    - `mask`: The binary mask defining the region of interest (same shape as `img`).
+    - `verbose`: If `true`, prints the original and cropped sizes with reduction percentage.
+
+    # Returns
+    - `cropped_img`: image array cropped to the bounding box of the mask.
+    - `cropped_mask`: binary mask array (`BitArray`) cropped to the same bounding box."""
+function bounding_box(img::AbstractArray{Float64},
+                       mask::AbstractArray,
+                       verbose::Bool;
+                       log_buffer::Union{Vector{String},Nothing}=nothing)::Tuple{AbstractArray{Float64}, BitArray}
+    function _bb_log(msg)
+        if !isnothing(log_buffer)
+            push!(log_buffer, msg)
+        else
+            println(msg)
+        end
+    end
+
+    if verbose
+        _bb_log("Calculating the bounding box")
+        _bb_log("Image data: $(size(img)) | $(prod(size(img))) voxels")
+        _bb_log("Mask data: $(size(mask)) | $(count(mask .== 1)) voxels")
+    end
+
+    idx = findall(mask .== 1)
+    n = ndims(mask)
+
+    mins = [typemax(Int) for _ in 1:n]
+    maxs = [typemin(Int) for _ in 1:n]
+
+    for i in idx
+        for d in 1:n
+            if i[d] < mins[d]; mins[d] = i[d]; end
+            if i[d] > maxs[d]; maxs[d] = i[d]; end
+        end
+    end
+
+    ranges = [mins[d]:maxs[d] for d in 1:n]
+
+    cropped_img  = img[ranges...]
+    cropped_mask = mask[ranges...]
+
+    if verbose
+        img_size = size(cropped_img)
+        ct_voxels = prod(img_size)
+        image_crop_perc = 100 - prod(img_size) / prod(size(img)) * 100
+        _bb_log("Cropped image data: $img_size | $ct_voxels voxels | $(round(image_crop_perc, digits=2))% reduction ")
+    end
+
+    return cropped_img, BitArray(cropped_mask)
+end
+
+"""
+    label_components(mask::AbstractArray{Bool})::Array{Int}
 
     Labels connected components in a binary mask using 26-connectivity for 3D
     (or 8-connectivity for 2D).
@@ -10,7 +74,7 @@
     # Returns:
         - An array of the same size as `mask` with integer labels.
     """
-function label_components(mask::AbstractArray{Bool})
+function label_components(mask::AbstractArray{Bool})::Array{Int}
     labels = zeros(Int, size(mask))
     current_label = 0
     queue = Int[]
@@ -72,9 +136,12 @@ function label_components(mask::AbstractArray{Bool})
 end
 
 """
-    discretize_image(img::Array{Float32,3}, mask::BitArray{3}; 
-                        n_bins::Union{Int,Nothing}=nothing,
-                        bin_width::Union{Float64,Nothing}=nothing)
+    function discretize_image(img::AbstractArray{Float64},
+                               mask::BitArray;
+                               n_bins::Union{Int,Nothing}=nothing,
+                               bin_width::Union{Float64,Nothing}=nothing,
+                               vmin::Union{Float64,Nothing}=nothing,
+                               vmax::Union{Float64,Nothing}=nothing)::Tuple{Array{Int}, Int, Vector{Int}, Float64}
 
     Discretizes the input image for radiomics feature calculation. 
     Takes into account only the voxels within the provided mask.
@@ -82,12 +149,12 @@ end
     You can specify EITHER n_bins (number of bins) OR bin_width (width of each bin), but not both.
     - If n_bins is specified, bin_width is calculated automatically from the intensity range
     - If bin_width is specified, the number of bins is calculated automatically
-    - If neither is specified, defaults to bin_width=25.0f0
+    - If neither is specified, defaults to bin_width=25.0
 
     This function is compatible with all radiomics features: GLCM, GLDM, GLRLM, GLSZM, NGTDM, etc.
 
     # Arguments:
-        - `img`: The input 3D image as Float32 array.
+        - `img`: The input 3D image as Float64 array.
         - `mask`: The mask defining the region of interest as BitArray.
         - `n_bins`: The number of discrete gray levels (optional).
         - `bin_width`: The width of each bin (optional).
@@ -103,62 +170,56 @@ end
         disc, n_bins, levels, bw = discretize_image(img, mask, n_bins=64)
         
         # Using fixed bin width (number of bins calculated automatically)
-        disc, n_bins, levels, bw = discretize_image(img, mask, bin_width=25.0f0)
+        disc, n_bins, levels, bw = discretize_image(img, mask, bin_width=25.0)
         
-        # Default (bin_width=25.0f0)
+        # Default (bin_width=25.0)
         disc, n_bins, levels, bw = discretize_image(img, mask)
     """
-function discretize_image(img::Array{<:Real},
+function discretize_image(img::AbstractArray{Float64},
     mask::BitArray;
     n_bins::Union{Int,Nothing}=nothing,
-    bin_width::Union{<:Real,Nothing}=nothing)
+    bin_width::Union{Float64,Nothing}=nothing,
+    vmin::Union{Float64,Nothing}=nothing,
+    vmax::Union{Float64,Nothing}=nothing)::Tuple{Array{Int}, Int, Vector{Int}, Float64}
 
-    # Convert to Float32 for backward compatibility
-    img_f32 = convert(Array{Float32}, img)
-    bin_width_f32 = isnothing(bin_width) ? nothing : Float32(bin_width)
-
-    # Early check for empty mask
     if sum(mask) == 0
-        return zeros(Int, size(img_f32)), 0, Int[], 0.0f0
+        return zeros(Int, size(img)), 0, Int[], 0.0
     end
 
-    # Compute min/max from masked values
-    vals = view(img_f32, mask)
-    vmin = minimum(vals)
-    vmax = maximum(vals)
+    if isnothing(vmin) || isnothing(vmax)
+        vals = view(img, mask)
+        vmin = minimum(vals)
+        vmax = maximum(vals)
+    end
 
-    if !isnothing(n_bins) && !isnothing(bin_width_f32)
+    disc = zeros(Int, size(img))
+
+    if !isnothing(n_bins) && !isnothing(bin_width)
         error("Specify either n_bins or bin_width, not both.")
-
-    elseif isnothing(n_bins) && isnothing(bin_width_f32)
-        bin_width_f32 = 25.0f0
+    elseif isnothing(n_bins) && isnothing(bin_width)
+        bin_width = 25.0
     end
-
-    disc = zeros(Int, size(img_f32))
 
     if !isnothing(n_bins)
-        bin_width_used = (vmax - vmin) / Float32(n_bins)
-        if bin_width_used ≈ 0.0f0
-            bin_width_used = 1.0f0
+        bin_width_used = (vmax - vmin) / Float64(n_bins)
+        if bin_width_used ≈ 0.0
+            bin_width_used = 1.0
         end
-
-        inv_bin_width = 1.0f0 / bin_width_used
-        # Iterate directly using linear indices without allocating index array
+        inv_bin_width = 1.0 / bin_width_used
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img_f32[i]
+                v = img[i]
                 b = min(Int(floor((v - vmin) * inv_bin_width)) + 1, n_bins)
                 disc[i] = b
             end
         end
     else
-        bin_width_used = bin_width_f32
-        inv_bin_width = 1.0f0 / bin_width_used
+        bin_width_used = bin_width
+        inv_bin_width = 1.0 / bin_width_used
         bin_offset = Int(floor(vmin * inv_bin_width))
-
         @inbounds for i in eachindex(mask)
             if mask[i]
-                v = img_f32[i]
+                v = img[i]
                 b = Int(floor(v * inv_bin_width)) - bin_offset + 1
                 disc[i] = b
             end
@@ -172,60 +233,7 @@ function discretize_image(img::Array{<:Real},
 end
 
 """
-    get_neighbors!(neighbors::AbstractVector{Int}, idx, dims)
-
-    Gets the 26-connected neighbors of a voxel in a 3D image securely into a pre-allocated array.
-
-    # Arguments
-    - `neighbors`: The pre-allocated vector to store the linear indices of the neighbors.
-    - `idx`: The linear index of the voxel.
-    - `dims`: The dimensions of the image.
-
-    # Returns
-    - The number of valid neighbors found.
-    """
-@inline function get_neighbors!(neighbors::AbstractVector{Int}, idx, dims)
-    n = ndims(CartesianIndices(dims))
-    count = 0
-
-    cartesian_idx = CartesianIndices(dims)[idx]
-    linear_indices = LinearIndices(dims)
-    cartesian_range = CartesianIndices(dims)
-
-    @inbounds for offset in CartesianIndices(ntuple(_ -> -1:1, n))
-        all(t -> t == 0, Tuple(offset)) && continue
-        new_cartesian_idx = cartesian_idx + offset
-        if checkbounds(Bool, cartesian_range, new_cartesian_idx)
-            count += 1
-            neighbors[count] = linear_indices[new_cartesian_idx]
-        end
-    end
-
-    return count
-end
-
-"""
-    get_neighbors(idx, dims)
-
-    Gets the 26-connected neighbors of a voxel in a 3D image.
-
-    # Arguments
-    - `idx`: The linear index of the voxel.
-    - `dims`: The dimensions of the image.
-
-    # Returns
-    - A vector of linear indices of the neighbors.
-    """
-@inline function get_neighbors(idx, dims)
-    n = ndims(CartesianIndices(dims))
-    max_neighbors = 3^n - 1  # 8 per 2D, 26 per 3D
-    neighbors = Vector{Int}(undef, max_neighbors)
-    count = get_neighbors!(neighbors, idx, dims)
-    return resize!(neighbors, count)
-end
-
-"""
-    keep_largest_component(mask::AbstractArray{Bool})
+    keep_largest_component(mask::AbstractArray{Bool})::Tuple{AbstractArray{Bool}, Int}
 
     Keeps only the largest connected component in the binary mask. All other components are removed. 
     If multiple islands are detected, a warning is issued.
@@ -236,7 +244,7 @@ end
     # Returns:
         - The mask containing only the largest connected component (Array).
     """
-function keep_largest_component(mask::AbstractArray{Bool})
+function keep_largest_component(mask::AbstractArray{Bool})::Tuple{AbstractArray{Bool}, Int}
     if sum(mask) == 0
         return mask, 0  # Restituisce anche 0 isole
     end
@@ -282,7 +290,7 @@ function keep_largest_component(mask::AbstractArray{Bool})
 end
 
 """
-    pad_mask(mask::AbstractArray, pad::Int)
+    pad_mask(mask::AbstractArray{Bool}, pad::Int)::BitArray
     
     Pads the input mask with a specified number of layers of false values.
     
@@ -293,7 +301,7 @@ end
     # Returns:
         - The padded mask (Array).
     """
-@inline function pad_mask(mask::AbstractArray{Bool}, pad::Int)
+@inline function pad_mask(mask::AbstractArray{Bool}, pad::Int)::BitArray
     sz = size(mask)
     new_shape = ntuple(i -> sz[i] + 2 * pad, ndims(mask))
     new_mask = falses(new_shape)
@@ -303,31 +311,15 @@ end
 end
 
 """
-    Performs sanity checks on the input image and mask.
-        # Parameters:
-        - `img`: The input image (Array).
-        - `mask`: The mask defining the region of interest (Array).
-        - `verbose`: If true, prints progress messages.
-        # Returns:
-        - Nothing. Throws an error if the inputs are invalid."""
-function input_sanity_check(img::AbstractArray, mask::AbstractArray, verbose::Bool)
-    if verbose
-        println("Running input sanity check...")
-    end
-
-    if size(img) != size(mask)
-        throw(ArgumentError("img and mask have different size!"))
-    end
-end
-
-"""
     Helper function to print features in a formatted list.
         # Parameters:
         - `title`: The title to display before the features.
         - `features`: A dictionary of features to print.
         # Returns:
         - Nothing. Prints the features to the console."""
-function print_features(title::String, features::Dict{String,Any}; log_buffer::Union{Vector{String}, Nothing}=nothing)
+function print_features(title::String,
+                         features::Dict{String,Any};
+                         log_buffer::Union{Vector{String},Nothing}=nothing)::Nothing
     output = String[]
     
     push!(output, "\n--- $title ---")
@@ -345,34 +337,144 @@ function print_features(title::String, features::Dict{String,Any}; log_buffer::U
     else
         append!(log_buffer, output)
     end
+
+    return nothing
 end
 
 """
-    Prepares and validates the input image, mask, and voxel spacing.
-        # Parameters:
-        - `img_input`: The input image (Array).
-        - `mask_input`: The mask defining the region of interest (Array).
-        - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
-        # Returns:
-        - A tuple containing the prepared image, mask, and voxel spacing."""
-function prepare_inputs(img_input::AbstractArray,
-    mask_input::AbstractArray,
-    voxel_spacing_input::AbstractVector)
-    # Handle both 2D and 3D inputs
-    if ndims(img_input) == 2
-        # 2D input: convert to 2D Float32 array
-        img = convert(Array{Float32,2}, img_input)
-        mask = BitArray(mask_input .!= 0.0f0)
+    _cast_inputs(img_input, mask_input, voxel_spacing_input,
+                 features, labels, n_bins, bin_width, weighting_norm)
+
+    Converts all input parameters to their correct concrete types.
+    Acts as a type barrier before the main feature extraction logic.
+
+    # Returns
+    - A NamedTuple with all parameters converted to their correct types.
+"""
+function _cast_inputs(
+    img_input,
+    mask_input,
+    voxel_spacing_input,
+    features,
+    labels,
+    n_bins,
+    bin_width,
+    weighting_norm,
+    slices_2d,          
+    keep_largest_only,  
+    get_raw_matrices,   
+    verbose             
+    )::NamedTuple{
+        (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :slices_2d, :keep_largest_only, :get_raw_matrices, :verbose),
+        Tuple{
+            Union{Array{Float64,2}, Array{Float64,3}},
+            Union{Array{Int,2}, Array{Int,3}},
+            Vector{Float64},
+            Vector{Symbol},
+            Union{Int, Vector{Int}},
+            Union{Nothing, Int},
+            Union{Nothing, Float64},
+            Union{Nothing, String}, 
+            Union{Nothing, Vector{Tuple{Int,Int}}},
+            Bool,                                     
+            Bool,                                     
+            Bool                                      
+        }
+    }
+
+    # --- Perpare input ---
+    #For img
+    # 2D input: convert to 2D Float64 array
+    img::Union{Array{Float64,2}, Array{Float64,3}} = if ndims(img_input) == 2
+        convert(Array{Float64,2}, img_input)
+    # 3D input: convert to 3D Float64 array
     elseif ndims(img_input) == 3
-        # 3D input: convert to 3D Float32 array
-        img = convert(Array{Float32,3}, img_input)
-        mask = BitArray(mask_input .!= 0.0f0)
+        convert(Array{Float64,3}, img_input)
     else
         throw(ArgumentError("Input image must be 2D or 3D, got $(ndims(img_input))D"))
     end
 
-    voxel_spacing = convert(Vector{Float32}, voxel_spacing_input)
-    return img, mask, voxel_spacing
+    # For Mask
+    # 2D input: convert to 2D Float64 array
+    mask::Union{Array{Int,2}, Array{Int,3}} = if ndims(mask_input) == 2
+        convert(Array{Int,2}, mask_input)
+    # 3D input: convert to 3D Float64 array
+    elseif ndims(mask_input) == 3
+        convert(Array{Int,3}, mask_input)
+    else
+        throw(ArgumentError("Input mask must be 2D or 3D, got $(ndims(mask_input))D"))
+    end
+
+    #Conversion of mask & img and control of Sanity Check
+    if verbose
+        println("Running Conversion completed. Starting Sanity check...")
+    end
+
+    #Sanity Check
+    if size(img) != size(mask)
+         throw(ArgumentError("img and mask have different size!"))
+    end
+
+    # Convert spacing (supports any numeric vector/list)
+    spacing::Vector{Float64} = Float64[Float64(s) for s in voxel_spacing_input]
+    if length(spacing) > 3
+        throw(ArgumentError("voxel_spacing_input is too long! It should have 2 or 3 elements."))
+    elseif length(spacing) < 2
+        throw(ArgumentError("voxel_spacing_input is too short! It should have 2 or 3 elements."))
+    end
+
+    # Convert features (supports String, Vector{String}, Symbol, Vector{Symbol})
+    features_out::Vector{Symbol} = if features isa String
+        lowercase(features) == "all" ? Symbol[] : [Symbol(lowercase(features))]
+    elseif features isa AbstractVector && !isempty(features) && eltype(features) <: AbstractString
+        Symbol[Symbol(lowercase(string(f))) for f in features]
+    elseif features isa AbstractVector && !isempty(features) && !(eltype(features) <: Symbol)
+        Symbol[Symbol(lowercase(string(f))) for f in features]
+    else
+        Vector{Symbol}(features)
+    end
+
+    # Convert labels (supports Int, Vector{Int})
+    labels_out::Union{Int,Vector{Int}} = if labels isa AbstractVector
+        Int[Int(l) for l in labels]
+    elseif !isnothing(labels) && !(labels isa Int)
+        Int(labels)
+    elseif isnothing(labels)
+        Int(1)
+    else
+        Int(labels)
+    end
+
+    # Convert n_bins 
+    n_bins_out::Union{Nothing,Int} = isnothing(n_bins) ? nothing : Int(n_bins)
+
+    # Convert bin_width
+    bin_width_out::Union{Nothing,Float64} = isnothing(bin_width) ? nothing : Float64(bin_width)
+
+    # Convert weighting_norm
+    weighting_norm_out::Union{Nothing,String} = isnothing(weighting_norm) ? nothing : String(weighting_norm)
+
+    #Convert slices_2d
+    slices_2d_out::Union{Nothing, Vector{Tuple{Int,Int}}} = if isnothing(slices_2d)
+        nothing
+    else
+        Tuple{Int,Int}[(Int(s[1]), Int(s[2])) for s in slices_2d]
+    end
+
+    return (
+        img            = img,
+        mask           = mask,
+        spacing        = spacing,
+        features       = features_out,
+        labels         = labels_out,
+        n_bins         = n_bins_out,
+        bin_width      = bin_width_out,
+        weighting_norm = weighting_norm_out,
+        slices_2d      = slices_2d_out,
+        keep_largest_only = Bool(keep_largest_only),
+        get_raw_matrices  = Bool(get_raw_matrices),
+        verbose           = Bool(verbose)
+    )
 end
 
 """
@@ -383,10 +485,12 @@ end
         - `bin_width`: The width of each bin (Float64).
         # Returns:
         - Nothing. Prints a warning if the binning parameters are invalid."""
-function  validate_binning_parameters(img_input, mask_input, bin_width)
+function validate_binning_parameters(img_input::AbstractArray{Float64},
+                                      mask_input::BitArray,
+                                      bin_width::Float64)::Nothing
 
     # Calculate range and estimated number of bins
-    roi_vals = img_input[mask_input.!=0]
+    roi_vals = img_input[mask_input]
     val_min = minimum(roi_vals)
     val_max = maximum(roi_vals)
     val_range = val_max - val_min
@@ -409,7 +513,8 @@ end
         - `label`: The label to extract from the mask (Int).
         # Returns:
         - A tuple containing the extracted mask and the voxel count."""
-function extract_and_check_mask(mask_input, label::Int)
+function extract_and_check_mask(mask_input::AbstractArray{Int},
+                                 label::Int)::Tuple{BitArray, Int}
     mask_to_use = (mask_input .== label)
     # Check if label exists
     voxel_count = sum(mask_to_use)

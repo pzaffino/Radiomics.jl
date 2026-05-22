@@ -141,11 +141,11 @@ docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii
 ```
 Run the container with custom parameters.
 ```bash
-docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false --sample_rate 1.0
+docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false
 ```
 Run the container with multi-threading enabled.
 ```bash
-docker run -it -e JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false --sample_rate 1.0
+docker run -it -e JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false
 ```
 # Discalaimer
 This software is for research purposes only.
