@@ -48,8 +48,7 @@ function calculate_glcm(img::AbstractArray{Float64},
         else
             println("Calculating GLCM ($(dim)D) with default bin_width=25...")
         end
-        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Effective gray level utilized: $(n_levels)")
+
         println(dim == 2 ? "2D image detected. Using $(length(dirs)) directions." :
                            "3D image detected. Using $(length(dirs)) directions.")
         if weighting_norm !== nothing

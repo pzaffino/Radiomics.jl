@@ -214,7 +214,7 @@ function discretize_image(img::AbstractArray{Float64},
             end
         end
     else
-        bin_width_used = bin_width  # già Float64
+        bin_width_used = bin_width
         inv_bin_width = 1.0 / bin_width_used
         bin_offset = Int(floor(vmin * inv_bin_width))
         @inbounds for i in eachindex(mask)
@@ -311,26 +311,6 @@ end
 end
 
 """
-    Performs sanity checks on the input image and mask.
-        # Parameters:
-        - `img`: The input image (Array).
-        - `mask`: The mask defining the region of interest (Array).
-        - `verbose`: If true, prints progress messages.
-        # Returns:
-        - Nothing. Throws an error if the inputs are invalid."""
-function input_sanity_check(img::AbstractArray{Float64},
-                             mask::AbstractArray,
-                             verbose::Bool)::Nothing
-    if verbose
-        println("Running input sanity check...")
-    end
-
-    if size(img) != size(mask)
-        throw(ArgumentError("img and mask have different size!"))
-    end
-end
-
-"""
     Helper function to print features in a formatted list.
         # Parameters:
         - `title`: The title to display before the features.
@@ -362,31 +342,139 @@ function print_features(title::String,
 end
 
 """
-    Prepares and validates the input image, mask, and voxel spacing.
-        # Parameters:
-        - `img_input`: The input image (Array).
-        - `mask_input`: The mask defining the region of interest (Array).
-        - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
-        # Returns:
-        - A tuple containing the prepared image, mask, and voxel spacing."""
-function prepare_inputs(img_input::AbstractArray,
-                         mask_input::AbstractArray,
-                         voxel_spacing_input::AbstractVector)::Tuple{AbstractArray{Float64}, AbstractArray{Int}, Vector{Float64}}
-    # Handle both 2D and 3D inputs
-    if ndims(img_input) == 2
-        # 2D input: convert to 2D Float64 array
-        img = convert(Array{Float64,2}, img_input)   
-        mask = convert(Array{Int,2}, mask_input)           
+    _cast_inputs(img_input, mask_input, voxel_spacing_input,
+                 features, labels, n_bins, bin_width, weighting_norm)
+
+    Converts all input parameters to their correct concrete types.
+    Acts as a type barrier before the main feature extraction logic.
+
+    # Returns
+    - A NamedTuple with all parameters converted to their correct types.
+"""
+function _cast_inputs(
+    img_input,
+    mask_input,
+    voxel_spacing_input,
+    features,
+    labels,
+    n_bins,
+    bin_width,
+    weighting_norm,
+    slices_2d,          
+    keep_largest_only,  
+    get_raw_matrices,   
+    verbose             
+    )::NamedTuple{
+        (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :slices_2d, :keep_largest_only, :get_raw_matrices, :verbose),
+        Tuple{
+            Union{Array{Float64,2}, Array{Float64,3}},
+            Union{Array{Int,2}, Array{Int,3}},
+            Vector{Float64},
+            Vector{Symbol},
+            Union{Int, Vector{Int}},
+            Union{Nothing, Int},
+            Union{Nothing, Float64},
+            Union{Nothing, String}, 
+            Union{Nothing, Vector{Tuple{Int,Int}}},
+            Bool,                                     
+            Bool,                                     
+            Bool                                      
+        }
+    }
+
+    # --- Perpare input ---
+    #For img
+    # 2D input: convert to 2D Float64 array
+    img::Union{Array{Float64,2}, Array{Float64,3}} = if ndims(img_input) == 2
+        convert(Array{Float64,2}, img_input)
+    # 3D input: convert to 3D Float64 array
     elseif ndims(img_input) == 3
-        # 3D input: convert to 3D Float64 array
-        img = convert(Array{Float64,3}, img_input)   
-        mask = convert(Array{Int,3}, mask_input)
+        convert(Array{Float64,3}, img_input)
     else
         throw(ArgumentError("Input image must be 2D or 3D, got $(ndims(img_input))D"))
     end
 
-    voxel_spacing = convert(Vector{Float64}, voxel_spacing_input)
-    return img, mask, voxel_spacing
+    # For Mask
+    # 2D input: convert to 2D Float64 array
+    mask::Union{Array{Int,2}, Array{Int,3}} = if ndims(mask_input) == 2
+        convert(Array{Int,2}, mask_input)
+    # 3D input: convert to 3D Float64 array
+    elseif ndims(mask_input) == 3
+        convert(Array{Int,3}, mask_input)
+    else
+        throw(ArgumentError("Input mask must be 2D or 3D, got $(ndims(mask_input))D"))
+    end
+
+    #Conversion of mask & img and control of Sanity Check
+    if verbose
+        println("Running Conversion completed. Starting Sanity check...")
+    end
+
+    #Sanity Check
+    if size(img) != size(mask)
+         throw(ArgumentError("img and mask have different size!"))
+    end
+
+    # Convert spacing (supports any numeric vector/list)
+    spacing::Vector{Float64} = Float64[Float64(s) for s in voxel_spacing_input]
+    if length(spacing) > 3
+        throw(ArgumentError("voxel_spacing_input is too long! It should have 2 or 3 elements."))
+    elseif length(spacing) < 2
+        throw(ArgumentError("voxel_spacing_input is too short! It should have 2 or 3 elements."))
+    end
+
+    # Convert features (supports String, Vector{String}, Symbol, Vector{Symbol})
+    features_out::Vector{Symbol} = if features isa String
+        lowercase(features) == "all" ? Symbol[] : [Symbol(lowercase(features))]
+    elseif features isa AbstractVector && !isempty(features) && eltype(features) <: AbstractString
+        Symbol[Symbol(lowercase(string(f))) for f in features]
+    elseif features isa AbstractVector && !isempty(features) && !(eltype(features) <: Symbol)
+        Symbol[Symbol(lowercase(string(f))) for f in features]
+    else
+        Vector{Symbol}(features)
+    end
+
+    # Convert labels (supports Int, Vector{Int})
+    labels_out::Union{Int,Vector{Int}} = if labels isa AbstractVector
+        Int[Int(l) for l in labels]
+    elseif !isnothing(labels) && !(labels isa Int)
+        Int(labels)
+    elseif isnothing(labels)
+        Int(1)
+    else
+        Int(labels)
+    end
+
+    # Convert n_bins 
+    n_bins_out::Union{Nothing,Int} = isnothing(n_bins) ? nothing : Int(n_bins)
+
+    # Convert bin_width
+    bin_width_out::Union{Nothing,Float64} = isnothing(bin_width) ? nothing : Float64(bin_width)
+
+    # Convert weighting_norm
+    weighting_norm_out::Union{Nothing,String} = isnothing(weighting_norm) ? nothing : String(weighting_norm)
+
+    #Convert slices_2d
+    slices_2d_out::Union{Nothing, Vector{Tuple{Int,Int}}} = if isnothing(slices_2d)
+        nothing
+    else
+        Tuple{Int,Int}[(Int(s[1]), Int(s[2])) for s in slices_2d]
+    end
+
+    return (
+        img            = img,
+        mask           = mask,
+        spacing        = spacing,
+        features       = features_out,
+        labels         = labels_out,
+        n_bins         = n_bins_out,
+        bin_width      = bin_width_out,
+        weighting_norm = weighting_norm_out,
+        slices_2d      = slices_2d_out,
+        keep_largest_only = Bool(keep_largest_only),
+        get_raw_matrices  = Bool(get_raw_matrices),
+        verbose           = Bool(verbose)
+    )
 end
 
 """

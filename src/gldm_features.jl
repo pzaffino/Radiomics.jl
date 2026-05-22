@@ -55,11 +55,6 @@ function get_gldm_features(img::AbstractArray{Float64},
 
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
-    if verbose
-        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Effective Gray level utilized: $(n_bins_actual)")
-    end
-
     P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
 
     if get_raw_matrices

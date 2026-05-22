@@ -54,11 +54,6 @@ function get_ngtdm_features(img::AbstractArray{Float64},
     # 1. Discretize the image
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
-    if verbose
-        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Effective gray level: $(n_bins_actual)")
-    end
-
     # 2. Calculate the NGTDM matrix
     P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, verbose)
 

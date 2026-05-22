@@ -54,11 +54,6 @@ function get_glszm_features(img::AbstractArray{Float64},
     # 1. Discretize the image
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
-    if verbose
-        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Effective Gray level utilized: $(n_bins_actual)")
-    end
-
     # 2. Calculate the GLSZM matrix
     P_glszm, gray_levels = calculate_glszm_matrix(discretized_img, mask, verbose)
 

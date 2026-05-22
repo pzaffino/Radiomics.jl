@@ -55,126 +55,94 @@ include("diagnostic_features.jl")
     - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
 """
 function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
-    features::Vector{Symbol}=Symbol[],
-    labels::Union{Nothing,Int,Vector{Int}}=nothing,
-    n_bins::Union{Nothing,Int}=nothing,
-    bin_width::Union{Nothing,Float64}=nothing,
-    weighting_norm::Union{Nothing,String}=nothing,
+    features=Symbol[],
+    labels=nothing,
+    n_bins=nothing,
+    bin_width=nothing,
+    weighting_norm=nothing,
     keep_largest_only::Bool=true,
     get_raw_matrices::Bool=false,
     slices_2d=nothing,
     verbose::Bool=false)::Union{Dict{String,Any}, Dict{Int,Dict{String,Any}}, Dict{Tuple{Int,Int},Any}}
 
-    # Convert parameters to correct types
-    bin_width = isnothing(bin_width) ? nothing : Float64(bin_width)
-    
-    # Convert features (supports String, Vector{String}, Symbol, Vector{Symbol})
-    if features isa String
-        features = lowercase(features) == "all" ? Symbol[] : [Symbol(lowercase(features))]
-    elseif features isa AbstractVector && !isempty(features) && eltype(features) <: AbstractString
-        features = Symbol[Symbol(lowercase(string(f))) for f in features]
-    elseif features isa AbstractVector && !isempty(features) && !(eltype(features) <: Symbol)
-        # Handle case where features might be a mix or other types
-        features = Symbol[Symbol(lowercase(string(f))) for f in features]
-    end
-    
-    # Convert labels (supports Int, Vector{Int})
-    if labels isa AbstractVector
-        labels = Int[Int(l) for l in labels]
-    elseif !isnothing(labels) && !(labels isa Int)
-        labels = Int(labels)
-    elseif isnothing(labels) # No label given, default is 1
-        labels = Int(1)
-    end
-    
-    # Convert spacing (supports any numeric vector/list)
-    voxel_spacing_input = Float64[Float64(s) for s in voxel_spacing_input]
-    
-    if length(voxel_spacing_input) > 3
-        throw(ArgumentError("voxel_spacing_input is too long! It should have 2 or 3 elements."))
-    elseif length(voxel_spacing_input) < 2
-        throw(ArgumentError("voxel_spacing_input is too short! It should have 2 or 3 elements."))
-    end
-    
-    # Convert n_bins if provided
-    if !isnothing(n_bins)
-        n_bins = Int(n_bins)
-    end
-    
-    # Convert weighting_norm if provided
-    if !isnothing(weighting_norm)
-        weighting_norm = String(weighting_norm)
-    end
+    # Cast all inputs to correct types
+    p = _cast_inputs(
+        img_input,
+        mask_input,
+        voxel_spacing_input,
+        features,
+        labels,
+        n_bins,
+        bin_width,
+        weighting_norm,
+        slices_2d,
+        keep_largest_only,
+        get_raw_matrices,
+        verbose  
+    )
 
-    compute_all = isempty(features) || :all in features
-
-    img_input, mask_input, voxel_spacing_input = prepare_inputs(img_input, mask_input, voxel_spacing_input)
+    compute_all = isempty(p.features) || :all in p.features
 
     # Management slices_2d
-    if !isnothing(slices_2d)
+    if !isnothing(p.slices_2d)
         results_2d = Dict{Tuple{Int,Int}, Any}()
-        dict_lock = ReentrantLock()
+        dict_lock  = ReentrantLock()
 
-        Threads.@threads for i in eachindex(slices_2d)
-            plan, slice_idx = slices_2d[i]
-            
-            if verbose
-                lock(dict_lock) do 
+        Threads.@threads for i in eachindex(p.slices_2d)
+            plan, slice_idx = p.slices_2d[i]
+
+            if p.verbose
+                lock(dict_lock) do
                     println("Extracting 2D slice: Plane=$plan, slice=$slice_idx")
                 end
             end
-            
-            # Use @view to avoid unnecessary memory allocations
+
             img_slice = if plan == 1
-                @view img_input[slice_idx, :, :]
+                @view p.img[slice_idx, :, :]
             elseif plan == 2
-                @view img_input[:, slice_idx, :]
+                @view p.img[:, slice_idx, :]
             elseif plan == 3
-                @view img_input[:, :, slice_idx]
+                @view p.img[:, :, slice_idx]
             else
                 error("Invalid plane: $plan. Must be 1, 2, or 3")
             end
-            
+
             mask_slice = if plan == 1
-                @view mask_input[slice_idx, :, :]
+                @view p.mask[slice_idx, :, :]
             elseif plan == 2
-                @view mask_input[:, slice_idx, :]
+                @view p.mask[:, slice_idx, :]
             elseif plan == 3
-                @view mask_input[:, :, slice_idx]
+                @view p.mask[:, :, slice_idx]
             else
                 error("Invalid plane: $plan. Must be 1, 2, or 3")
             end
-            
-            # 2D spacing calculation
+
             spacing_2d = if plan == 1
-                [voxel_spacing_input[2], voxel_spacing_input[3], voxel_spacing_input[1]]  # y, z, (x)
+                [p.spacing[2], p.spacing[3], p.spacing[1]]
             elseif plan == 2
-                [voxel_spacing_input[1], voxel_spacing_input[3], voxel_spacing_input[2]]  # x, z, (y)
-            elseif plan == 3 
-                [voxel_spacing_input[1], voxel_spacing_input[2], voxel_spacing_input[3]]  # x, y, (z)
+                [p.spacing[1], p.spacing[3], p.spacing[2]]
+            elseif plan == 3
+                [p.spacing[1], p.spacing[2], p.spacing[3]]
             end
-            
-            # Call the main function passing the light views
+
             result = extract_radiomic_features(
                 img_slice, mask_slice, spacing_2d;
-                features=features,
-                labels=labels,
-                n_bins=n_bins,
-                bin_width=bin_width,
-                weighting_norm=weighting_norm,
-                keep_largest_only=keep_largest_only,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
+                features          = p.features,
+                labels            = p.labels,
+                n_bins            = p.n_bins,
+                bin_width         = p.bin_width,
+                weighting_norm    = p.weighting_norm,
+                keep_largest_only = p.keep_largest_only,
+                get_raw_matrices  = p.get_raw_matrices,
+                verbose           = p.verbose
             )
-            
-            # Thread-safe saving
+
             lock(dict_lock) do
                 results_2d[(plan, slice_idx)] = result
             end
         end
 
-        # Final return
-        if length(slices_2d) == 1
+        if length(p.slices_2d) == 1
             key = first(keys(results_2d))
             return results_2d[key]
         else
@@ -183,29 +151,23 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     # Handle multi-label processing
-    if labels isa Vector{Int}
-        if verbose
-            println("Processing multiple labels: ", labels)
+    if p.labels isa Vector{Int}
+        if p.verbose
+            println("Processing multiple labels: ", p.labels)
             println("Active threads: ", Threads.nthreads())
         end
-        
-        results = Dict{Int, Dict{String,Any}}()
+
+        results        = Dict{Int, Dict{String,Any}}()
         skipped_labels = Int[]
-        
-        # Create a lock to synchronize access to shared dictionaries
-        results_lock = ReentrantLock()
-        
-        # Parallelize label processing with log buffering
-        tasks = map(labels) do label
+        results_lock   = ReentrantLock()
+
+        tasks = map(p.labels) do label
             Threads.@spawn let label = label
-                # Buffer for logs of this label
                 log_buffer = String[]
-                
+
                 push!(log_buffer, "\n=== Processing LABEL $label ===")
-                
-                # Create binary mask for the current label
-                local mask_to_use, voxel_count = extract_and_check_mask(mask_input, label)
-                # Check if label exists
+
+                local mask_to_use, voxel_count = extract_and_check_mask(p.mask, label)
                 if voxel_count == 0
                     lock(results_lock) do
                         push!(skipped_labels, label)
@@ -216,69 +178,68 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 push!(log_buffer, "Label $label contains $voxel_count voxels")
                 push!(log_buffer, "Applying bounding box to Label $label...")
                 local img_to_use
-                img_to_use, mask_to_use = bounding_box(img_input, mask_to_use, verbose; log_buffer=log_buffer)
-                
+                img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; log_buffer=log_buffer)
+
                 if compute_all
                     push!(log_buffer, "Computing ALL features")
                 else
-                    push!(log_buffer, "Computing selected features: $(join(string.(features), ", "))")
+                    push!(log_buffer, "Computing selected features: $(join(string.(p.features), ", "))")
                 end
-                if !isnothing(n_bins)
-                    push!(log_buffer, "Using n_bins = $n_bins")
+                if !isnothing(p.n_bins)
+                    push!(log_buffer, "Using n_bins = $(p.n_bins)")
                 else
-                    push!(log_buffer, "Using bin_width = $bin_width")
+                    push!(log_buffer, "Using bin_width = $(p.bin_width)")
                 end
-                if keep_largest_only
+                if p.keep_largest_only
                     push!(log_buffer, "keep_largest_only = true (will be applied to selected label)")
                 end
-                
+
                 try
-                    total_start_time = time()
-                    total_time_accumulated = 0.0 
+                    total_start_time       = time()
+                    total_time_accumulated = 0.0
 
-                    # Compute radiomic features passing the log_buffer
                     radiomic_features, time_acc = _compute_radiomics_impl(
-                        img_to_use, mask_to_use, voxel_spacing_input, voxel_count;
-                        n_bins=n_bins,
-                        bin_width=bin_width,
-                        weighting_norm=weighting_norm,
-                        verbose=verbose,
-                        keep_largest_only=keep_largest_only,
-                        compute_all=compute_all,
-                        features=features,
-                        get_raw_matrices=get_raw_matrices,
-                        log_buffer=log_buffer
+                        img_to_use, mask_to_use, p.spacing, voxel_count;
+                        n_bins            = p.n_bins,
+                        bin_width         = p.bin_width,
+                        weighting_norm    = p.weighting_norm,
+                        verbose           = p.verbose,
+                        keep_largest_only = p.keep_largest_only,
+                        compute_all       = compute_all,
+                        features          = p.features,
+                        get_raw_matrices  = p.get_raw_matrices,
+                        log_buffer        = log_buffer
                     )
-                    
-                    total_time_accumulated += time_acc
-                    total_time_real = time() - total_start_time
 
-                    # Add summary to buffer
+                    total_time_accumulated += time_acc
+                    total_time_real         = time() - total_start_time
+
                     push!(log_buffer, "\n--- Label $label Summary ---")
                     push!(log_buffer, "Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
                     push!(log_buffer, "Real time (end-to-end): $(total_time_real) sec")
                     push!(log_buffer, "Overhead: $(total_time_real - total_time_accumulated) sec")
-                    
-                    diagnosis_features = get_diagnosis_features(bin_width, voxel_spacing_input, total_time_real, 
-                                            weighting_norm, n_bins, keep_largest_only,
-                                            img_input, img_to_use, mask_input, mask_to_use)
+
+                    diagnosis_features = get_diagnosis_features(
+                        p.bin_width, p.spacing, total_time_real,
+                        p.weighting_norm, p.n_bins, p.keep_largest_only,
+                        p.img, img_to_use, p.mask, mask_to_use
+                    )
                     merge!(radiomic_features, diagnosis_features)
-                    
-                    # Print diagnosis features to buffer
+
                     print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
-                    
+
                     push!(log_buffer, "Total features extracted: $(length(radiomic_features))")
                     push!(log_buffer, "Features extraction completed for LABEL $label")
 
-                    # Add label identifier
                     radiomic_features["label_id"] = label
-                    
+
                     return (label, radiomic_features, log_buffer)
-                    
+
                 catch e
                     error_msg = "Error processing label $label: $e"
                     push!(log_buffer, error_msg)
                     @warn error_msg
+                    @warn sprint(showerror, e, catch_backtrace())
                     lock(results_lock) do
                         push!(skipped_labels, label)
                     end
@@ -286,119 +247,107 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 end
             end
         end
-        
-        # Collect results from tasks and print in order
+
         for task in tasks
             result = fetch(task)
             if !isnothing(result)
                 label, features_dict, logs = result
-                
-                # Print logs in order
-                if verbose
+
+                if p.verbose
                     for line in logs
                         println(line)
                     end
                 end
-                
-                # Save results if processing was successful
+
                 if !isnothing(features_dict)
                     results[label] = features_dict
                 end
             end
         end
-        
-        if verbose
+
+        if p.verbose
             println("\n======================")
             println("Multi-label processing completed")
-            println("Labels requested: ", labels)
+            println("Labels requested: ", p.labels)
             println("Labels successfully processed: ", sort(collect(keys(results))))
             if !isempty(skipped_labels)
                 println("Labels skipped (not found or error): ", sort(skipped_labels))
             end
             println("======================")
         end
-        
+
         return results
     end
 
-    # Single label or default processing
-    if labels isa Int # Explicit single label specified by user or the default value (1)
-        label = labels
-        if verbose
-            println("Extracting LABEL $labels")
-        end
-    end
-        
-    mask_to_use, voxel_count = extract_and_check_mask(mask_input, label)
+    mask_to_use, voxel_count = extract_and_check_mask(p.mask, p.labels)
     if voxel_count == 0
-        error("Label $label not found in mask (no voxels with this value)")
-    end
-        
-    if verbose
-        println("Label $label contains $voxel_count voxels")
+        error("Label $(p.labels) not found in mask (no voxels with this value)")
     end
 
-    img_to_use, mask_to_use = bounding_box(img_input, mask_to_use, verbose)
-        
-    total_start_time = time()
-    total_time_accumulated = 0.0 
+    if p.verbose
+        println("Label $(p.labels) contains $voxel_count voxels")
+    end
 
-    if verbose
+    img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose)
+
+    total_start_time       = time()
+    total_time_accumulated = 0.0
+
+    if p.verbose
         println("Active threads: ", Threads.nthreads())
         println("Extracting radiomic features...")
-        println("Processing LABEL: $label")
+        println("Processing LABEL: $(p.labels)")
         if compute_all
             println("Computing ALL features")
         else
-            println("Computing selected features: ", join(string.(features), ", "))
+            println("Computing selected features: ", join(string.(p.features), ", "))
         end
-        if !isnothing(n_bins)
-            println("Using n_bins = $n_bins")
-        elseif !isnothing(bin_width)
-            println("Using bin_width = $bin_width")
+        if !isnothing(p.n_bins)
+            println("Using n_bins = $(p.n_bins)")
+        elseif !isnothing(p.bin_width)
+            println("Using bin_width = $(p.bin_width)")
         else
             println("Using default bin width: 25.0")
         end
-        if keep_largest_only
+        if p.keep_largest_only
             println("keep_largest_only = true (will be applied to selected label)")
         end
     end
 
-    # Compute radiomic features using the internal implementation
-    # Do NOT pass log_buffer here (uses default =nothing for direct printing)
     radiomic_features, time_acc = _compute_radiomics_impl(
-        img_to_use, mask_to_use, voxel_spacing_input, voxel_count;
-        n_bins=n_bins,
-        bin_width=bin_width,
-        weighting_norm=weighting_norm,
-        verbose=verbose,
-        keep_largest_only=keep_largest_only,
-        compute_all=compute_all,
-        features=features,
-        get_raw_matrices=get_raw_matrices
+        img_to_use, mask_to_use, p.spacing, voxel_count;
+        n_bins            = p.n_bins,
+        bin_width         = p.bin_width,
+        weighting_norm    = p.weighting_norm,
+        verbose           = p.verbose,
+        keep_largest_only = p.keep_largest_only,
+        compute_all       = compute_all,
+        features          = p.features,
+        get_raw_matrices  = p.get_raw_matrices
     )
-    
-    total_time_accumulated += time_acc
-    total_time_real = time() - total_start_time
 
-    if verbose
+    total_time_accumulated += time_acc
+    total_time_real         = time() - total_start_time
+
+    if p.verbose
         println("\n======================")
         println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
         println("Real time (end-to-end): $(total_time_real) sec")
         println("Overhead: $(total_time_real - total_time_accumulated) sec")
-        diagnosis_features = get_diagnosis_features(bin_width, voxel_spacing_input, total_time_real, 
-                                                    weighting_norm, n_bins, keep_largest_only,
-                                                    img_input, img_to_use, mask_input, mask_to_use)
+        diagnosis_features = get_diagnosis_features(
+            p.bin_width, p.spacing, total_time_real,
+            p.weighting_norm, p.n_bins, p.keep_largest_only,
+            p.img, img_to_use, p.mask, mask_to_use
+        )
         merge!(radiomic_features, diagnosis_features)
         print_features_diagnosis("Diagnosis Features", diagnosis_features)
         println("---------------------")
         println("Total features extracted: $(length(radiomic_features))")
-        println("Features extraction completed for LABEL $label")
+        println("Features extraction completed for LABEL $(p.labels)")
         println("======================")
     end
 
-    # Add label identifier
-    radiomic_features["label_id"] = label
+    radiomic_features["label_id"] = p.labels
 
     return radiomic_features
 end
@@ -451,9 +400,6 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             push!(log_buffer, msg)
         end
     end
-    
-    # Sanity check
-    input_sanity_check(img, mask, verbose)
 
     # Validate binning parameters
     if isnothing(n_bins) && !isnothing(bin_width) && voxel_count > 0
@@ -729,6 +675,17 @@ end
     mask_small = zeros(Float64, 10, 10, 10)
     mask_small[3:7, 3:7, 3:7] .= 1.0
 
+    # Small 2D synthetic data for precompilation warmup
+    img_small_2d  = Float64.(reshape(1:100, 10, 10))
+    mask_small_2d = zeros(Float64, 10, 10)
+    mask_small_2d[3:7, 3:7] .= 1.0
+
+    # 2D mask multi-label
+    img_small_2d_multi = Float64.(reshape(1:100, 10, 10))
+    mask_small_2d_multi = zeros(Float64, 10, 10)
+    mask_small_2d_multi[3:7, 3:7] .= 1.0
+    mask_small_2d_multi[6:8, 6:8] .= 2.0
+    
     # Multi-label mask
     mask_multi = zeros(Float64, 10, 10, 10)
     mask_multi[2:4, 2:4, 2:4] .= 1.0
@@ -736,7 +693,29 @@ end
 
     spacing = [1.0, 1.0, 1.0]
 
-    @compile_workload begin
+    @compile_workload begin        
+        # 2D
+        extract_radiomic_features(
+            img_small_2d, mask_small_2d, spacing;
+            keep_largest_only = true,
+            verbose           = false
+        )
+
+        # 2D mask multi-label
+        extract_radiomic_features(
+            img_small_2d_multi, mask_small_2d_multi, spacing;
+            keep_largest_only = false,
+            verbose           = false
+        )
+
+        #2D label
+        extract_radiomic_features(
+            img_small_2d_multi, mask_small_2d_multi, spacing;
+            keep_largest_only = false,
+            labels            = [1,2],
+            verbose           = false
+        )
+        
         # --- Default bin_width ---
         extract_radiomic_features(
             img_small, mask_small, spacing;

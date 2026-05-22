@@ -32,11 +32,6 @@ function get_glrlm_features(img::AbstractArray{Float64},
     # Assuming discretize_image is defined in utils.jl or globally available within the module
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
-    if verbose
-        println("Intensity Range: [$(minimum(img[mask])), $(maximum(img[mask]))]")
-        println("Effective Gray level utilized: $(n_bins_actual)")
-    end
-
     P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, verbose)
 
     if get_raw_matrices
