@@ -378,7 +378,7 @@ end
     # Returns:
     - Tuple of (radiomic_features::Dict, total_time_accumulated::Float64)
 """
-function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
+function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spacing::Vector{Float64}, voxel_count::Int;
     n_bins::Union{Nothing,Int}=nothing,
     bin_width::Union{Nothing,Float64}=nothing,
     weighting_norm::Union{Nothing,String}=nothing,
@@ -405,6 +405,16 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     if isnothing(n_bins) && !isnothing(bin_width) && voxel_count > 0
         validate_binning_parameters(img, mask, bin_width)
     end
+
+    #Initialize task with nothing
+    t_glcm_features = nothing
+    t_first_order_features = nothing
+    t_glszm_features = nothing
+    t_ngtdm_features = nothing
+    t_glrlm_features = nothing
+    t_gldm_features = nothing
+    t_shape3d_features = nothing
+    t_shape2d_features = nothing
 
     # GLCM features
     if compute_all || :glcm in features
@@ -521,7 +531,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
 
     # First Order features
-    if compute_all || :first_order in features
+    if !isnothing(t_first_order_features)
         first_order_dict, first_order_time = fetch(t_first_order_features)::Tuple{Dict{String,Any}, Float64}
         merge!(radiomic_features, first_order_dict)
         total_time_accumulated += first_order_time
@@ -532,7 +542,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
 
     # GLCM features
-    if compute_all || :glcm in features
+    if !isnothing(t_glcm_features)
         glcm_dict, glcm_time = fetch(t_glcm_features)::Tuple{Dict{String,Any}, Float64}
         merge!(radiomic_features, glcm_dict)
         total_time_accumulated += glcm_time
@@ -545,7 +555,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
         
     # GLSZM features
-    if compute_all || :glszm in features
+    if !isnothing(t_glszm_features)
         glszm_dict, glszm_time = fetch(t_glszm_features)::Tuple{Dict{String,Any}, Float64}
         merge!(radiomic_features, glszm_dict)
         total_time_accumulated += glszm_time
@@ -558,7 +568,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
 
     # NGTDM features
-    if compute_all || :ngtdm in features
+    if !isnothing(t_ngtdm_features)
         ngtdm_dict, ngtdm_time = fetch(t_ngtdm_features)::Tuple{Dict{String,Any}, Float64}
         merge!(radiomic_features, ngtdm_dict)
         total_time_accumulated += ngtdm_time
@@ -571,7 +581,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
 
     # GLRLM features
-    if compute_all || :glrlm in features
+    if !isnothing(t_glrlm_features)
         glrlm_dict, glrlm_time = fetch(t_glrlm_features)::Tuple{Dict{String,Any}, Float64}
         merge!(radiomic_features, glrlm_dict)
         total_time_accumulated += glrlm_time
@@ -584,7 +594,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     end
 
     # GLDM features
-    if compute_all || :gldm in features
+    if !isnothing(t_gldm_features)
         gldm_dict, gldm_time = fetch(t_gldm_features)::Tuple{Dict{String,Any}, Float64}
         merge!(radiomic_features, gldm_dict)
         total_time_accumulated += gldm_time
@@ -598,7 +608,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
 
     # 3D shape features
     if ndims(mask) == 3
-        if compute_all || :shape3d in features
+        if !isnothing(t_shape3d_features)
             shape3d_dict, shape3d_time = fetch(t_shape3d_features)::Tuple{Dict{String,Any}, Float64}
             merge!(radiomic_features, shape3d_dict)
             total_time_accumulated += shape3d_time
@@ -611,7 +621,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
 
     # 2D shape features
     if ndims(mask) == 2
-        if compute_all || :shape2d in features
+        if !isnothing(t_shape2d_features)
             shape2d_dict, shape2d_time = fetch(t_shape2d_features)::Tuple{Dict{String,Any}, Float64}
             merge!(radiomic_features, shape2d_dict)
             total_time_accumulated += shape2d_time
