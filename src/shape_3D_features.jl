@@ -52,8 +52,8 @@ function marching_cubes_surface(mask::BitArray{3},
                                  spacing::Vector{Float64},
                                  isolevel::Float64=0.5)::Vector{Triangle3D}
     nx, ny, nz = size(mask)
-    triangles  = Vector{Triangle3D}()
-    sizehint!(triangles, count(mask) * 2)
+    triangles    = Vector{Triangle3D}()
+    sizehint!(triangles,   count(mask) * 2)
 
     @inbounds for z in 1:nz-1, y in 1:ny-1, x in 1:nx-1
 
@@ -78,25 +78,17 @@ function marching_cubes_surface(mask::BitArray{3},
 
         (cubeindex == 0 || cubeindex == 255) && continue
 
-        # Lookup table
-        edges_seq = casesClassic[cubeindex + 1]
-
-        # Physical coordinates
         sx, sy, sz = spacing[1], spacing[2], spacing[3]
         x0, x1 = (x-1)*sx, x*sx
         y0, y1 = (y-1)*sy, y*sy
         z0, z1 = (z-1)*sz, z*sz
 
-        p0 = (x0, y0, z0)
-        p1 = (x1, y0, z0)
-        p2 = (x1, y1, z0)
-        p3 = (x0, y1, z0)
-        p4 = (x0, y0, z1)
-        p5 = (x1, y0, z1)
-        p6 = (x1, y1, z1)
-        p7 = (x0, y1, z1)
+        p0 = (x0, y0, z0); p1 = (x1, y0, z0)
+        p2 = (x1, y1, z0); p3 = (x0, y1, z0)
+        p4 = (x0, y0, z1); p5 = (x1, y0, z1)
+        p6 = (x1, y1, z1); p7 = (x0, y1, z1)
 
-        # Triangles generation
+        edges_seq = casesClassic[cubeindex + 1]
         i = 1
         while i + 2 <= length(edges_seq)
             edges_seq[i] == -1 && break
@@ -111,6 +103,31 @@ function marching_cubes_surface(mask::BitArray{3},
         end
     end
     return triangles
+end
+"""
+    This Function provide to extract the 2d diameter from the vertices
+"""
+function maximum_2d_diameters_from_vertices(verts::Vector{Point3D})::NTuple{3, Float64}
+    n = length(verts)
+    n < 2 && return (0.0, 0.0, 0.0)
+
+    d_slice  = 0.0
+    d_row    = 0.0
+    d_column = 0.0
+
+    @inbounds for i in 1:n-1
+        a = verts[i]
+        for j in i+1:n
+            b = verts[j]
+            dx = a[1]-b[1]; dy = a[2]-b[2]; dz = a[3]-b[3]
+            dist2 = dx*dx + dy*dy + dz*dz
+            a[3] == b[3] && dist2 > d_slice  && (d_slice  = dist2)
+            a[2] == b[2] && dist2 > d_row    && (d_row    = dist2)
+            a[1] == b[1] && dist2 > d_column && (d_column = dist2)
+        end
+    end
+
+    return sqrt(d_slice), sqrt(d_row), sqrt(d_column)
 end
 """
     This function is used to calculate the surface area and volume of a mesh.
@@ -348,10 +365,23 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
         maximum_3d_diameter(triangles)
     end
 
+    task_diam2d = Threads.@spawn begin
+        verbose && println("[Thread 4] Calculating 2D diameters from mesh...")
+        all_verts = Vector{Point3D}(undef, length(triangles) * 3)
+        k = 1
+        for (a, b, c) in triangles
+            all_verts[k] = a; all_verts[k+1] = b; all_verts[k+2] = c
+            k += 3
+        end
+        unique!(all_verts)
+        maximum_2d_diameters_from_vertices(all_verts)
+    end
+
     vol_voxel                          = voxel_volume(processed_mask, spacing)
     axes_lengths, elongation, flatness = fetch(task_axes)
     area, meshvol, vol_ratio, sph      = fetch(task_geom)
     maxdiam                            = fetch(task_diam)
+    diam_slice, diam_column, diam_row = fetch(task_diam2d)
 
     shape_3d_features = Dict{String, Any}()
 
@@ -370,6 +400,10 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
 
     shape_3d_features["shape3d_voxel_volume"]         = vol_voxel
     shape_3d_features["shape3d_number_of_islands"]    = Int32(num_islands)
+
+    shape_3d_features["shape3d_maximum_2d_diameter_slice"]  = diam_slice
+    shape_3d_features["shape3d_maximum_2d_diameter_row"]    = diam_row
+    shape_3d_features["shape3d_maximum_2d_diameter_column"] = diam_column
 
     return shape_3d_features
 end
