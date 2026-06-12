@@ -435,6 +435,7 @@ function get_glcm_features(img::AbstractArray{Float64},
                             n_bins::Union{Int,Nothing}=nothing,
                             bin_width::Union{Float64,Nothing}=nothing,
                             weighting_norm::Union{String,Nothing}=nothing,
+                            features_std::Bool=false,
                             get_raw_matrices::Bool=false,
                             verbose::Bool=false)::Dict{String,Any}
 
@@ -463,22 +464,42 @@ function get_glcm_features(img::AbstractArray{Float64},
     inv_n = 1.0 / Float64(n_matrices)
     
     final_features = Dict{String, Any}()
-
+    sums_sq = Dict{String, Float64}()
+    mins    = Dict{String, Float64}()
+    maxs    = Dict{String, Float64}()
 
     f1 = extract_glcm_features(glcm_matrices[1], gray_levels)
     for (name, val) in f1
         final_features[name] = val
+        if features_std
+            sums_sq[name] = val^2
+            mins[name] = val
+            maxs[name] = val
+        end
     end
 
     @inbounds for k in 2:n_matrices
         f = extract_glcm_features(glcm_matrices[k], gray_levels)
         for (name, val) in f
             final_features[name] += val
+            if features_std
+                sums_sq[name] += val^2
+                if val < mins[name]; mins[name] = val; end
+                if val > maxs[name]; maxs[name] = val; end
+            end
         end
     end
 
-    for (name, val) in final_features
-        final_features[name] = val * inv_n
+    for name in collect(keys(final_features))
+        mean_val = final_features[name] * inv_n
+        final_features[name] = mean_val
+
+        if features_std
+            variance = max(sums_sq[name] * inv_n - mean_val^2, 0.0)
+            final_features[name*"_std"] = sqrt(variance)
+            final_features[name*"_min"] = mins[name]
+            final_features[name*"_max"] = maxs[name]
+        end
     end
 
     verbose && println("Completed! Extracted $(length(final_features)) features.")

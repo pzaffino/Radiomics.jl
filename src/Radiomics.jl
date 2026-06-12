@@ -62,6 +62,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     weighting_norm=nothing,
     keep_largest_only::Bool=true,
     get_raw_matrices::Bool=false,
+    features_std::Bool=false,
     slices_2d=nothing,
     verbose::Bool=false)::Union{Dict{String,Any}, Dict{Int,Dict{String,Any}}, Dict{Tuple{Int,Int},Any}}
 
@@ -75,6 +76,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         n_bins,
         bin_width,
         weighting_norm,
+        features_std,
         slices_2d,
         keep_largest_only,
         get_raw_matrices,
@@ -132,6 +134,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 n_bins            = p.n_bins,
                 bin_width         = p.bin_width,
                 weighting_norm    = p.weighting_norm,
+                features_std      = p.features_std,
                 keep_largest_only = p.keep_largest_only,
                 get_raw_matrices  = p.get_raw_matrices,
                 verbose           = p.verbose
@@ -206,6 +209,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         verbose           = p.verbose,
                         keep_largest_only = p.keep_largest_only,
                         compute_all       = compute_all,
+                        features_std      = p.features_std,
                         features          = p.features,
                         get_raw_matrices  = p.get_raw_matrices,
                         log_buffer        = log_buffer
@@ -321,6 +325,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         weighting_norm    = p.weighting_norm,
         verbose           = p.verbose,
         keep_largest_only = p.keep_largest_only,
+        features_std      = p.features_std,
         compute_all       = compute_all,
         features          = p.features,
         get_raw_matrices  = p.get_raw_matrices
@@ -385,6 +390,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     verbose::Bool=false,
     keep_largest_only::Bool=true,
     compute_all::Bool=true,
+    features_std::Bool=false,
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
     log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any}, Float64}
@@ -424,6 +430,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
                 n_bins=n_bins,
                 bin_width=bin_width,
                 weighting_norm=weighting_norm,
+                features_std=features_std,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
             )
@@ -479,6 +486,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
                 img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width,
+                features_std=features_std,
                 weighting_norm=weighting_norm,
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
@@ -783,6 +791,15 @@ end
         extract_radiomic_features(
             img_small, mask_small, spacing;
             keep_largest_only = true,
+            verbose           = false
+        )
+
+        # --- features_std = true ---
+        extract_radiomic_features(
+            img_small, mask_small, spacing;
+            features          = [:glrlm],
+            features_std      = true,
+            keep_largest_only = false,
             verbose           = false
         )
 

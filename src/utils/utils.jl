@@ -323,11 +323,29 @@ function print_features(title::String,
     output = String[]
     
     push!(output, "\n--- $title ---")
-    sorted_keys = sort(collect(keys(features)))
-    for (i, k) in enumerate(sorted_keys)
-        push!(output, "  $i. $(rpad(k, 35)) => $(features[k])")
+    
+    base_keys = sort([k for k in keys(features) 
+                       if !endswith(k, "_std") && !endswith(k, "_min") && !endswith(k, "_max")])
+    
+    for (i, k) in enumerate(base_keys)
+        val = features[k]
+        std_key = k * "_std"
+        min_key = k * "_min"
+        max_key = k * "_max"
+        
+        padded_key = rpad(k, 42)
+        
+        if haskey(features, std_key)
+            std_val = features[std_key]
+            min_val = features[min_key]
+            max_val = features[max_key]
+            push!(output, "  $i. $(padded_key) => $val (std = $std_val, min = $min_val, max = $max_val)")
+        else
+            push!(output, "  $i. $(padded_key) => $val")
+        end
     end
-    push!(output, "Subtotal: $(length(features)) features")
+    
+    push!(output, "Subtotal: $(length(base_keys)) features")
     push!(output, "---------------------\n")
     
     if isnothing(log_buffer)
@@ -360,12 +378,13 @@ function _cast_inputs(
     n_bins,
     bin_width,
     weighting_norm,
+    features_std,
     slices_2d,          
     keep_largest_only,  
     get_raw_matrices,   
     verbose             
     )::NamedTuple{
-        (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :slices_2d, :keep_largest_only, :get_raw_matrices, :verbose),
+        (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :verbose),
         Tuple{
             Union{Array{Float64,2}, Array{Float64,3}},
             Union{Array{Int,2}, Array{Int,3}},
@@ -375,6 +394,7 @@ function _cast_inputs(
             Union{Nothing, Int},
             Union{Nothing, Float64},
             Union{Nothing, String}, 
+            Bool,
             Union{Nothing, Vector{Tuple{Int,Int}}},
             Bool,                                     
             Bool,                                     
@@ -470,6 +490,7 @@ function _cast_inputs(
         n_bins         = n_bins_out,
         bin_width      = bin_width_out,
         weighting_norm = weighting_norm_out,
+        features_std   = Bool(features_std),
         slices_2d      = slices_2d_out,
         keep_largest_only = Bool(keep_largest_only),
         get_raw_matrices  = Bool(get_raw_matrices),
