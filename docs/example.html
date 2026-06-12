@@ -699,6 +699,7 @@ spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pix
 features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-literal">labels=1</span>);</code></pre>
                 </div>
             </div>
+
             <!-- SNIPPET 5 -->
             <div class="section">
                 <h3>Select list of labels</h3>
@@ -723,6 +724,7 @@ features = <span class="julia-type">Radiomics</span>.<span class="julia-function
                     11).
                 </p>
             </div>
+
             <!-- SNIPPET 6 -->
             <div class="section">
                 <h3>Extraction with a specific bin_width </h3>
@@ -744,6 +746,30 @@ spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pix
 features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; features=[:first_order, :glcm], <span class="julia-literal">bin_width=35</span>);</code></pre>
                 </div>
             </div>
+
+            <!-- SNIPPET std -->
+            <div class="section">
+                <h3>Standard Deviation Calculation</h3>
+                <p>The following example shows how to calculate the standard deviation from the extracted texture
+                    features:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-literal">features_std = true</span>);</code></pre>
+                </div>
+            </div>
+
             <!-- SNIPPET 7 -->
             <div class="section">
                 <h3>Extraction with a specific n_bins</h3>
