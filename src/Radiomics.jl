@@ -226,7 +226,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     diagnosis_features = get_diagnosis_features(
                         p.bin_width, p.spacing, total_time_real,
                         p.weighting_norm, p.n_bins, p.keep_largest_only,
-                        p.img, img_to_use, p.mask, mask_to_use
+                        p.img, p.features_std, img_to_use, p.mask, mask_to_use
                     )
                     merge!(radiomic_features, diagnosis_features)
 
@@ -342,7 +342,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         diagnosis_features = get_diagnosis_features(
             p.bin_width, p.spacing, total_time_real,
             p.weighting_norm, p.n_bins, p.keep_largest_only,
-            p.img, img_to_use, p.mask, mask_to_use
+            p.img, p.features_std, img_to_use, p.mask, mask_to_use
         )
         merge!(radiomic_features, diagnosis_features)
         print_features_diagnosis("Diagnosis Features", diagnosis_features)

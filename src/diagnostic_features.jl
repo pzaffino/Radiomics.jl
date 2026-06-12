@@ -41,6 +41,7 @@ function get_diagnosis_features(bin_width::Union{Float64,Nothing},
                                  n_bins::Union{Int,Nothing},
                                  keep_largest_only::Bool,
                                  image_input::AbstractArray,
+                                 features_std::Bool,
                                  img_to_use::AbstractArray,
                                  mask_input::AbstractArray,
                                  mask_to_use::AbstractArray)::Dict{String,Any}
@@ -59,6 +60,7 @@ function get_diagnosis_features(bin_width::Union{Float64,Nothing},
     diagnosis_features["diagnosis_Number_of_bins"] = isnothing(n_bins) ? 32 : n_bins
     diagnosis_features["diagnosis_Weighting_norm"] = isnothing(weighting_norm) ? "no_weighting" : weighting_norm
     diagnosis_features["diagnosis_Keep_largest_only"] = keep_largest_only
+    diagnosis_features["diagnosis_Features_std"] = features_std
     
     # Parameters of the image
     diagnosis_features["diagnosis_Voxel_spacing"] = collect(voxel_spacing)
