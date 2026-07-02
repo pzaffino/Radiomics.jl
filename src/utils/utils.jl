@@ -63,6 +63,25 @@ function bounding_box(img::AbstractArray{Float64},
 end
 
 """
+    squeeze_singleton_dims(img, mask, voxel_spacing)
+
+    If the image/mask is 3D but has a singleton dimension (size 1 along one axis),
+    drops that dimension and returns 2D arrays with adjusted spacing.
+    Otherwise returns the inputs unchanged.
+"""
+function squeeze_singleton_dims(img::AbstractArray{Float64}, mask::BitArray, voxel_spacing::Vector{Float64})::Tuple{AbstractArray{Float64}, BitArray, Vector{Float64}}
+    if ndims(mask) == 3 && any(size(mask) .== 1)
+        squeeze_dim = findfirst(==(1), size(mask))
+        img_out  = dropdims(img,  dims=squeeze_dim)
+        mask_out = dropdims(mask, dims=squeeze_dim)
+        spacing_out = voxel_spacing[setdiff(1:3, squeeze_dim)]
+        return img_out, mask_out, spacing_out
+    else
+        return img, mask, voxel_spacing
+    end
+end
+
+"""
     label_components(mask::AbstractArray{Bool})::Array{Int}
 
     Labels connected components in a binary mask using 26-connectivity for 3D
@@ -83,26 +102,6 @@ function label_components(mask::AbstractArray{Bool})::Array{Int}
     dims = size(mask)
     lin_indices = LinearIndices(dims)
     cart_indices = CartesianIndices(dims)
-
-    # 3D offsets for 26-connectivity, or 2D for 8-connectivity
-    # We'll generate them dynamically to handle generic dims
-    offsets = Int[]
-    if ndims(mask) == 3
-        for z in -1:1, y in -1:1, x in -1:1
-            (x == 0 && y == 0 && z == 0) && continue
-            push!(offsets, lin_indices[CartesianIndex(x + 2, y + 2, z + 2)] - lin_indices[CartesianIndex(2, 2, 2)])
-        end
-    elseif ndims(mask) == 2
-        for y in -1:1, x in -1:1
-            (x == 0 && y == 0) && continue
-            push!(offsets, lin_indices[CartesianIndex(x + 2, y + 2)] - lin_indices[CartesianIndex(2, 2)])
-        end
-    end
-    # Note: The above offset calculation is a bit tricky with edge cases if not careful 
-    # about bounds. It's safer to use CartesianIndices for bounds checking or 
-    # standard neighbor iteration. 
-    # Let's stick to a robust standard BFS with CartesianIndices to ensure correctness 
-    # at edges, similar to the existing get_neighbors but optimized for the queue.
 
     @inbounds for i in eachindex(mask)
         if mask[i] && labels[i] == 0

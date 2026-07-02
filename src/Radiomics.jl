@@ -183,6 +183,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 push!(log_buffer, "Applying bounding box to Label $label...")
                 local img_to_use
                 img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; log_buffer=log_buffer)
+                img_to_use, mask_to_use, spacing_to_use = squeeze_singleton_dims(img_to_use, mask_to_use, p.spacing)
 
                 if compute_all
                     push!(log_buffer, "Computing ALL features")
@@ -203,7 +204,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     total_time_accumulated = 0.0
 
                     radiomic_features, time_acc = _compute_radiomics_impl(
-                        img_to_use, mask_to_use, p.spacing, voxel_count;
+                        img_to_use, mask_to_use, spacing_to_use, voxel_count;
                         n_bins            = p.n_bins,
                         bin_width         = p.bin_width,
                         weighting_norm    = p.weighting_norm,
@@ -294,6 +295,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose)
+    img_to_use, mask_to_use, spacing_to_use = squeeze_singleton_dims(img_to_use, mask_to_use, p.spacing)
 
     total_start_time       = time()
     total_time_accumulated = 0.0
@@ -320,7 +322,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     radiomic_features, time_acc = _compute_radiomics_impl(
-        img_to_use, mask_to_use, p.spacing, voxel_count;
+        img_to_use, mask_to_use, spacing_to_use, voxel_count;
         n_bins            = p.n_bins,
         bin_width         = p.bin_width,
         weighting_norm    = p.weighting_norm,
