@@ -17,9 +17,9 @@
     - `cropped_img`: image array cropped to the bounding box of the mask.
     - `cropped_mask`: binary mask array (`BitArray`) cropped to the same bounding box."""
 function bounding_box(img::AbstractArray{Float64},
-                       mask::AbstractArray,
-                       verbose::Bool;
-                       log_buffer::Union{Vector{String},Nothing}=nothing)::Tuple{AbstractArray{Float64}, BitArray}
+    mask::AbstractArray,
+    verbose::Bool;
+    log_buffer::Union{Vector{String},Nothing}=nothing)::Tuple{AbstractArray{Float64},BitArray}
     function _bb_log(msg)
         if !isnothing(log_buffer)
             push!(log_buffer, msg)
@@ -42,14 +42,18 @@ function bounding_box(img::AbstractArray{Float64},
 
     for i in idx
         for d in 1:n
-            if i[d] < mins[d]; mins[d] = i[d]; end
-            if i[d] > maxs[d]; maxs[d] = i[d]; end
+            if i[d] < mins[d]
+                mins[d] = i[d]
+            end
+            if i[d] > maxs[d]
+                maxs[d] = i[d]
+            end
         end
     end
 
     ranges = [mins[d]:maxs[d] for d in 1:n]
 
-    cropped_img  = img[ranges...]
+    cropped_img = img[ranges...]
     cropped_mask = mask[ranges...]
 
     if verbose
@@ -63,18 +67,18 @@ function bounding_box(img::AbstractArray{Float64},
 end
 
 """
-    squeeze_singleton_dims(img, mask, voxel_spacing)
+    squeeze_unit_dimension(img, mask, voxel_spacing)
 
     If the image/mask is 3D but has a singleton dimension (size 1 along one axis),
     drops that dimension and returns 2D arrays with adjusted spacing.
     Otherwise returns the inputs unchanged.
 """
-function squeeze_singleton_dims(img::AbstractArray{Float64}, mask::BitArray, voxel_spacing::Vector{Float64})::Tuple{AbstractArray{Float64}, BitArray, Vector{Float64}}
+function squeeze_unit_dimension(img::AbstractArray{Float64}, mask::BitArray, voxel_spacing::Vector{Float64})::Tuple{AbstractArray{Float64},BitArray,Vector{Float64}}
     if ndims(mask) == 3 && any(size(mask) .== 1)
         squeeze_dim = findfirst(==(1), size(mask))
-        img_out  = dropdims(img,  dims=squeeze_dim)
+        img_out = dropdims(img, dims=squeeze_dim)
         mask_out = dropdims(mask, dims=squeeze_dim)
-        spacing_out = voxel_spacing[setdiff(1:3, squeeze_dim)]
+        spacing_out = [voxel_spacing[d] for d in 1:3 if d != squeeze_dim]
         return img_out, mask_out, spacing_out
     else
         return img, mask, voxel_spacing
@@ -179,7 +183,7 @@ function discretize_image(img::AbstractArray{Float64},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float64,Nothing}=nothing,
     vmin::Union{Float64,Nothing}=nothing,
-    vmax::Union{Float64,Nothing}=nothing)::Tuple{Array{Int}, Int, Vector{Int}, Float64}
+    vmax::Union{Float64,Nothing}=nothing)::Tuple{Array{Int},Int,Vector{Int},Float64}
 
     if sum(mask) == 0
         return zeros(Int, size(img)), 0, Int[], 0.0
@@ -243,7 +247,7 @@ end
     # Returns:
         - The mask containing only the largest connected component (Array).
     """
-function keep_largest_component(mask::AbstractArray{Bool})::Tuple{AbstractArray{Bool}, Int}
+function keep_largest_component(mask::AbstractArray{Bool})::Tuple{AbstractArray{Bool},Int}
     if sum(mask) == 0
         return mask, 0  # Restituisce anche 0 isole
     end
@@ -317,23 +321,23 @@ end
         # Returns:
         - Nothing. Prints the features to the console."""
 function print_features(title::String,
-                         features::Dict{String,Any};
-                         log_buffer::Union{Vector{String},Nothing}=nothing)::Nothing
+    features::Dict{String,Any};
+    log_buffer::Union{Vector{String},Nothing}=nothing)::Nothing
     output = String[]
-    
+
     push!(output, "\n--- $title ---")
-    
-    base_keys = sort([k for k in keys(features) 
-                       if !endswith(k, "_std") && !endswith(k, "_min") && !endswith(k, "_max")])
-    
+
+    base_keys = sort([k for k in keys(features)
+                      if !endswith(k, "_std") && !endswith(k, "_min") && !endswith(k, "_max")])
+
     for (i, k) in enumerate(base_keys)
         val = features[k]
         std_key = k * "_std"
         min_key = k * "_min"
         max_key = k * "_max"
-        
+
         padded_key = rpad(k, 42)
-        
+
         if haskey(features, std_key)
             std_val = features[std_key]
             min_val = features[min_key]
@@ -343,10 +347,10 @@ function print_features(title::String,
             push!(output, "  $i. $(padded_key) => $val")
         end
     end
-    
+
     push!(output, "Subtotal: $(length(base_keys)) features")
     push!(output, "---------------------\n")
-    
+
     if isnothing(log_buffer)
         for line in output
             println(line)
@@ -378,35 +382,35 @@ function _cast_inputs(
     bin_width,
     weighting_norm,
     features_std,
-    slices_2d,          
-    keep_largest_only,  
-    get_raw_matrices,   
-    verbose             
-    )::NamedTuple{
-        (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :verbose),
-        Tuple{
-            Union{Array{Float64,2}, Array{Float64,3}},
-            Union{Array{Int,2}, Array{Int,3}},
-            Vector{Float64},
-            Vector{Symbol},
-            Union{Int, Vector{Int}},
-            Union{Nothing, Int},
-            Union{Nothing, Float64},
-            Union{Nothing, String}, 
-            Bool,
-            Union{Nothing, Vector{Tuple{Int,Int}}},
-            Bool,                                     
-            Bool,                                     
-            Bool                                      
-        }
+    slices_2d,
+    keep_largest_only,
+    get_raw_matrices,
+    verbose
+)::NamedTuple{
+    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :verbose),
+    Tuple{
+        Union{Array{Float64,2},Array{Float64,3}},
+        Union{Array{Int,2},Array{Int,3}},
+        Vector{Float64},
+        Vector{Symbol},
+        Union{Int,Vector{Int}},
+        Union{Nothing,Int},
+        Union{Nothing,Float64},
+        Union{Nothing,String},
+        Bool,
+        Union{Nothing,Vector{Tuple{Int,Int}}},
+        Bool,
+        Bool,
+        Bool
     }
+}
 
     # --- Perpare input ---
     #For img
     # 2D input: convert to 2D Float64 array
-    img::Union{Array{Float64,2}, Array{Float64,3}} = if ndims(img_input) == 2
+    img::Union{Array{Float64,2},Array{Float64,3}} = if ndims(img_input) == 2
         convert(Array{Float64,2}, img_input)
-    # 3D input: convert to 3D Float64 array
+        # 3D input: convert to 3D Float64 array
     elseif ndims(img_input) == 3
         convert(Array{Float64,3}, img_input)
     else
@@ -415,9 +419,9 @@ function _cast_inputs(
 
     # For Mask
     # 2D input: convert to 2D Float64 array
-    mask::Union{Array{Int,2}, Array{Int,3}} = if ndims(mask_input) == 2
+    mask::Union{Array{Int,2},Array{Int,3}} = if ndims(mask_input) == 2
         convert(Array{Int,2}, mask_input)
-    # 3D input: convert to 3D Float64 array
+        # 3D input: convert to 3D Float64 array
     elseif ndims(mask_input) == 3
         convert(Array{Int,3}, mask_input)
     else
@@ -431,7 +435,7 @@ function _cast_inputs(
 
     #Sanity Check
     if size(img) != size(mask)
-         throw(ArgumentError("img and mask have different size!"))
+        throw(ArgumentError("img and mask have different size!"))
     end
 
     # Convert spacing (supports any numeric vector/list)
@@ -474,26 +478,26 @@ function _cast_inputs(
     weighting_norm_out::Union{Nothing,String} = isnothing(weighting_norm) ? nothing : String(weighting_norm)
 
     #Convert slices_2d
-    slices_2d_out::Union{Nothing, Vector{Tuple{Int,Int}}} = if isnothing(slices_2d)
+    slices_2d_out::Union{Nothing,Vector{Tuple{Int,Int}}} = if isnothing(slices_2d)
         nothing
     else
         Tuple{Int,Int}[(Int(s[1]), Int(s[2])) for s in slices_2d]
     end
 
     return (
-        img            = img,
-        mask           = mask,
-        spacing        = spacing,
-        features       = features_out,
-        labels         = labels_out,
-        n_bins         = n_bins_out,
-        bin_width      = bin_width_out,
-        weighting_norm = weighting_norm_out,
-        features_std   = Bool(features_std),
-        slices_2d      = slices_2d_out,
-        keep_largest_only = Bool(keep_largest_only),
-        get_raw_matrices  = Bool(get_raw_matrices),
-        verbose           = Bool(verbose)
+        img=img,
+        mask=mask,
+        spacing=spacing,
+        features=features_out,
+        labels=labels_out,
+        n_bins=n_bins_out,
+        bin_width=bin_width_out,
+        weighting_norm=weighting_norm_out,
+        features_std=Bool(features_std),
+        slices_2d=slices_2d_out,
+        keep_largest_only=Bool(keep_largest_only),
+        get_raw_matrices=Bool(get_raw_matrices),
+        verbose=Bool(verbose)
     )
 end
 
@@ -506,8 +510,8 @@ end
         # Returns:
         - Nothing. Prints a warning if the binning parameters are invalid."""
 function validate_binning_parameters(img_input::AbstractArray{Float64},
-                                      mask_input::BitArray,
-                                      bin_width::Float64)::Nothing
+    mask_input::BitArray,
+    bin_width::Float64)::Nothing
 
     # Calculate range and estimated number of bins
     roi_vals = img_input[mask_input]
@@ -534,14 +538,14 @@ end
         # Returns:
         - A tuple containing the extracted mask and the voxel count."""
 function extract_and_check_mask(mask_input::AbstractArray{Int},
-                                 label::Int)::Tuple{BitArray, Int}
+    label::Int)::Tuple{BitArray,Int}
     mask_to_use = (mask_input .== label)
     # Check if label exists
     voxel_count = sum(mask_to_use)
     if voxel_count == 0
         @warn "Label $label not found in mask (no voxels with this value). Skipping."
     end
-    
+
     return mask_to_use, voxel_count
 
 end

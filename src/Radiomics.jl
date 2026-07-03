@@ -65,7 +65,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     get_raw_matrices::Bool=false,
     features_std::Bool=false,
     slices_2d=nothing,
-    verbose::Bool=false)::Union{Dict{String,Any}, Dict{Int,Dict{String,Any}}, Dict{Tuple{Int,Int},Any}}
+    verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
 
     # Cast all inputs to correct types
     p = _cast_inputs(
@@ -81,15 +81,15 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         slices_2d,
         keep_largest_only,
         get_raw_matrices,
-        verbose  
+        verbose
     )
 
     compute_all = isempty(p.features) || :all in p.features
 
     # Management slices_2d
     if !isnothing(p.slices_2d)
-        results_2d = Dict{Tuple{Int,Int}, Any}()
-        dict_lock  = ReentrantLock()
+        results_2d = Dict{Tuple{Int,Int},Any}()
+        dict_lock = ReentrantLock()
 
         Threads.@threads for i in eachindex(p.slices_2d)
             plan, slice_idx = p.slices_2d[i]
@@ -130,15 +130,15 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
             result = extract_radiomic_features(
                 img_slice, mask_slice, spacing_2d;
-                features          = p.features,
-                labels            = p.labels,
-                n_bins            = p.n_bins,
-                bin_width         = p.bin_width,
-                weighting_norm    = p.weighting_norm,
-                features_std      = p.features_std,
-                keep_largest_only = p.keep_largest_only,
-                get_raw_matrices  = p.get_raw_matrices,
-                verbose           = p.verbose
+                features=p.features,
+                labels=p.labels,
+                n_bins=p.n_bins,
+                bin_width=p.bin_width,
+                weighting_norm=p.weighting_norm,
+                features_std=p.features_std,
+                keep_largest_only=p.keep_largest_only,
+                get_raw_matrices=p.get_raw_matrices,
+                verbose=p.verbose
             )
 
             lock(dict_lock) do
@@ -161,9 +161,9 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             println("Active threads: ", Threads.nthreads())
         end
 
-        results        = Dict{Int, Dict{String,Any}}()
+        results = Dict{Int,Dict{String,Any}}()
         skipped_labels = Int[]
-        results_lock   = ReentrantLock()
+        results_lock = ReentrantLock()
 
         tasks = map(p.labels) do label
             Threads.@spawn let label = label
@@ -183,7 +183,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 push!(log_buffer, "Applying bounding box to Label $label...")
                 local img_to_use
                 img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; log_buffer=log_buffer)
-                img_to_use, mask_to_use, spacing_to_use = squeeze_singleton_dims(img_to_use, mask_to_use, p.spacing)
+                img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
 
                 if compute_all
                     push!(log_buffer, "Computing ALL features")
@@ -200,25 +200,25 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 end
 
                 try
-                    total_start_time       = time()
+                    total_start_time = time()
                     total_time_accumulated = 0.0
 
                     radiomic_features, time_acc = _compute_radiomics_impl(
                         img_to_use, mask_to_use, spacing_to_use, voxel_count;
-                        n_bins            = p.n_bins,
-                        bin_width         = p.bin_width,
-                        weighting_norm    = p.weighting_norm,
-                        verbose           = p.verbose,
-                        keep_largest_only = p.keep_largest_only,
-                        compute_all       = compute_all,
-                        features_std      = p.features_std,
-                        features          = p.features,
-                        get_raw_matrices  = p.get_raw_matrices,
-                        log_buffer        = log_buffer
+                        n_bins=p.n_bins,
+                        bin_width=p.bin_width,
+                        weighting_norm=p.weighting_norm,
+                        verbose=p.verbose,
+                        keep_largest_only=p.keep_largest_only,
+                        compute_all=compute_all,
+                        features_std=p.features_std,
+                        features=p.features,
+                        get_raw_matrices=p.get_raw_matrices,
+                        log_buffer=log_buffer
                     )
 
                     total_time_accumulated += time_acc
-                    total_time_real         = time() - total_start_time
+                    total_time_real = time() - total_start_time
 
                     push!(log_buffer, "\n--- Label $label Summary ---")
                     push!(log_buffer, "Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
@@ -295,9 +295,9 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     end
 
     img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose)
-    img_to_use, mask_to_use, spacing_to_use = squeeze_singleton_dims(img_to_use, mask_to_use, p.spacing)
+    img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
 
-    total_start_time       = time()
+    total_start_time = time()
     total_time_accumulated = 0.0
 
     if p.verbose
@@ -323,19 +323,19 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     radiomic_features, time_acc = _compute_radiomics_impl(
         img_to_use, mask_to_use, spacing_to_use, voxel_count;
-        n_bins            = p.n_bins,
-        bin_width         = p.bin_width,
-        weighting_norm    = p.weighting_norm,
-        verbose           = p.verbose,
-        keep_largest_only = p.keep_largest_only,
-        features_std      = p.features_std,
-        compute_all       = compute_all,
-        features          = p.features,
-        get_raw_matrices  = p.get_raw_matrices
+        n_bins=p.n_bins,
+        bin_width=p.bin_width,
+        weighting_norm=p.weighting_norm,
+        verbose=p.verbose,
+        keep_largest_only=p.keep_largest_only,
+        features_std=p.features_std,
+        compute_all=compute_all,
+        features=p.features,
+        get_raw_matrices=p.get_raw_matrices
     )
 
     total_time_accumulated += time_acc
-    total_time_real         = time() - total_start_time
+    total_time_real = time() - total_start_time
 
     if p.verbose
         println("\n======================")
@@ -396,11 +396,11 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     features_std::Bool=false,
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
-    log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any}, Float64}
-    
+    log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any},Float64}
+
     radiomic_features = Dict{String,Any}()
     total_time_accumulated = 0.0
-    
+
     # Helper function to print or buffer log messages
     function log_println(msg::String)
         if isnothing(log_buffer)
@@ -440,7 +440,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
             (result.value, result.time)
         end
     end
-        
+
     # First order features
     if compute_all || :first_order in features
         t_first_order_features = Threads.@spawn begin
@@ -543,7 +543,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
 
     # First Order features
     if !isnothing(t_first_order_features)
-        first_order_dict, first_order_time = fetch(t_first_order_features)::Tuple{Dict{String,Any}, Float64}
+        first_order_dict, first_order_time = fetch(t_first_order_features)::Tuple{Dict{String,Any},Float64}
         merge!(radiomic_features, first_order_dict)
         total_time_accumulated += first_order_time
         if verbose
@@ -554,7 +554,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
 
     # GLCM features
     if !isnothing(t_glcm_features)
-        glcm_dict, glcm_time = fetch(t_glcm_features)::Tuple{Dict{String,Any}, Float64}
+        glcm_dict, glcm_time = fetch(t_glcm_features)::Tuple{Dict{String,Any},Float64}
         merge!(radiomic_features, glcm_dict)
         total_time_accumulated += glcm_time
         if verbose
@@ -564,10 +564,10 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
             end
         end
     end
-        
+
     # GLSZM features
     if !isnothing(t_glszm_features)
-        glszm_dict, glszm_time = fetch(t_glszm_features)::Tuple{Dict{String,Any}, Float64}
+        glszm_dict, glszm_time = fetch(t_glszm_features)::Tuple{Dict{String,Any},Float64}
         merge!(radiomic_features, glszm_dict)
         total_time_accumulated += glszm_time
         if verbose
@@ -580,7 +580,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
 
     # NGTDM features
     if !isnothing(t_ngtdm_features)
-        ngtdm_dict, ngtdm_time = fetch(t_ngtdm_features)::Tuple{Dict{String,Any}, Float64}
+        ngtdm_dict, ngtdm_time = fetch(t_ngtdm_features)::Tuple{Dict{String,Any},Float64}
         merge!(radiomic_features, ngtdm_dict)
         total_time_accumulated += ngtdm_time
         if verbose
@@ -593,7 +593,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
 
     # GLRLM features
     if !isnothing(t_glrlm_features)
-        glrlm_dict, glrlm_time = fetch(t_glrlm_features)::Tuple{Dict{String,Any}, Float64}
+        glrlm_dict, glrlm_time = fetch(t_glrlm_features)::Tuple{Dict{String,Any},Float64}
         merge!(radiomic_features, glrlm_dict)
         total_time_accumulated += glrlm_time
         if verbose
@@ -606,7 +606,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
 
     # GLDM features
     if !isnothing(t_gldm_features)
-        gldm_dict, gldm_time = fetch(t_gldm_features)::Tuple{Dict{String,Any}, Float64}
+        gldm_dict, gldm_time = fetch(t_gldm_features)::Tuple{Dict{String,Any},Float64}
         merge!(radiomic_features, gldm_dict)
         total_time_accumulated += gldm_time
         if verbose
@@ -620,7 +620,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     # 3D shape features
     if ndims(mask) == 3
         if !isnothing(t_shape3d_features)
-            shape3d_dict, shape3d_time = fetch(t_shape3d_features)::Tuple{Dict{String,Any}, Float64}
+            shape3d_dict, shape3d_time = fetch(t_shape3d_features)::Tuple{Dict{String,Any},Float64}
             merge!(radiomic_features, shape3d_dict)
             total_time_accumulated += shape3d_time
             if verbose
@@ -633,7 +633,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     # 2D shape features
     if ndims(mask) == 2
         if !isnothing(t_shape2d_features)
-            shape2d_dict, shape2d_time = fetch(t_shape2d_features)::Tuple{Dict{String,Any}, Float64}
+            shape2d_dict, shape2d_time = fetch(t_shape2d_features)::Tuple{Dict{String,Any},Float64}
             merge!(radiomic_features, shape2d_dict)
             total_time_accumulated += shape2d_time
             if verbose
@@ -642,7 +642,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
             end
         end
     end
-    
+
     return (radiomic_features, total_time_accumulated)
 end
 
@@ -670,8 +670,8 @@ Base.@ccallable function c_extract_radiomic_features(
         # Call the main function
         c_features_dict = extract_radiomic_features(
             img, mask, spacing;
-            bin_width = binWidth,
-            verbose = false
+            bin_width=binWidth,
+            verbose=false
         )
 
         # Save the features in the global buffer
@@ -679,7 +679,7 @@ Base.@ccallable function c_extract_radiomic_features(
         return pointer(LAST_JSON_RESULT[])
 
     catch e
-        @error "Error during feature extraction step" exception=(e, catch_backtrace())
+        @error "Error during feature extraction step" exception = (e, catch_backtrace())
 
         err_msg = "{\"error\": \"$e\"}\0"
         LAST_JSON_RESULT[] = err_msg
@@ -692,12 +692,12 @@ end
 # - Reduces the TTFX (Time To First eXecution) for the package users.
 @setup_workload begin
     # Small synthetic data for precompilation warmup
-    img_small  = Float64.(reshape(1:1000, 10, 10, 10))
+    img_small = Float64.(reshape(1:1000, 10, 10, 10))
     mask_small = zeros(Float64, 10, 10, 10)
     mask_small[3:7, 3:7, 3:7] .= 1.0
 
     # Small 2D synthetic data for precompilation warmup
-    img_small_2d  = Float64.(reshape(1:100, 10, 10))
+    img_small_2d = Float64.(reshape(1:100, 10, 10))
     mask_small_2d = zeros(Float64, 10, 10)
     mask_small_2d[3:7, 3:7] .= 1.0
 
@@ -706,7 +706,7 @@ end
     mask_small_2d_multi = zeros(Float64, 10, 10)
     mask_small_2d_multi[3:7, 3:7] .= 1.0
     mask_small_2d_multi[6:8, 6:8] .= 2.0
-    
+
     # Multi-label mask
     mask_multi = zeros(Float64, 10, 10, 10)
     mask_multi[2:4, 2:4, 2:4] .= 1.0
@@ -714,59 +714,59 @@ end
 
     spacing = [1.0, 1.0, 1.0]
 
-    @compile_workload begin        
+    @compile_workload begin
         # 2D
         extract_radiomic_features(
             img_small_2d, mask_small_2d, spacing;
-            keep_largest_only = true,
-            verbose           = false
+            keep_largest_only=true,
+            verbose=false
         )
 
         # 2D mask multi-label
         extract_radiomic_features(
             img_small_2d_multi, mask_small_2d_multi, spacing;
-            keep_largest_only = false,
-            verbose           = false
+            keep_largest_only=false,
+            verbose=false
         )
 
         #2D label
         extract_radiomic_features(
             img_small_2d_multi, mask_small_2d_multi, spacing;
-            keep_largest_only = false,
-            labels            = [1,2],
-            verbose           = false
+            keep_largest_only=false,
+            labels=[1, 2],
+            verbose=false
         )
-        
+
         # --- Default bin_width ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            keep_largest_only = false,
-            verbose           = false
+            keep_largest_only=false,
+            verbose=false
         )
 
         # --- n_bins ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            n_bins            = 32,
-            keep_largest_only = false,
-            verbose           = false
+            n_bins=32,
+            keep_largest_only=false,
+            verbose=false
         )
 
         # --- bin_width explicit ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            bin_width         = 25.0,
-            keep_largest_only = false,
-            verbose           = false
+            bin_width=25.0,
+            keep_largest_only=false,
+            verbose=false
         )
 
         # --- Weighting norms ---
         for wn in ["euclidean", "infinity", "manhattan", "no_weighting"]
             extract_radiomic_features(
                 img_small, mask_small, spacing;
-                weighting_norm    = wn,
-                keep_largest_only = false,
-                verbose           = false
+                weighting_norm=wn,
+                keep_largest_only=false,
+                verbose=false
             )
         end
 
@@ -784,66 +784,66 @@ end
         ]
             extract_radiomic_features(
                 img_small, mask_small, spacing;
-                features          = feat,
-                keep_largest_only = false,
-                verbose           = false
+                features=feat,
+                keep_largest_only=false,
+                verbose=false
             )
         end
 
         # --- keep_largest_only = true ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            keep_largest_only = true,
-            verbose           = false
+            keep_largest_only=true,
+            verbose=false
         )
 
         # --- features_std = true ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            features          = [:glrlm],
-            features_std      = true,
-            keep_largest_only = false,
-            verbose           = false
+            features=[:glrlm],
+            features_std=true,
+            keep_largest_only=false,
+            verbose=false
         )
 
         # --- Multi-label ---
         extract_radiomic_features(
             img_small, mask_multi, spacing;
-            labels            = [1, 2],
-            keep_largest_only = false,
-            verbose           = false
+            labels=[1, 2],
+            keep_largest_only=false,
+            verbose=false
         )
 
         # --- Single explicit label ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            labels            = 1,
-            keep_largest_only = false,
-            verbose           = false
+            labels=1,
+            keep_largest_only=false,
+            verbose=false
         )
 
         # --- get_raw_matrices ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            get_raw_matrices  = true,
-            keep_largest_only = false,
-            verbose           = false
+            get_raw_matrices=true,
+            keep_largest_only=false,
+            verbose=false
         )
 
         # --- 2D slice extraction ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            slices_2d         = [(1, 5)],
-            keep_largest_only = true,
-            verbose           = false
+            slices_2d=[(1, 5)],
+            keep_largest_only=true,
+            verbose=false
         )
 
         # --- Multiple slices ---
         extract_radiomic_features(
             img_small, mask_small, spacing;
-            slices_2d         = [(1, 5), (2, 5), (3, 5)],
-            keep_largest_only = false,
-            verbose           = false
+            slices_2d=[(1, 5), (2, 5), (3, 5)],
+            keep_largest_only=false,
+            verbose=false
         )
     end
 end
