@@ -76,6 +76,7 @@ end
 function squeeze_unit_dimension(img::AbstractArray{Float64}, mask::BitArray, voxel_spacing::Vector{Float64})::Tuple{AbstractArray{Float64},BitArray,Vector{Float64}}
     if ndims(mask) == 3 && any(size(mask) .== 1)
         squeeze_dim = findfirst(==(1), size(mask))
+        @warn "Detected a unit dimension (size 1) along axis $squeeze_dim in a 3D array of size $(size(mask)). Squeezing to 2D and computing 2D features instead of 3D."
         img_out = dropdims(img, dims=squeeze_dim)
         mask_out = dropdims(mask, dims=squeeze_dim)
         spacing_out = [voxel_spacing[d] for d in 1:3 if d != squeeze_dim]
