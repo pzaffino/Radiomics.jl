@@ -6,7 +6,6 @@ using JSON3
 using TOML
 using CUDA
 
-include("utils/utils_gpu/utils.jl")
 include("utils/utils_cpu/utils.jl")
 include("glcm_features.jl")
 include("first_order_features.jl")
@@ -18,8 +17,13 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
-include("utils//utils_gpu/kernels.jl")
-include("utils/utils_gpu/features_gpu.jl")
+include("utils/utils_gpu/utils.jl")
+include("utils/utils_gpu/utils_kernels.jl")
+include("gpu/glcm_features_gpu.jl")
+include("gpu/gldm_features_gpu.jl")
+include("gpu/glrlm_features_gpu.jl")
+include("gpu/ngtdm_features_gpu.jl")
+include("gpu/shape_3D_features_gpu.jl")
 
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
