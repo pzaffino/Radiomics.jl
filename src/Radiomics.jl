@@ -6,6 +6,7 @@ using JSON3
 using TOML
 using CUDA
 
+include("utils/utils_gpu/utils.jl")
 include("utils/utils_cpu/utils.jl")
 include("glcm_features.jl")
 include("first_order_features.jl")
@@ -17,7 +18,6 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
-include("utils/utils_gpu/utils.jl")
 include("utils/utils_gpu/utils_kernels.jl")
 include("gpu/glcm_features_gpu.jl")
 include("gpu/gldm_features_gpu.jl")
@@ -58,8 +58,12 @@ include("gpu/shape_3D_features_gpu.jl")
     - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
+    - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
+    - `cuda_streams`: If true, enables CUDA streams for concurrent extraction of feature families. 
     - `verbose`: If true, prints progress messages.
         
+    NOTE: setting `cuda_streams` to true does not guarantee concurrent execution and may make execution slower on some GPUs due to GPU saturation. Only use on high end GPUs with many CUDA cores or streaming multiprocessors (SMs).
+
     # Returns:
     - Single label or nothing: Dict{String,Any} with feature names as keys
     - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
@@ -92,6 +96,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         slices_2d,
         keep_largest_only,
         get_raw_matrices,
+        use_gpu,
+        cuda_streams,
         verbose
     )
 
@@ -679,7 +685,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     if ndims(mask) == 3
         # 3D shape features
         if compute_all || :shape3d in features
-            if use_gpu
+            if !use_gpu
                 t_shape3d_features = Threads.@spawn begin
                     result = @timed get_shape3d_features(
                         mask, voxel_spacing;
@@ -690,13 +696,30 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
                     (result.value, result.time)
                 end
             else
-                result = @timed CUDA.@sync get_shape3d_features(
-                    mask, voxel_spacing;
-                    verbose=verbose,
-                    keep_largest_only=keep_largest_only,
-                    gpu_data=gpu_data
-                )
-                t_shape3d_features = (result.value, result.time)
+                if cuda_streams
+                    shape_stream = CUDA.CuStream()
+                    t_shape3d_features = Threads.@spawn CUDA.stream!(shape_stream) do
+                        result = @timed begin
+                            r = get_shape3d_features(
+                                mask, voxel_spacing;
+                                verbose=verbose,
+                                keep_largest_only=keep_largest_only,
+                                gpu_data=gpu_data
+                            )
+                            CUDA.synchronize(shape_stream)
+                            r
+                        end
+                        (result.value, result.time)
+                    end
+                else
+                    result = @timed CUDA.@sync get_shape3d_features(
+                        mask, voxel_spacing;
+                        verbose=verbose,
+                        keep_largest_only=keep_largest_only,
+                        gpu_data=gpu_data
+                    )
+                    t_shape3d_features = (result.value, result.time)
+                end
             end
         end
     end

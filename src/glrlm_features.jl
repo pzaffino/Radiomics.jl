@@ -41,7 +41,7 @@ function get_glrlm_features(img::AbstractArray{Float64},
         discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
     end
 
-    P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, verbose, gpu_data)
+    P_glrlm, angles = calculate_glrlm_matrix(discretized_img, mask, voxel_spacing, weighting_norm, gray_levels, verbose, gpu_data)
 
     if get_raw_matrices
         if verbose
@@ -87,6 +87,7 @@ function calculate_glrlm_matrix(discretized_img::AbstractArray{Int},
     mask::BitArray,
     voxel_spacing::Vector{Float64},
     weighting_norm::Union{String,Nothing},
+    gray_levels::AbstractArray{Int},
     verbose::Bool,
     gpu_data::Union{GPUData,Nothing}=nothing)::Tuple{Array{Float64,3},Vector{Angle}}
     if verbose
@@ -168,7 +169,7 @@ function calculate_glrlm_matrix(discretized_img::AbstractArray{Int},
         P_glrlm = P_glrlm[:, 1:actual_max_run, :]
 
     else
-        P_glrlm = compute_glrlm_gpu(gpu_data.mask, gpu_data.mask_indices, discretized_img)
+        P_glrlm = compute_glrlm_gpu(gpu_data.mask, gpu_data.mask_indices, discretized_img, gray_levels)
     end
 
     if !isnothing(weighting_norm)

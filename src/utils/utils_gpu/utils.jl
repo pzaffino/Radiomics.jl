@@ -1,7 +1,7 @@
 CUDA_THREADS = 256
 
+CUDA_BLOCK_WIDTH_2D = 12
 CUDA_BLOCK_HEIGHT_2D = 16
-CUDA_BLOCK_WIDTH_2D = 16
 
 CUDA_BLOCK_HEIGHT_3D = 8
 CUDA_BLOCK_WIDTH_3D = 8
@@ -89,6 +89,34 @@ function can_use_cuda()::Tuple{Bool,String}
     end
 
     return compatible, errors
+end
+
+"""
+    fits_block_shared_memory(bytes::Int, source::String, verbose::Bool)::Bool
+
+Checks whether the requested shared memory allocation fits within the maximum
+shared memory available per block.
+
+# Arguments
+- `bytes::Int`: Number of bytes of shared memory requested per block.
+- `source::String`: Description of the kernel that's requesting shared memory
+- `verbose::Bool`: If true, prints progress messages.
+
+# Returns
+- `use_shmem::Bool`: `true` if the requested allocation fits within the
+  maximum shared memory per block, `false` otherwise
+"""
+function fits_block_shared_memory(bytes::Int, source::String, verbose::Bool)::Bool
+    max_block_memory = CUDA.attribute(CUDA.device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    use_shmem = bytes <= max_block_memory
+    if verbose
+        if use_shmem
+            println("Requested shared memory allocation for $source is within the $max_block_memory bytes limit ($bytes bytes per block), using shared memory to minimize shared resource contention")
+        else
+            @warn "Shared memory allocation for $source exceeds the limit of $max_block_memory bytes because the ROI is too large. $bytes bytes per block requested. Falling back to global memory, execution may be slightly slower due to shared resource contention"
+        end
+    end
+    return use_shmem
 end
 
 """
@@ -219,6 +247,7 @@ function discretize_image_gpu(gpu_data::GPUData;
 
         blocks = cld(n_of_indices, CUDA_THREADS)
         @cuda threads = CUDA_THREADS blocks = blocks bin_nbins_kernel!(gpu_data.img, gpu_data.mask_indices, inv_bin_width, n_bins, vmin, disc, n_of_indices)
+        n_bins_actual = n_bins
     else
         bin_width_used = bin_width
         inv_bin_width = 1.0f0 / bin_width_used
@@ -226,9 +255,11 @@ function discretize_image_gpu(gpu_data::GPUData;
 
         blocks = cld(n_of_indices, CUDA_THREADS)
         @cuda threads = CUDA_THREADS blocks = blocks bin_width_kernel!(gpu_data.img, gpu_data.mask_indices, inv_bin_width, bin_offset, disc, n_of_indices)
+        n_bins_actual = Int(floor((vmax - vmin) * inv_bin_width)) + 1
+
     end
-    gray_levels = unique_gpu(apply_mask(disc, gpu_data.mask_indices))
-    n_bins_actual = length(gray_levels)
+    gray_levels = CuArray(1:n_bins_actual)
+    #gray_levels = unique_gpu(apply_mask(disc, gpu_data.mask_indices))
 
     return disc, n_bins_actual, gray_levels, bin_width_used
 end

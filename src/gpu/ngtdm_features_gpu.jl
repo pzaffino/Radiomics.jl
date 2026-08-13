@@ -18,11 +18,9 @@
 """
 function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     mask::CuArray{Bool},
-    mask_indices::CuArray{Int})::Tuple{Array{Float64},Array{Int}}
+    mask_indices::CuArray{Int},
+    gray_levels::CuArray{Int})::Tuple{Array{Float64},Array{Int}}
 
-    masked_img = apply_mask(discretized_img, mask_indices)
-
-    gray_levels = unique_gpu(masked_img)
     num_gl = length(gray_levels)
     min_gl, max_gl = Int.(extrema(gray_levels))
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
@@ -71,7 +69,10 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     @cuda threads = CUDA_THREADS blocks = cld(n_int, CUDA_THREADS) shmem = shmem_size ngtdm_neighborhood_count_interior!(discretized_img, mask, interior_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_int, num_offsets)
     @cuda threads = CUDA_THREADS blocks = cld(n_bord, CUDA_THREADS) shmem = shmem_size ngtdm_neighborhood_count_border!(discretized_img, mask, border_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_bord, num_offsets)
 
-    return Array(P_ngtdm), Array(gray_levels)
+    P_ngtdm = Array(P_ngtdm)
+    gray_levels = Array(gray_levels)
+    P_ngtdm[:, 3] = gray_levels
+    return P_ngtdm, gray_levels
 end
 
 """
@@ -134,9 +135,11 @@ function ngtdm_neighborhood_count_interior!(
     tid = threadIdx().x
     i = tid + (blockIdx().x - 1) * blockDim().x
 
-    if tid <= num_gl
-        sh_counts[tid] = 0
-        sh_sums[tid] = 0.0
+    g = tid
+    while g <= num_gl
+        sh_counts[g] = 0
+        sh_sums[g] = 0.0
+        g += blockDim().x
     end
 
     CUDA.sync_threads()
@@ -177,7 +180,6 @@ function ngtdm_neighborhood_count_interior!(
         if sh_counts[tid] > 0
             CUDA.@atomic P_ngtdm[tid, 1] += sh_counts[tid]
             CUDA.@atomic P_ngtdm[tid, 2] += sh_sums[tid]
-            P_ngtdm[gl_idx, 3] = gl
         end
     end
     return nothing
@@ -263,9 +265,8 @@ function ngtdm_neighborhood_count_border!(
 
         if neighborhood_count > 0
             neighborhood_avg = neighborhood_sum / neighborhood_count
-            CUDA.@atomic P_ngtdm[gl_idx, 1] += 1
-            CUDA.@atomic P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
-            P_ngtdm[gl_idx, 3] = gl
+            CUDA.@atomic sh_counts[gl_idx] += 1
+            CUDA.@atomic sh_sums[gl_idx] += abs(gl - neighborhood_avg)
         end
     end
 
@@ -275,7 +276,6 @@ function ngtdm_neighborhood_count_border!(
         if sh_counts[tid] > 0
             CUDA.@atomic P_ngtdm[tid, 1] += sh_counts[tid]
             CUDA.@atomic P_ngtdm[tid, 2] += sh_sums[tid]
-            P_ngtdm[gl_idx, 3] = gl
         end
     end
     return nothing

@@ -60,7 +60,7 @@ function get_ngtdm_features(img::AbstractArray{Float64},
     end
 
     # 2. Calculate the NGTDM matrix
-    P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, verbose, gpu_data)
+    P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, gray_levels, verbose, gpu_data)
 
     if get_raw_matrices
         if verbose
@@ -106,6 +106,7 @@ end
     """
 function calculate_ngtdm_matrix(discretized_img::AbstractArray{Int},
     mask::BitArray,
+    gray_levels::AbstractArray{Int},
     verbose::Bool,
     gpu_data::Union{GPUData,Nothing}=nothing)::Tuple{Matrix{Float64},Vector{Int}}
 
@@ -194,7 +195,7 @@ function calculate_ngtdm_matrix(discretized_img::AbstractArray{Int},
             end
         end
     else
-        P_ngtdm, gray_levels = compute_ngtdm_gpu(discretized_img, gpu_data.mask, gpu_data.mask_indices)
+        P_ngtdm, gray_levels = compute_ngtdm_gpu(discretized_img, gpu_data.mask, gpu_data.mask_indices, gray_levels)
     end
 
     return P_ngtdm, gray_levels

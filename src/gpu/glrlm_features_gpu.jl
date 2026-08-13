@@ -15,7 +15,7 @@
     # Returns
     - `Array{Float64}` containing the GLRLM 
 """
-function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, discretized_img::CuArray{Int})::Array{Float64}
+function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, discretized_img::CuArray{Int}, gray_levels::CuArray{Int})::Array{Float64}
     dim = ndims(discretized_img)
 
     if dim == 2
@@ -29,7 +29,7 @@ function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, disc
     end
 
     masked_img = apply_mask(discretized_img, mask_indices)
-    gray_levels = unique_gpu(masked_img)
+    #gray_levels = unique_gpu(masked_img)
     num_gl = length(gray_levels)
     min_gl, max_gl = Int.(extrema(gray_levels))
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
@@ -48,11 +48,11 @@ function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, disc
 
     actual_max_run = CUDA.ones(Int, 1)
 
-    blocks_x = cld(num_indices, CUDA_BLOCK_WIDTH_2D)
-    blocks_y = cld(num_angles, CUDA_BLOCK_HEIGHT_2D)
-    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks = (blocks_x, blocks_y) glrlm_kernel!(discretized_img, mask, mask_indices, gl_lut, P_glrlm, actual_max_run, Nx, Ny, Nz, angles_x, angles_y, angles_z, num_angles, num_indices, num_gl, min_gl, max_run_length_possible)
-    CUDA.synchronize()
-
+    block_x = 16
+    block_y = min(num_angles, 32)
+    blocks_x = cld(num_indices, block_x)
+    blocks_y = cld(num_angles, block_y)
+    @cuda threads = (block_x, block_y) blocks = (blocks_x, blocks_y) glrlm_kernel!(discretized_img, mask, mask_indices, gl_lut, P_glrlm, actual_max_run, Nx, Ny, Nz, angles_x, angles_y, angles_z, num_angles, num_indices, num_gl, min_gl, max_run_length_possible)
     actual_max = Array(actual_max_run)[1]
     return Array(P_glrlm[:, 1:actual_max, :])
 end
@@ -156,14 +156,8 @@ function glrlm_kernel!(
     prev_y = y - dy
     prev_z = z - dz
 
-    if prev_x >= 1 && prev_x <= Nx &&
-       prev_y >= 1 && prev_y <= Ny &&
-       (Nz == 1 || (prev_z >= 1 && prev_z <= Nz))
-
-        prev_idx = prev_x +
-                   (prev_y - 1) * Nx +
-                   (prev_z - 1) * Nx * Ny
-
+    if prev_x >= 1 && prev_x <= Nx && prev_y >= 1 && prev_y <= Ny && (Nz == 1 || (prev_z >= 1 && prev_z <= Nz))
+        prev_idx = prev_x + (prev_y - 1) * Nx + (prev_z - 1) * Nx * Ny
         if mask[prev_idx] && img[prev_idx] == gl
             return
         end
@@ -175,14 +169,8 @@ function glrlm_kernel!(
     next_y = y + dy
     next_z = z + dz
 
-    while next_x >= 1 && next_x <= Nx &&
-              next_y >= 1 && next_y <= Ny &&
-              (Nz == 1 || (next_z >= 1 && next_z <= Nz))
-
-        next_idx = next_x +
-                   (next_y - 1) * Nx +
-                   (next_z - 1) * Nx * Ny
-
+    while next_x >= 1 && next_x <= Nx && next_y >= 1 && next_y <= Ny && (Nz == 1 || (next_z >= 1 && next_z <= Nz))
+        next_idx = next_x + (next_y - 1) * Nx + (next_z - 1) * Nx * Ny
         if !(mask[next_idx] && img[next_idx] == gl)
             break
         end
@@ -195,9 +183,7 @@ function glrlm_kernel!(
     end
 
     if run_length <= max_run_length
-        bin = gl_idx +
-              (run_length - 1) * num_gl +
-              (j - 1) * num_gl * max_run_length
+        bin = gl_idx + (run_length - 1) * num_gl + (j - 1) * num_gl * max_run_length
 
         CUDA.atomic_add!(
             pointer(P_glrlm, bin),

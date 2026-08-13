@@ -18,7 +18,14 @@ function marching_cubes_surface_gpu(mask::CuArray{Bool,3},
     spacing::CuArray{Float64},
     isolevel::Float64=0.5)::Tuple{Vector{Triangle3D},CuArray{Triangle3D}}
 
-    include("src/utils/utils_gpu/shape_3D_features_lookup_tables_gpu.jl")
+    include(joinpath(
+        @__DIR__,
+        "..",
+        "utils",
+        "utils_gpu",
+        "shape_3D_features_lookup_tables_gpu.jl"
+    ))
+
 
     mask_length = length(mask)
     mask_size = size(mask)
@@ -67,7 +74,9 @@ function maximum_2d_diameters_from_vertices_gpu(verts::CuArray{Point3D})::NTuple
     d_row = CUDA.zeros(Float64, 1)
     d_column = CUDA.zeros(Float64, 1)
 
-    @cuda threads = CUDA_THREADS blocks = cld(n, CUDA_THREADS) diam2d_kernel!(verts, d_slice, d_row, d_column, n)
+    blocks_x = cld(n, CUDA_BLOCK_WIDTH_2D)
+    blocks_y = cld(n, CUDA_BLOCK_HEIGHT_2D)
+    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks = (blocks_x, blocks_y) diam2d_kernel!(verts, d_slice, d_row, d_column, n)
     return sqrt(Array(d_slice)[1]), sqrt(Array(d_row)[1]), sqrt(Array(d_column)[1])
 end
 
@@ -384,13 +393,14 @@ function diam2d_kernel!(verts::CuDeviceArray{Point3D},
     num_verts)
 
     i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+    j = threadIdx().y + (blockIdx().y - 1) * blockDim().y
 
-    if i > num_verts
+    if i > num_verts || j > num_verts || j <= i
         return nothing
     end
 
     a = verts[i]
-    for j in (i+1):num_verts
+    if j >= (i + 1) && j <= num_verts
         b = verts[j]
         dx = a[1] - b[1]
         dy = a[2] - b[2]
@@ -408,7 +418,6 @@ function diam2d_kernel!(verts::CuDeviceArray{Point3D},
         if a[1] == b[1]
             CUDA.@atomic d_column[1] = max(d_column[1], dist2)
         end
-
     end
 
     return nothing

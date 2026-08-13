@@ -60,7 +60,7 @@ function get_gldm_features(img::AbstractArray{Float64},
     else
         discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
     end
-    P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose, gpu_data)
+    P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gray_levels, gldm_a, verbose, gpu_data)
 
     if get_raw_matrices
         if verbose
@@ -105,6 +105,7 @@ end
 """
 function calculate_gldm_matrix(discretized_img::AbstractArray{Int},
     mask::BitArray,
+    gray_levels::AbstractArray{Int},
     gldm_a::Int,
     verbose::Bool,
     gpu_data::Union{GPUData,Nothing}=nothing)::Tuple{Matrix{Int},Vector{Int}}
@@ -191,7 +192,7 @@ function calculate_gldm_matrix(discretized_img::AbstractArray{Int},
         end
         P_gldm = P_gldm[:, 1:last_col]
     else
-        P_gldm, gray_levels = compute_gldm_gpu(discretized_img, gpu_data.mask, mask, gpu_data.mask_indices, gldm_a)
+        P_gldm, gray_levels = compute_gldm_gpu(discretized_img, gpu_data.mask, gpu_data.mask_indices, gray_levels, gldm_a)
     end
 
     return P_gldm, gray_levels

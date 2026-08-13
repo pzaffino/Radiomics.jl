@@ -24,6 +24,7 @@ function compute_glcm_gpu(disc::CuArray{Int},
     gray_levels::CuArray{Int},
     gpu_data::GPUData)::Array{Float64}
     dim = ndims(disc)
+
     if dim == 2
         dirs_x = CuArray([1, 0, 1, 1])
         dirs_y = CuArray([0, 1, 1, -1])
@@ -39,6 +40,7 @@ function compute_glcm_gpu(disc::CuArray{Int},
     lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     @cuda threads = CUDA_THREADS blocks = cld(Ng, CUDA_THREADS) lut_kernel!(gray_levels, lut, min_gl, Ng)
+
     mapped_disc = CUDA.zeros(Int, size(disc))
     Nx, Ny = size(mapped_disc)
     Nz = (dim == 3) ? size(mapped_disc, 3) : 1
@@ -47,9 +49,12 @@ function compute_glcm_gpu(disc::CuArray{Int},
     G_d = CUDA.zeros(Float64, Ng, Ng, length(dirs_x))
 
     n = length(gpu_data.mask_indices)
-    blocks_x = cld(n, CUDA_BLOCK_WIDTH_2D)
-    blocks_y = cld(length(dirs_x), CUDA_BLOCK_HEIGHT_2D)
-    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks = (blocks_x, blocks_y) glcm_kernel!(G_d, gpu_data.mask, gpu_data.mask_indices, mapped_disc, dirs_x, dirs_y, dirs_z, length(dirs_x), Nx, Ny, Nz, n)
+    num_dirs = length(dirs_x)
+    block_x = 16
+    block_y = min(num_dirs, 32)
+    blocks_x = cld(n, block_x)
+    blocks_y = cld(num_dirs, block_y)
+    @cuda threads = (block_x, block_y) blocks = (blocks_x, blocks_y) glcm_kernel!(G_d, gpu_data.mask, gpu_data.mask_indices, mapped_disc, dirs_x, dirs_y, dirs_z, length(dirs_x), Nx, Ny, Nz, n)
     G_all = Array(G_d)
 
     for d in axes(G_all, 3)
@@ -57,6 +62,45 @@ function compute_glcm_gpu(disc::CuArray{Int},
         sym_sum .+= sym_sum'
     end
     return permutedims(G_all, (3, 1, 2))
+end
+
+function glcm_kernel_shmem!(G::CuDeviceArray{Float64},
+    mask::CuDeviceArray{Bool},
+    mask_indices::CuDeviceArray{Int},
+    mapped_disc::CuDeviceArray{Int},
+    dirs_x::CuDeviceArray{Int},
+    dirs_y::CuDeviceArray{Int},
+    dirs_z::CuDeviceArray{Int},
+    dirs_length::Int,
+    Nx::Int,
+    Ny::Int,
+    Nz::Int,
+    Ng::Int,
+    num_valid::Int)
+
+    i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+    if i <= num_valid
+        x, y, z = decode_xyz(mask_indices[i], Nx, Ny, Nz)
+        if mask[x, y, z]
+            i_disc = mapped_disc[x, y, z]
+            @inbounds for j in 1:dirs_length
+                dx = dirs_x[j];
+                dy = dirs_y[j]
+                dz = Nz > 1 ? dirs_z[j] : 0
+                nx = x + dx;
+                ny = y + dy;
+                nz = z + dz
+                if 1 <= nx <= Nx && 1 <= ny <= Ny && (Nz == 1 || (1 <= nz <= Nz))
+                    if mask[nx, ny, nz]
+                        j_disc = mapped_disc[nx, ny, nz]
+                        CUDA.@atomic G[i_disc, j_disc, j] += 1.0
+                    end
+                end
+            end
+        end
+    end
+    return nothing
+
 end
 
 """
