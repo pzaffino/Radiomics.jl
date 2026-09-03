@@ -285,7 +285,7 @@ function get_eigenvalues_gpu(
     c12 = CuArray([0.0])
     c22 = CuArray([0.0])
 
-    @cuda threads = CUDA_THREADS blocks=blocks eigen_kernel!(xs, xy, c11, c12, c22, Np)
+    @cuda threads = CUDA_THREADS blocks=blocks eigen_kernel!(xs, ys, c11, c12, c22, meanx, meany, Np)
 
     c11_cpu = Array(c11)[1] / Np
     c12_cpu = Array(c12)[1] / Np
@@ -300,6 +300,8 @@ function eigen_kernel!(xs::CuDeviceArray{Float64},
     c11::CuDeviceArray{Float64},
     c12::CuDeviceArray{Float64},
     c22::CuDeviceArray{Float64},
+    meanx::Float64,
+    meany::Float64,
     Np::Int)
 
     i = threadIdx().x + (blockIdx().x - 1) * blockDim().x

@@ -61,8 +61,11 @@ function get_shape2d_features(mask_array::BitArray{2},
 
     if gpu_data === nothing
         perimeter, surface, diameter = get_coefficients(mask_array, spacing)
+        ev = get_eigenvalues(mask_array, spacing)
     else
-        perimeter, surface, diameter = get_coefficients_gpu(gpu_data.mask, gpu_data.mask_indices, CuArray(spacing))
+        gpu_spacing = CuArray(spacing)
+        perimeter, surface, diameter = get_coefficients_gpu(gpu_data.mask, gpu_data.mask_indices, gpu_spacing)
+        ev = get_eigenvalues_gpu(gpu_data.mask, gpu_data.mask_indices, gpu_spacing)
     end
 
     # Perimeter
@@ -82,8 +85,6 @@ function get_shape2d_features(mask_array::BitArray{2},
 
     # Sphericity
     shape_2d_features["shape2d_sphericity"] = get_sphericity(perimeter, surface)
-
-    ev = get_eigenvalues(mask_array, spacing)
 
     # Major Axis Length
     shape_2d_features["shape2d_major_axis_length"] = get_major_axis_length(ev)
