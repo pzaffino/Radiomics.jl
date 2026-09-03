@@ -259,3 +259,87 @@ function max_dist!(
 
     return nothing
 end
+
+function get_eigenvalues_gpu(
+    mask::CuArray{Bool,2},
+    mask_indices::CuArray{Int},
+    spacing::CuArray{Float64})::Vector{Float64}
+
+    Np = length(mask_indices)
+
+    Np == 0 && return zeros(Float64, 2)
+
+    xs = CuArray{Float64}(undef, Np)
+    ys = CuArray{Float64}(undef, Np)
+
+    nrows = size(mask, 1)
+
+    blocks = cld(Np, CUDA_THREADS)
+
+    @cuda threads=CUDA_THREADS blocks=blocks mask_coordinates!(mask_indices, spacing, xs, ys, nrows, Np)
+
+    meanx = CUDA.sum(xs) / Np
+    meany = CUDA.sum(ys) / Np
+
+    c11 = CuArray([0.0])
+    c12 = CuArray([0.0])
+    c22 = CuArray([0.0])
+
+    @cuda threads = CUDA_THREADS blocks=blocks eigen_kernel!(xs, xy, c11, c12, c22, Np)
+
+    c11_cpu = Array(c11)[1] / Np
+    c12_cpu = Array(c12)[1] / Np
+    c22_cpu = Array(c22)[1] / Np
+
+    ev = eigvals(Symmetric([c11_cpu c12_cpu; c12_cpu c22_cpu]))
+    return Float64.(sort(ev, rev=false))
+end
+
+function eigen_kernel!(xs::CuDeviceArray{Float64},
+    ys::CuDeviceArray{Float64},
+    c11::CuDeviceArray{Float64},
+    c12::CuDeviceArray{Float64},
+    c22::CuDeviceArray{Float64},
+    Np::Int)
+
+    i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if i > Np
+        return nothing
+    end
+
+    dx = xs[i] - meanx
+    dy = ys[i] - meany
+    CUDA.@atomic c11[1] += dx * dx
+    CUDA.@atomic c12[1] += dx * dy
+    CUDA.@atomic c22[1] += dy * dy
+
+    return nothing
+end
+
+function mask_coordinates!(
+    mask_indices::CuDeviceArray{Int},
+    spacing::CuDeviceArray{Float64},
+    xs::CuDeviceArray{Float64},
+    ys::CuDeviceArray{Float64},
+    nrows::Int,
+    n::Int,
+)
+    i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if i > n
+        return
+    end
+
+    idx = mask_indices[i]
+
+    idx0 = idx - 1
+
+    row = idx0 % nrows
+    col = idx0 ÷ nrows
+
+    xs[i] = row * spacing[1]
+    ys[i] = col * spacing[2]
+
+    return nothing
+end

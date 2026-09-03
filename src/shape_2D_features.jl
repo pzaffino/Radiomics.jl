@@ -59,7 +59,11 @@ function get_shape2d_features(mask_array::BitArray{2},
 
     shape_2d_features = Dict{String,Any}()
 
-    perimeter, surface, diameter = gpu_data === nothing ? get_coefficients(mask_array, spacing) : get_coefficients_gpu(gpu_data.mask, gpu_data.mask_indices, CuArray(spacing))
+    if gpu_data === nothing
+        perimeter, surface, diameter = get_coefficients(mask_array, spacing)
+    else
+        perimeter, surface, diameter = get_coefficients_gpu(gpu_data.mask, gpu_data.mask_indices, CuArray(spacing))
+    end
 
     # Perimeter
     shape_2d_features["shape2d_perimeter"] = perimeter
