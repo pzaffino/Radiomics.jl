@@ -50,11 +50,9 @@ function compute_glcm_gpu(disc::CuArray{Int},
 
     n = length(gpu_data.mask_indices)
     num_dirs = length(dirs_x)
-    block_x = 16
-    block_y = min(num_dirs, 32)
-    blocks_x = cld(n, block_x)
-    blocks_y = cld(num_dirs, block_y)
-    @cuda threads = (block_x, block_y) blocks = (blocks_x, blocks_y) glcm_kernel!(G_d, gpu_data.mask, gpu_data.mask_indices, mapped_disc, dirs_x, dirs_y, dirs_z, length(dirs_x), Nx, Ny, Nz, n)
+
+    blocks = (cld(n, CUDA_BLOCK_WIDTH_2D), cld(num_dirs, CUDA_BLOCK_HEIGHT_2D))
+    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks = blocks glcm_kernel!(G_d, gpu_data.mask, gpu_data.mask_indices, mapped_disc, dirs_x, dirs_y, dirs_z, length(dirs_x), Nx, Ny, Nz, n)
     G_all = Array(G_d)
 
     for d in axes(G_all, 3)

@@ -23,6 +23,7 @@ include("gpu/glcm_features_gpu.jl")
 include("gpu/gldm_features_gpu.jl")
 include("gpu/glrlm_features_gpu.jl")
 include("gpu/ngtdm_features_gpu.jl")
+include("gpu/shape_2D_features_gpu.jl")
 include("gpu/shape_3D_features_gpu.jl")
 
 """
@@ -727,13 +728,40 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     # Launch parallel threads for 2D features
     if ndims(mask) == 2
         if compute_all || :shape2d in features
-            t_shape2d_features = Threads.@spawn begin
-                result = @timed get_shape2d_features(
-                    mask, voxel_spacing;
-                    verbose=verbose,
-                    keep_largest_only=keep_largest_only
-                )
-                (result.value, result.time)
+            if !use_gpu
+                t_shape2d_features = Threads.@spawn begin
+                    result = @timed get_shape2d_features(
+                        mask, voxel_spacing;
+                        verbose=verbose,
+                        keep_largest_only=keep_largest_only
+                    )
+                    (result.value, result.time)
+                end
+            else
+                if cuda_streams
+                    shape2d_stream = CUDA.CuStream()
+                    t_shape3d_features = Threads.@spawn CUDA.stream!(shape2d_stream) do
+                        result = @timed begin
+                            r = get_shape2d_features(
+                                mask, voxel_spacing;
+                                verbose=verbose,
+                                keep_largest_only=keep_largest_only,
+                                gpu_data=gpu_data
+                            )
+                            CUDA.synchronize(shape2d_stream)
+                            r
+                        end
+                        (result.value, result.time)
+                    end
+                else
+                    result = @timed CUDA.@sync get_shape2d_features(
+                        mask, voxel_spacing;
+                        verbose=verbose,
+                        keep_largest_only=keep_largest_only,
+                        gpu_data=gpu_data
+                    )
+                    t_shape2d_features = (result.value, result.time)
+                end
             end
         end
     end

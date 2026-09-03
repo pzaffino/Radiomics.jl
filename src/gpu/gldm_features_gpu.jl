@@ -73,14 +73,12 @@ function compute_gldm_gpu(
     dep_interior = CUDA.ones(Int, n_int)
     dep_border = CUDA.ones(Int, n_bord)
 
-    block_x = 16
-    block_y = min(num_offsets, 32)
-    bx_int = cld(n_int, block_x)
-    bx_bord = cld(n_bord, block_x)
-    by = cld(num_offsets, block_y)
+    bx_int = cld(n_int, CUDA_BLOCK_WIDTH_2D)
+    bx_bord = cld(n_bord, CUDA_BLOCK_WIDTH_2D)
+    by = cld(num_offsets, CUDA_BLOCK_HEIGHT_2D)
 
-    @cuda threads = (block_x, block_y) blocks = (bx_int, by) gldm_interior_dependence!(discretized_img, mask, interior_mask, dep_interior, offsets_x, offsets_y, offsets_z, Nx, Ny, Nz, n_int, num_offsets, gldm_a)
-    @cuda threads = (block_x, block_y) blocks = (bx_bord, by) gldm_border_dependence!(discretized_img, mask, border_mask, dep_border, offsets_x, offsets_y, offsets_z, Nx, Ny, Nz, n_bord, num_offsets, gldm_a)
+    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks = (bx_int, by) gldm_interior_dependence!(discretized_img, mask, interior_mask, dep_interior, offsets_x, offsets_y, offsets_z, Nx, Ny, Nz, n_int, num_offsets, gldm_a)
+    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks = (bx_bord, by) gldm_border_dependence!(discretized_img, mask, border_mask, dep_border, offsets_x, offsets_y, offsets_z, Nx, Ny, Nz, n_bord, num_offsets, gldm_a)
 
     @cuda threads = CUDA_THREADS blocks = cld(n_bord, CUDA_THREADS) gldm_kernel!(discretized_img, border_mask, gl_lut, dep_border, min_gl, P_gldm, n_bord)
     @cuda threads = CUDA_THREADS blocks = cld(n_int, CUDA_THREADS) gldm_kernel!(discretized_img, interior_mask, gl_lut, dep_interior, min_gl, P_gldm, n_int)

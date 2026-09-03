@@ -48,11 +48,9 @@ function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, disc
 
     actual_max_run = CUDA.ones(Int, 1)
 
-    block_x = 16
-    block_y = min(num_angles, 32)
-    blocks_x = cld(num_indices, block_x)
-    blocks_y = cld(num_angles, block_y)
-    @cuda threads = (block_x, block_y) blocks = (blocks_x, blocks_y) glrlm_kernel!(discretized_img, mask, mask_indices, gl_lut, P_glrlm, actual_max_run, Nx, Ny, Nz, angles_x, angles_y, angles_z, num_angles, num_indices, num_gl, min_gl, max_run_length_possible)
+
+    blocks = (cld(num_indices, CUDA_BLOCK_WIDTH_2D), cld(num_angles, CUDA_BLOCK_HEIGHT_2D))
+    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks=blocks glrlm_kernel!(discretized_img, mask, mask_indices, gl_lut, P_glrlm, actual_max_run, Nx, Ny, Nz, angles_x, angles_y, angles_z, num_angles, num_indices, num_gl, min_gl, max_run_length_possible)
     actual_max = Array(actual_max_run)[1]
     return Array(P_glrlm[:, 1:actual_max, :])
 end
