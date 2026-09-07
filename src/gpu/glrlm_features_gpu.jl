@@ -140,16 +140,7 @@ function glrlm_kernel!(
     gl = img[idx]
     gl_idx = gl_lut[gl-min_gl+1]
 
-    z = 1
-    r = idx - 1
-
-    if Nz > 1
-        z = fld(r, Nx * Ny) + 1
-        r = r % (Nx * Ny)
-    end
-
-    y = fld(r, Nx) + 1
-    x = (r % Nx) + 1
+    x, y, z = decode_xyz(mask_indices[i], Nx, Ny, Nz)
 
     prev_x = x - dx
     prev_y = y - dy

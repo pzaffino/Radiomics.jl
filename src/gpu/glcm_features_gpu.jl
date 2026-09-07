@@ -158,16 +158,7 @@ function glcm_kernel!(G::CuDeviceArray{Float64},
         return nothing
     end
 
-    lin_idx = mask_indices[i]
-
-    # here we map a 1D index into 3D or 2D coordinates
-    z = 1
-    if Nz > 1
-        z = fld(lin_idx - 1, Nx * Ny) + 1 # depth index
-    end
-    r = (lin_idx - 1) % (Nx * Ny)   # index inside 2d plane of size Nx * Ny
-    y = fld(r, Nx) + 1              # row index from 1 to Ny
-    x = (r % Nx) + 1                # column index from 1 to Nx
+    x, y, z = decode_xyz(mask_indices[i], Nx, Ny, Nz)
 
     dx = dirs_x[j]
     dy = dirs_y[j]
