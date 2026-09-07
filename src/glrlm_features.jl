@@ -111,6 +111,8 @@ function calculate_glrlm_matrix(discretized_img::AbstractArray{Int},
         ]
     end
 
+    num_angles = length(angles)
+
     if gpu_data === nothing
         masked_img = discretized_img[mask]
         gray_levels = sort(unique(masked_img))
@@ -169,7 +171,8 @@ function calculate_glrlm_matrix(discretized_img::AbstractArray{Int},
         P_glrlm = P_glrlm[:, 1:actual_max_run, :]
 
     else
-        P_glrlm = compute_glrlm_gpu(gpu_data.mask, gpu_data.mask_indices, discretized_img, gray_levels)
+        num_gl = length(gray_levels)
+        P_glrlm, actual_max_run = compute_glrlm_gpu(gpu_data.mask, gpu_data.mask_indices, discretized_img, gray_levels)
     end
 
     if !isnothing(weighting_norm)

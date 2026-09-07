@@ -14,8 +14,9 @@
 
     # Returns
     - `Array{Float64}` containing the GLRLM 
+    - `Int` actual max run
 """
-function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, discretized_img::CuArray{Int}, gray_levels::CuArray{Int})::Array{Float64}
+function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, discretized_img::CuArray{Int}, gray_levels::CuArray{Int})::Tuple{Array{Float64},Int}
     dim = ndims(discretized_img)
 
     if dim == 2
@@ -52,7 +53,7 @@ function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, disc
     blocks = (cld(num_indices, CUDA_BLOCK_WIDTH_2D), cld(num_angles, CUDA_BLOCK_HEIGHT_2D))
     @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks=blocks glrlm_kernel!(discretized_img, mask, mask_indices, gl_lut, P_glrlm, actual_max_run, Nx, Ny, Nz, angles_x, angles_y, angles_z, num_angles, num_indices, num_gl, min_gl, max_run_length_possible)
     actual_max = Array(actual_max_run)[1]
-    return Array(P_glrlm[:, 1:actual_max, :])
+    return Array(P_glrlm[:, 1:actual_max, :]), actual_max
 end
 
 """
