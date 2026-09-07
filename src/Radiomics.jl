@@ -691,9 +691,7 @@ end
     -  features Dict{String, Any} with the radiomic features normalized in SUVbw.
 
     # Note (fix):
-    - AcquisitionTime è ora combinato con AcquisitionDate in un
-      `DateTime` pieno (`t_acq_dt`), passato a `get_tadm` per risolvere
-      correttamente scenari multi-giorno.
+    - AcquisitionTime is now combined with AcquisitionDate into a full `DateTime` (`t_acq_dt`), which is passed to `get_tadm` to correctly handle multi-day scenarios.
 """
 function normalize_pet_and_extract_features(path_dicom::String, path_mask::String)
 
