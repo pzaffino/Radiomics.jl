@@ -47,13 +47,11 @@ function init_gpu(img_host::AbstractArray{Float64},
     verbose::Bool)::Tuple{CuArray{Float64},CuArray{Bool},CuArray{Int},Bool}
     compatible, errors = can_use_cuda()
     if compatible
-        if verbose
-            println("current hardware is CUDA compatible. Allocating resources to the GPU...")
-        end
+        @info "current hardware is CUDA compatible. Please note that the first execution may take longer while CUDA kernels are initialized. For faster subsequent runs, keep this Julia process running and don't close it"
 
         img_device = CuArray(img_host)
         mask_device = CuArray(mask_host)
-        mask_indices = findall_gpu(mask_device)
+        mask_indices = CuArray(findall(vec(mask_host)))
 
         return img_device, mask_device, mask_indices, true
     else
@@ -211,18 +209,20 @@ end
         - `bin_width_used`: The bin width used for discretization.
 
 """
-function discretize_image_gpu(gpu_data::GPUData;
+function discretize_image_gpu(img_cpu::AbstractArray{Float64},
+    mask_cpu::BitArray,
+    gpu_data::GPUData;
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{<:Real,Nothing}=nothing,
     vmin::Union{Float64,Nothing}=nothing,
     vmax::Union{Float64,Nothing}=nothing)::Tuple{CuArray{Int},Int,CuArray{Int},Float64}
 
-    if CUDA.sum(gpu_data.mask) == 0
-        return zeros(Int32, size(img_f32)), 0, Int[], 0.0f0
+    if length(gpu_data.mask_indices) == 0
+        return zeros(Int, size(img)), 0, Int[], 0.0f0
     end
 
     if isnothing(vmin) || isnothing(vmax)
-        vals = view(gpu_data.img, gpu_data.mask)
+        vals = view(img_cpu, mask_cpu)
         vmin = minimum(vals)
         vmax = maximum(vals)
     end
@@ -259,7 +259,6 @@ function discretize_image_gpu(gpu_data::GPUData;
 
     end
     gray_levels = CuArray(1:n_bins_actual)
-    #gray_levels = unique_gpu(apply_mask(disc, gpu_data.mask_indices))
 
     return disc, n_bins_actual, gray_levels, bin_width_used
 end
@@ -280,13 +279,17 @@ function unique_gpu(img::CuArray{T})::CuArray{T} where T
     n = length(img)
     is_boundary = CUDA.zeros(Int32, n)
 
-    @cuda threads = CUDA_THREADS blocks = cld(n, CUDA_THREADS) set_boundaries!(img, is_boundary)
+    num_of_uniques = CuArray([0])
 
-    idx = CUDA.cumsum(is_boundary)
-    num_of_uniques = Int(CUDA.sum(is_boundary))
+    @cuda threads = CUDA_THREADS blocks = cld(n, CUDA_THREADS) set_boundaries!(img, is_boundary, num_of_uniques)
 
-    uniques = CuArray{T}(undef, num_of_uniques)
+    #idx = CUDA.cumsum(is_boundary)
+    #num_of_uniques = Int(CUDA.sum(is_boundary))
 
-    @cuda threads = CUDA_THREADS blocks = cld(n, CUDA_THREADS) assign_uniques!(img, is_boundary, idx, uniques)
+    uniques = CuArray{T}(undef, Array(num_of_uniques)[1])
+
+    counter = CuArray([0])
+
+    @cuda threads = CUDA_THREADS blocks = cld(n, CUDA_THREADS) assign_uniques!(img, is_boundary, counter, uniques)
     return uniques
 end

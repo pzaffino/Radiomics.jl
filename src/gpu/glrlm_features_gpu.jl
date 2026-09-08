@@ -29,10 +29,8 @@ function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, disc
         angles_z = CuArray([0, 0, 0, 0, 1, -1, 0, 0, 0, 0, 1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1])
     end
 
-    masked_img = apply_mask(discretized_img, mask_indices)
-    #gray_levels = unique_gpu(masked_img)
-    num_gl = length(gray_levels)
-    min_gl, max_gl = Int.(extrema(gray_levels))
+    num_gl = max_gl = length(gray_levels)
+    min_gl = 1
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     Nx, Ny = size(discretized_img)

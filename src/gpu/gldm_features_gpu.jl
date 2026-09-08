@@ -26,8 +26,8 @@ function compute_gldm_gpu(
     gray_levels::CuArray{Int},
     gldm_a::Int)::Tuple{Matrix{Int},Array{Int}}
 
-    num_gl = length(gray_levels)
-    min_gl, max_gl = Int.(extrema(gray_levels))
+    num_gl = max_gl = length(gray_levels)
+    min_gl = 1
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     @cuda threads = CUDA_THREADS blocks = cld(num_gl, CUDA_THREADS) lut_kernel!(
@@ -51,18 +51,21 @@ function compute_gldm_gpu(
     num_offsets = length(offsets_x)
 
     num_indices = length(mask_indices)
-    is_interior = CUDA.zeros(Int, num_indices)
-    is_border = CUDA.ones(Int, num_indices)
+    is_interior = CUDA.zeros(Bool, num_indices)
+    is_border = CUDA.ones(Bool, num_indices)
 
-    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) classify_mask_indices!(mask_indices, is_interior, is_border, Nx, Ny, Nz, num_indices)
+    interior_length = CuArray([0])
 
-    interior_mask = CUDA.zeros(Int, sum(is_interior))
-    border_mask = CUDA.zeros(Int, sum(is_border))
+    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) classify_mask_indices!(mask_indices, is_interior, is_border, interior_length, Nx, Ny, Nz, num_indices)
 
-    interior_idx = cumsum(is_interior)
-    border_idx = cumsum(is_border)
+    interior_length = Array(interior_length)[1]
+    interior_mask = CUDA.zeros(Int, interior_length)
+    border_mask = CUDA.zeros(Int, num_indices - interior_length)
 
-    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) assign_border_interior!(mask_indices, interior_mask, border_mask, interior_idx, border_idx, is_interior, is_border, num_indices)
+    interior_counter = CuArray([1])
+    border_counter = CuArray([1])
+
+    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) assign_border_interior!(mask_indices, interior_mask, border_mask, interior_counter, border_counter, is_interior, is_border, num_indices)
 
     n_int = length(interior_mask)
     n_bord = length(border_mask)

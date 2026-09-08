@@ -397,11 +397,7 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
     end
 
     verbose && println("[Main Thread] Running Marching Cubes...")
-    if gpu_data === nothing
-        triangles = marching_cubes_surface(processed_mask, spacing)
-    else
-        triangles, triangles_gpu = marching_cubes_surface_gpu(CuArray(processed_mask), CuArray(spacing))
-    end
+    triangles = marching_cubes_surface(processed_mask, spacing)
 
     task_geom = Threads.@spawn begin
         verbose && println("[Thread 2] Calculating surface features...")
@@ -431,7 +427,7 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
             maximum_2d_diameters_from_vertices(all_verts)
         end
     else
-        task_diam2d = calculate_diam2d_gpu(triangles_gpu, verbose)
+        task_diam2d = calculate_diam2d_gpu(CuArray(triangles), verbose)
     end
 
     vol_voxel = voxel_volume(processed_mask, spacing)

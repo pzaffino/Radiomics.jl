@@ -59,7 +59,7 @@ end
 
 function assign_uniques!(img::CuDeviceArray{T},
     is_boundary::CuDeviceArray{Int32},
-    idx::CuDeviceArray{Int},
+    counter::CuDeviceArray{Int},
     uniques::CuDeviceArray{T}) where T
 
     i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
@@ -68,7 +68,8 @@ function assign_uniques!(img::CuDeviceArray{T},
     end
 
     if is_boundary[i] != 0
-        uniques[idx[i]] = img[i]
+        pos = CUDA.atomic_add!(pointer(counter), Int(1)) + 1
+        uniques[pos] = img[i]
     end
     return nothing
 end
@@ -90,7 +91,8 @@ end
 """
 
 function set_boundaries!(x::CuDeviceArray{T},
-    is_boundary::CuDeviceArray{Int32}) where T
+    is_boundary::CuDeviceArray{Int32},
+    num_of_uniques::CuDeviceArray{Int}) where T
 
     i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
     if i > length(x)
@@ -98,9 +100,11 @@ function set_boundaries!(x::CuDeviceArray{T},
     end
 
     if i == 1
+        CUDA.@atomic num_of_uniques[1] += 1
         is_boundary[i] = 1
-    else
-        is_boundary[i] = Int(x[i] != x[i-1])
+    elseif x[i] != x[i-1]
+        is_boundary[i] = true
+        CUDA.@atomic num_of_uniques[1] += 1
     end
 
     return nothing
@@ -301,8 +305,8 @@ end
 
 """
     classify_mask_indices!(mask_indices::CuDeviceArray{Int},
-                          is_interior::CuDeviceArray{Int},
-                          is_border::CuDeviceArray{Int},
+                          is_interior::CuDeviceArray{Bool},
+                          is_border::CuDeviceArray{Bool},
                           Nx::Int,
                           Ny::Int,
                           Nz::Int,
@@ -326,8 +330,9 @@ end
 """
 function classify_mask_indices!(
     mask_indices::CuDeviceArray{Int},
-    is_interior::CuDeviceArray{Int},
-    is_border::CuDeviceArray{Int},
+    is_interior::CuDeviceArray{Bool},
+    is_border::CuDeviceArray{Bool},
+    interior_length::CuDeviceArray{Int},
     Nx::Int,
     Ny::Int,
     Nz::Int,
@@ -341,20 +346,22 @@ function classify_mask_indices!(
 
     x, y, z = decode_xyz(mask_indices[i], Nx, Ny, Nz)
 
-    interior = 0
+    interior = false
 
     if Nz <= 1
         if (1 < x < Nx) && (1 < y < Ny)
-            interior = 1
+            CUDA.@atomic interior_length[1] += 1
+            interior = true
         end
     else
         if (1 < x < Nx) && (1 < y < Ny) && (1 < z < Nz)
-            interior = 1
+            CUDA.@atomic interior_length[1] += 1
+            interior = true
         end
     end
 
     is_interior[i] = interior
-    is_border[i] = 1 - interior
+    is_border[i] = !interior
 
     return nothing
 end
@@ -365,8 +372,8 @@ end
                             border_mask::CuDeviceArray{Int},
                             interior_idx::CuDeviceArray{Int},
                             border_idx::CuDeviceArray{Int},
-                            is_interior::CuDeviceArray{Int},
-                            is_border::CuDeviceArray{Int},
+                            is_interior::CuDeviceArray{Bool},
+                            is_border::CuDeviceArray{Bool},
                             num_indices::Int)
 
     Separates ROI voxel indices into interior and border lists.
@@ -390,10 +397,10 @@ end
 function assign_border_interior!(mask_indices::CuDeviceArray{Int},
     interior_mask::CuDeviceArray{Int},
     border_mask::CuDeviceArray{Int},
-    interior_idx::CuDeviceArray{Int},
-    border_idx::CuDeviceArray{Int},
-    is_interior::CuDeviceArray{Int},
-    is_border::CuDeviceArray{Int},
+    interior_counter::CuDeviceArray{Int,1},
+    border_counter::CuDeviceArray{Int,1},
+    is_interior::CuDeviceArray{Bool},
+    is_border::CuDeviceArray{Bool},
     num_indices::Int)
 
     i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
@@ -402,10 +409,12 @@ function assign_border_interior!(mask_indices::CuDeviceArray{Int},
         return nothing
     end
 
-    if is_interior[i] == 1
-        interior_mask[interior_idx[i]] = mask_indices[i]
+    if is_interior[i]
+        pos = CUDA.@atomic interior_counter[1] += 1
+        interior_mask[pos] = mask_indices[i]
     else
-        border_mask[border_idx[i]] = mask_indices[i]
+        pos = CUDA.@atomic border_counter[1] += 1
+        border_mask[pos] = mask_indices[i]
     end
 
     return nothing

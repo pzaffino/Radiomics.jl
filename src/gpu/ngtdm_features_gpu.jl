@@ -21,8 +21,8 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     mask_indices::CuArray{Int},
     gray_levels::CuArray{Int})::Tuple{Array{Float64},Array{Int}}
 
-    num_gl = length(gray_levels)
-    min_gl, max_gl = Int.(extrema(gray_levels))
+    num_gl = max_gl = length(gray_levels)
+    min_gl = 1
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     @cuda threads = CUDA_THREADS blocks = cld(num_gl, CUDA_THREADS) lut_kernel!(
@@ -46,18 +46,20 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     num_offsets = length(offsets_x)
 
     num_indices = length(mask_indices)
-    is_interior = CUDA.zeros(Int, num_indices)
-    is_border = CUDA.ones(Int, num_indices)
+    is_interior = CUDA.zeros(Bool, num_indices)
+    is_border = CUDA.ones(Bool, num_indices)
+    interior_length = CuArray([0])
+    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) classify_mask_indices!(mask_indices, is_interior, is_border, interior_length, Nx, Ny, Nz, num_indices)
 
-    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) classify_mask_indices!(mask_indices, is_interior, is_border, Nx, Ny, Nz, num_indices)
+    interior_length = Array(interior_length)[1]
+    interior_mask = CUDA.zeros(Int, interior_length)
+    border_mask = CUDA.zeros(Int, num_indices - interior_length)
 
-    interior_mask = CUDA.zeros(Int, sum(is_interior))
-    border_mask = CUDA.zeros(Int, sum(is_border))
 
-    interior_idx = cumsum(is_interior)
-    border_idx = cumsum(is_border)
+    interior_counter = CuArray([1])
+    border_counter = CuArray([1])
 
-    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) assign_border_interior!(mask_indices, interior_mask, border_mask, interior_idx, border_idx, is_interior, is_border, num_indices)
+    @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) assign_border_interior!(mask_indices, interior_mask, border_mask, interior_counter, border_counter, is_interior, is_border, num_indices)
 
     n_int = length(interior_mask)
     n_bord = length(border_mask)
@@ -231,9 +233,11 @@ function ngtdm_neighborhood_count_border!(
     tid = threadIdx().x
     i = tid + (blockIdx().x - 1) * blockDim().x
 
-    if tid <= num_gl
-        sh_counts[tid] = 0
-        sh_sums[tid] = 0.0
+    g = tid
+    while g <= num_gl
+        sh_counts[g] = 0
+        sh_sums[g] = 0.0
+        g += blockDim().x
     end
 
     CUDA.sync_threads()

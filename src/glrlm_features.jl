@@ -36,7 +36,7 @@ function get_glrlm_features(img::AbstractArray{Float64},
 
     # Assuming discretize_image is defined in utils.jl or globally available within the module
     if gpu_data !== nothing
-        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image_gpu(gpu_data; n_bins=n_bins, bin_width=bin_width)
+        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image_gpu(img, mask, gpu_data; n_bins=n_bins, bin_width=bin_width)
     else
         discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
     end
