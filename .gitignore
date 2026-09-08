@@ -27,3 +27,7 @@ docs/site/
 # environment.
 Manifest.toml
 .local/
+
+test/data
+benchmark.jl
+settings.json

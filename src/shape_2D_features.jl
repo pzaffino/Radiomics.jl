@@ -3,20 +3,20 @@ using LinearAlgebra
 # Global constants — allocated once at module load, not at every function call
 const LINE_TABLE_2D = NTuple{5,Int8}[
     (-1, -1, -1, -1, -1),
-    ( 3,  0, -1, -1, -1),
-    ( 0,  1, -1, -1, -1),
-    ( 3,  1, -1, -1, -1),
-    ( 1,  2, -1, -1, -1),
-    ( 1,  2,  3,  0, -1),
-    ( 0,  2, -1, -1, -1),
-    ( 3,  2, -1, -1, -1),
-    ( 2,  3, -1, -1, -1),
-    ( 2,  0, -1, -1, -1),
-    ( 0,  1,  2,  3, -1),
-    ( 2,  1, -1, -1, -1),
-    ( 1,  3, -1, -1, -1),
-    ( 1,  0, -1, -1, -1),
-    ( 0,  3, -1, -1, -1),
+    (3, 0, -1, -1, -1),
+    (0, 1, -1, -1, -1),
+    (3, 1, -1, -1, -1),
+    (1, 2, -1, -1, -1),
+    (1, 2, 3, 0, -1),
+    (0, 2, -1, -1, -1),
+    (3, 2, -1, -1, -1),
+    (2, 3, -1, -1, -1),
+    (2, 0, -1, -1, -1),
+    (0, 1, 2, 3, -1),
+    (2, 1, -1, -1, -1),
+    (1, 3, -1, -1, -1),
+    (1, 0, -1, -1, -1),
+    (0, 3, -1, -1, -1),
     (-1, -1, -1, -1, -1),
 ]
 
@@ -24,7 +24,7 @@ const VERT_LIST_2D = NTuple{2,Float64}[
     (0.0, 0.5), (0.5, 1.0), (1.0, 0.5), (0.5, 0.0)
 ]
 
-const GRID_ANGLES_2D = ((0,0), (0,1), (1,1), (1,0))
+const GRID_ANGLES_2D = ((0, 0), (0, 1), (1, 1), (1, 0))
 
 const POINTS_EDGES_2D = ((0, 2), (3, 2))
 
@@ -38,9 +38,10 @@ const POINTS_EDGES_2D = ((0, 2), (3, 2))
     - A dictionary where keys are the feature names and values are the calculated feature values.
     """
 function get_shape2d_features(mask_array::BitArray{2},
-                               spacing::Vector{Float64};
-                               verbose::Bool=false,
-                               keep_largest_only::Bool=true)::Dict{String,Any}
+    spacing::Vector{Float64};
+    verbose::Bool=false,
+    keep_largest_only::Bool=true,
+    gpu_data::Union{GPUData,Nothing}=nothing)::Dict{String,Any}
 
     verbose && println("Extracting 2D shape features...")
 
@@ -53,12 +54,19 @@ function get_shape2d_features(mask_array::BitArray{2},
         end
     else
         processed_mask = mask_array
-        num_islands    = 1
+        num_islands = 1
     end
 
-    shape_2d_features = Dict{String, Any}()
+    shape_2d_features = Dict{String,Any}()
 
-    perimeter, surface, diameter = get_coefficients(mask_array, spacing)
+    if gpu_data === nothing
+        perimeter, surface, diameter = get_coefficients(mask_array, spacing)
+        ev = get_eigenvalues(mask_array, spacing)
+    else
+        gpu_spacing = CuArray(spacing)
+        perimeter, surface, diameter = get_coefficients_gpu(gpu_data.mask, gpu_data.mask_indices, gpu_spacing)
+        ev = get_eigenvalues_gpu(gpu_data.mask, gpu_data.mask_indices, gpu_spacing)
+    end
 
     # Perimeter
     shape_2d_features["shape2d_perimeter"] = perimeter
@@ -77,8 +85,6 @@ function get_shape2d_features(mask_array::BitArray{2},
 
     # Sphericity
     shape_2d_features["shape2d_sphericity"] = get_sphericity(perimeter, surface)
-
-    ev = get_eigenvalues(mask_array, spacing)
 
     # Major Axis Length
     shape_2d_features["shape2d_major_axis_length"] = get_major_axis_length(ev)
@@ -132,7 +138,7 @@ function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float64})
 
     xs = Vector{Float64}(undef, Np)
     ys = Vector{Float64}(undef, Np)
-    k  = 1
+    k = 1
     @inbounds for I in CartesianIndices(mask)
         if mask[I]
             xs[k] = (I[1] - 1) * spacing[1]
@@ -152,7 +158,9 @@ function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float64})
         c12 += dx * dy
         c22 += dy * dy
     end
-    c11 /= Np; c12 /= Np; c22 /= Np
+    c11 /= Np;
+    c12 /= Np;
+    c22 /= Np
 
     ev = eigen(Symmetric([c11 c12; c12 c22])).values
     return Float64.(sort(ev, rev=false))
@@ -199,7 +207,7 @@ end
 Helper functions to calculate the maximum diameter of a 2D mesh and coefficients for the 2D shape
 Original C code: https://github.com/AIM-Harvard/pyradiomics/blob/master/radiomics/src/cshape.c
 """
-function calculate_mesh_diameter2d(points_flat::Vector{Float64})::Float64
+function calculate_mesh_diameter2d(points_flat::Vector{Float64}, points_flat_gpu::Union{Nothing,CuArray{Float64}}=nothing)::Float64
     n = div(length(points_flat), 2)
     n < 2 && return 0.0
 
@@ -233,7 +241,7 @@ function calculate_mesh_diameter2d(points_flat::Vector{Float64})::Float64
 
     # Upper hull
     t = k + 1
-    @inbounds for i in n-1:-1:1
+    @inbounds for i in (n-1):-1:1
         p = pts[i]
         while k >= t
             o = hull[k-1]
@@ -247,17 +255,26 @@ function calculate_mesh_diameter2d(points_flat::Vector{Float64})::Float64
         k += 1
         hull[k] = p
     end
-
     # 3. Compute maximum distance over hull vertices (h = k-1 to ignore duplicate point)
     h = k - 1
-    max_dist2 = 0.0
-    @inbounds for i in 1:h
-        p1 = hull[i]
-        for j in (i+1):h
-            p2 = hull[j]
-            dist2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2
-            dist2 > max_dist2 && (max_dist2 = dist2)
+    # CPU
+    if points_flat_gpu === nothing
+        max_dist2 = 0.0
+        @inbounds for i in 1:h
+            p1 = hull[i]
+            for j in (i+1):h
+                p2 = hull[j]
+                dist2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2
+                dist2 > max_dist2 && (max_dist2 = dist2)
+            end
         end
+        # GPU
+    else
+        hull = CuArray(hull)
+        max_dist2 = CuArray([0.0])
+        blocks = (cld(h, 16), cld(h, 16))
+        @cuda threads=(16, 16) blocks=blocks max_dist!(hull, max_dist2, h)
+        max_dist2 = Array(max_dist2)[1]
     end
 
     return sqrt(max_dist2)
@@ -299,11 +316,11 @@ function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float
     - the diameter computation finds no valid vertices => returns 0.0
     """
     padded = zeros(Int, size(mask, 1) + 2, size(mask, 2) + 2)
-    padded[2:end-1, 2:end-1] .= mask
+    padded[2:(end-1), 2:(end-1)] .= mask
     mask = padded
 
     perimeter = 0.0
-    surface   = 0.0
+    surface = 0.0
 
     ny, nx = size(mask)
     vertices = Float64[]
@@ -325,9 +342,9 @@ function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float
             (square_idx == 0 || square_idx == 0xF) && continue
 
             t = 1
-            while LINE_TABLE_2D[square_idx + 1][t * 2 - 1] >= 0
-                va = LINE_TABLE_2D[square_idx + 1][t * 2 - 1] + 1
-                vb = LINE_TABLE_2D[square_idx + 1][t * 2] + 1
+            while LINE_TABLE_2D[square_idx+1][t*2-1] >= 0
+                va = LINE_TABLE_2D[square_idx+1][t*2-1] + 1
+                vb = LINE_TABLE_2D[square_idx+1][t*2] + 1
 
                 a1 = (iy - 1.0 + VERT_LIST_2D[va][1]) * spacing[1]
                 a2 = (ix - 1.0 + VERT_LIST_2D[va][2]) * spacing[2]
@@ -349,14 +366,14 @@ function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float
             end
             for t in 1:2
                 if square_idx & (1 << POINTS_EDGES_2D[1][t]) != 0
-                    push!(vertices, (iy - 1 + VERT_LIST_2D[POINTS_EDGES_2D[2][t] + 1][1]) * spacing[1])
-                    push!(vertices, (ix - 1 + VERT_LIST_2D[POINTS_EDGES_2D[2][t] + 1][2]) * spacing[2])
+                    push!(vertices, (iy - 1 + VERT_LIST_2D[POINTS_EDGES_2D[2][t]+1][1]) * spacing[1])
+                    push!(vertices, (ix - 1 + VERT_LIST_2D[POINTS_EDGES_2D[2][t]+1][2]) * spacing[2])
                 end
             end
         end
     end
 
-    surface  = abs(surface) / 2.0
+    surface = abs(surface) / 2.0
     diameter = calculate_mesh_diameter2d(vertices)
     return Float64(perimeter), Float64(surface), Float64(diameter)
 end

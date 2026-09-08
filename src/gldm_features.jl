@@ -19,6 +19,7 @@ using StatsBase
     - `get_raw_matrices`: If true, returns the raw GLDM matrix.
     - `gldm_a`: The alpha parameter for the GLDM calculation.
     - `verbose`: If true, prints progress messages.
+    - `gpu_data`: Optional object containing copies of the image, mask and ROI indices stored on the GPU. If provided, GPU acceleration is used.
 
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
@@ -34,13 +35,14 @@ using StatsBase
         features = get_gldm_features(img, mask, spacing)
 """
 function get_gldm_features(img::AbstractArray{Float64},
-                            mask::BitArray,
-                            voxel_spacing::Vector{Float64};
-                            n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float64,Nothing}=nothing,
-                            gldm_a::Int=0,
-                            get_raw_matrices::Bool=false,
-                            verbose::Bool=false)::Dict{String,Any}
+    mask::BitArray,
+    voxel_spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    gldm_a::Int=0,
+    get_raw_matrices::Bool=false,
+    verbose::Bool=false,
+    gpu_data::Union{GPUData,Nothing}=nothing,)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("Calculating GLDM with $(n_bins) bins...")
@@ -53,9 +55,12 @@ function get_gldm_features(img::AbstractArray{Float64},
 
     gldm_features = Dict{String,Any}()
 
-    discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
-
-    P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
+    if gpu_data !== nothing
+        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image_gpu(img, mask, gpu_data; n_bins=n_bins, bin_width=bin_width)
+    else
+        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+    end
+    P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gray_levels, gldm_a, verbose, gpu_data)
 
     if get_raw_matrices
         if verbose
@@ -93,95 +98,102 @@ end
     - `mask`: The mask defining the region of interest.
     - `gldm_a`: The alpha parameter for the GLDM calculation.
     - `verbose`: If true, prints progress messages.
+    - `gpu_data`: Optional object containing copies of the image, mask and ROI indices stored on the GPU. If provided, GPU acceleration is used.
 
     # Returns
     - A tuple containing the GLDM matrix and the gray levels present in the ROI.
 """
-function calculate_gldm_matrix(discretized_img::Array{Int},
-                                mask::BitArray,
-                                gldm_a::Int,
-                                verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
+function calculate_gldm_matrix(discretized_img::AbstractArray{Int},
+    mask::BitArray,
+    gray_levels::AbstractArray{Int},
+    gldm_a::Int,
+    verbose::Bool,
+    gpu_data::Union{GPUData,Nothing}=nothing)::Tuple{Matrix{Int},Vector{Int}}
     verbose && println("Calculating GLDM matrix...")
 
-    masked_img  = discretized_img[mask]
-    gray_levels = sort(unique(masked_img))
-    num_gl      = length(gray_levels)
+    if gpu_data === nothing
+        masked_img = discretized_img[mask]
+        gray_levels = sort(unique(masked_img))
+        num_gl = length(gray_levels)
 
-    # Lookup on the Array instead of using a dictionary
-    min_gl = minimum(gray_levels)
-    max_gl = maximum(gray_levels)
-    gl_map = zeros(Int, max_gl - min_gl + 1)
-    @inbounds for (i, gl) in enumerate(gray_levels)
-        gl_map[gl - min_gl + 1] = i
-    end
-
-    n_dims        = ndims(discretized_img)
-    max_dependence = 3^n_dims
-    P_gldm        = zeros(Int, num_gl, max_dependence)
-
-    # Offsets CartesianIndex for the neighbors
-    offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
-               if !all(iszero, o)]
-
-    sz           = size(discretized_img)
-    mask_indices = findall(mask)
-
-    # Classification interior/border
-    interior_mask = eltype(mask_indices)[]
-    border_mask   = eltype(mask_indices)[]
-    sizehint!(interior_mask, length(mask_indices))
-    sizehint!(border_mask,   length(mask_indices))
-
-    for idx in mask_indices
-        t = Tuple(idx)
-        if all(t[k] > 1 && t[k] < sz[k] for k in 1:n_dims)
-            push!(interior_mask, idx)
-        else
-            push!(border_mask, idx)
+        # Lookup on the Array instead of using a dictionary
+        min_gl = minimum(gray_levels)
+        max_gl = maximum(gray_levels)
+        gl_map = zeros(Int, max_gl - min_gl + 1)
+        @inbounds for (i, gl) in enumerate(gray_levels)
+            gl_map[gl-min_gl+1] = i
         end
-    end
 
-    # Interior: no checkbounds needed
-    @inbounds for idx in interior_mask
-        gl     = discretized_img[idx]
-        gl_idx = gl_map[gl - min_gl + 1]
+        n_dims = ndims(discretized_img)
+        max_dependence = 3^n_dims
+        P_gldm = zeros(Int, num_gl, max_dependence)
 
-        dependence_count = 1  # center always dependent
-        for o in offsets
-            nidx = idx + o
-            if mask[nidx] && abs(gl - discretized_img[nidx]) <= gldm_a
-                dependence_count += 1
+        # Offsets CartesianIndex for the neighbors
+        offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
+                                                if !all(iszero, o)]
+
+        sz = size(discretized_img)
+        mask_indices = findall(mask)
+
+        # Classification interior/border
+        interior_mask = eltype(mask_indices)[]
+        border_mask = eltype(mask_indices)[]
+        sizehint!(interior_mask, length(mask_indices))
+        sizehint!(border_mask, length(mask_indices))
+
+        for idx in mask_indices
+            t = Tuple(idx)
+            if all(t[k] > 1 && t[k] < sz[k] for k in 1:n_dims)
+                push!(interior_mask, idx)
+            else
+                push!(border_mask, idx)
             end
         end
 
-        P_gldm[gl_idx, dependence_count] += 1
-    end
+        # Interior: no checkbounds needed
+        @inbounds for idx in interior_mask
+            gl = discretized_img[idx]
+            gl_idx = gl_map[gl-min_gl+1]
 
-    # Border: checkbounds needed
-    for idx in border_mask
-        gl     = discretized_img[idx]
-        gl_idx = gl_map[gl - min_gl + 1]
+            dependence_count = 1  # center always dependent
+            for o in offsets
+                nidx = idx + o
+                if mask[nidx] && abs(gl - discretized_img[nidx]) <= gldm_a
+                    dependence_count += 1
+                end
+            end
 
-        dependence_count = 1
-        for o in offsets
-            nidx = idx + o
-            if checkbounds(Bool, discretized_img, nidx) && mask[nidx] && abs(gl - discretized_img[nidx]) <= gldm_a
-                dependence_count += 1
+            P_gldm[gl_idx, dependence_count] += 1
+        end
+
+        # Border: checkbounds needed
+        for idx in border_mask
+            gl = discretized_img[idx]
+            gl_idx = gl_map[gl-min_gl+1]
+
+            dependence_count = 1
+            for o in offsets
+                nidx = idx + o
+                if checkbounds(Bool, discretized_img, nidx) && mask[nidx] && abs(gl - discretized_img[nidx]) <= gldm_a
+                    dependence_count += 1
+                end
+            end
+
+            P_gldm[gl_idx, dependence_count] += 1
+        end
+
+        # Trim empty columns
+        last_col = 0
+        for j in size(P_gldm, 2):-1:1
+            if any(!iszero, @view P_gldm[:, j])
+                last_col = j
+                break
             end
         end
-
-        P_gldm[gl_idx, dependence_count] += 1
+        P_gldm = P_gldm[:, 1:last_col]
+    else
+        P_gldm, gray_levels = compute_gldm_gpu(discretized_img, gpu_data.mask, gpu_data.mask_indices, gray_levels, gldm_a)
     end
-
-    # Trim empty columns
-    last_col = 0
-    for j in size(P_gldm, 2):-1:1
-        if any(!iszero, @view P_gldm[:, j])
-            last_col = j
-            break
-        end
-    end
-    P_gldm = P_gldm[:, 1:last_col]
 
     return P_gldm, gray_levels
 end
@@ -199,7 +211,7 @@ end
     Performs a consolidated single-pass calculation over the matrix profile.
     Replaces 14 disjoint feature functions to reduce iteration overhead and cache misses.
 """
-function extract_all_gldm_features(P_gldm::Matrix{Int}, gray_levels::Vector{Int})::Dict{String, Any}
+function extract_all_gldm_features(P_gldm::Matrix{Int}, gray_levels::Vector{Int})::Dict{String,Any}
     Nz = sum(P_gldm)
     Nz_scaled = Nz == 0 ? 1e-6 : Float64(Nz)
     inv_Nz = 1.0 / Nz_scaled
@@ -291,7 +303,7 @@ function extract_all_gldm_features(P_gldm::Matrix{Int}, gray_levels::Vector{Int}
             if val > 0.0
                 i_sq = ivector_sq[i]
                 p = val * inv_Nz
-                
+
                 f_DE -= p * log2(p)
                 f_SDLGLE += val / (i_sq * j_sq)
                 f_SDHGLE += val * i_sq / j_sq
@@ -305,7 +317,7 @@ function extract_all_gldm_features(P_gldm::Matrix{Int}, gray_levels::Vector{Int}
     f_LDLGLE *= inv_Nz
     f_LDHGLE *= inv_Nz
 
-    return Dict{String, Any}(
+    return Dict{String,Any}(
         "gldm_SmallDependenceEmphasis" => f_SDE,
         "gldm_LargeDependenceEmphasis" => f_LDE,
         "gldm_GrayLevelNonUniformity" => f_GLNU,

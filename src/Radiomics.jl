@@ -4,8 +4,10 @@ using Base.Threads
 using PrecompileTools
 using JSON3
 using TOML
+using CUDA
 
-include("utils/utils.jl")
+include("utils/utils_gpu/utils.jl")
+include("utils/utils_cpu/utils.jl")
 include("glcm_features.jl")
 include("first_order_features.jl")
 include("shape_2D_features.jl")
@@ -15,6 +17,14 @@ include("ngtdm_features.jl")
 include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
+
+include("utils/utils_gpu/utils_kernels.jl")
+include("gpu/glcm_features_gpu.jl")
+include("gpu/gldm_features_gpu.jl")
+include("gpu/glrlm_features_gpu.jl")
+include("gpu/ngtdm_features_gpu.jl")
+include("gpu/shape_2D_features_gpu.jl")
+include("gpu/shape_3D_features_gpu.jl")
 
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
@@ -49,8 +59,12 @@ include("diagnostic_features.jl")
     - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
+    - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
+    - `cuda_streams`: If true, enables CUDA streams for concurrent extraction of feature families. 
     - `verbose`: If true, prints progress messages.
         
+    NOTE: setting `cuda_streams` to true does not guarantee concurrent execution and may make execution slower on some GPUs due to GPU saturation. Only use on high end GPUs with many CUDA cores or streaming multiprocessors (SMs).
+
     # Returns:
     - Single label or nothing: Dict{String,Any} with feature names as keys
     - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
@@ -65,6 +79,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     get_raw_matrices::Bool=false,
     features_std::Bool=false,
     slices_2d=nothing,
+    use_gpu::Bool=false,
+    cuda_streams::Bool=false,
     verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
 
     # Cast all inputs to correct types
@@ -81,6 +97,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         slices_2d,
         keep_largest_only,
         get_raw_matrices,
+        use_gpu,
+        cuda_streams,
         verbose
     )
 
@@ -138,6 +156,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 features_std=p.features_std,
                 keep_largest_only=p.keep_largest_only,
                 get_raw_matrices=p.get_raw_matrices,
+                use_gpu=use_gpu,
+                cuda_streams=cuda_streams,
                 verbose=p.verbose
             )
 
@@ -182,7 +202,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 push!(log_buffer, "Label $label contains $voxel_count voxels")
                 push!(log_buffer, "Applying bounding box to Label $label...")
                 local img_to_use
-                img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; log_buffer=log_buffer)
+                img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; log_buffer=log_buffer, use_gpu=use_gpu)
                 img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
 
                 if compute_all
@@ -214,6 +234,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         features_std=p.features_std,
                         features=p.features,
                         get_raw_matrices=p.get_raw_matrices,
+                        use_gpu=use_gpu,
+                        cuda_streams=cuda_streams,
                         log_buffer=log_buffer
                     )
 
@@ -294,7 +316,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         println("Label $(p.labels) contains $voxel_count voxels")
     end
 
-    img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose)
+    img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; use_gpu=use_gpu)
     img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
 
     total_start_time = time()
@@ -331,6 +353,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         features_std=p.features_std,
         compute_all=compute_all,
         features=p.features,
+        use_gpu=use_gpu,
+        cuda_streams=cuda_streams,
         get_raw_matrices=p.get_raw_matrices
     )
 
@@ -396,6 +420,8 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     features_std::Bool=false,
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
+    use_gpu::Bool=false,
+    cuda_streams::Bool=false,
     log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any},Float64}
 
     radiomic_features = Dict{String,Any}()
@@ -425,19 +451,62 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     t_shape3d_features = nothing
     t_shape2d_features = nothing
 
+    img_gpu = mask_gpu = mask_indices_gpu = nothing
+    gpu_data = nothing
+    if use_gpu
+        img_gpu, mask_gpu, mask_indices_gpu = init_gpu(img, mask, verbose)
+        gpu_data = GPUData(img_gpu, mask_gpu, mask_indices_gpu)
+    end
+
     # GLCM features
     if compute_all || :glcm in features
-        t_glcm_features = Threads.@spawn begin
-            result = @timed get_glcm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                weighting_norm=weighting_norm,
-                features_std=features_std,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
+        if !use_gpu
+            t_glcm_features = Threads.@spawn begin
+                result = @timed get_glcm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    features_std=features_std,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
+        else
+            if cuda_streams
+                glcm_stream = CUDA.CuStream()
+                t_glcm_features = Threads.@spawn CUDA.stream!(glcm_stream) do
+                    result = @timed begin
+                        r = get_glcm_features(
+                            img, mask, voxel_spacing;
+                            n_bins=n_bins,
+                            bin_width=bin_width,
+                            weighting_norm=weighting_norm,
+                            features_std=features_std,
+                            get_raw_matrices=get_raw_matrices,
+                            gpu_data=gpu_data,
+                            verbose=verbose
+                        )
+                        CUDA.synchronize(glcm_stream)
+                        r
+                    end
+                    (result.value, result.time)
+                end
+            else
+                result = @timed CUDA.@sync get_glcm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    features_std=features_std,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
+                t_glcm_features = (result.value, result.time)
+            end
         end
     end
 
@@ -470,45 +539,146 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
 
     # NGTDM features
     if compute_all || :ngtdm in features
-        t_ngtdm_features = Threads.@spawn begin
-            result = @timed get_ngtdm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
+        if !use_gpu
+            t_ngtdm_features = Threads.@spawn begin
+                result = @timed get_ngtdm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
+        else
+            if cuda_streams
+                ngtdm_stream = CUDA.CuStream()
+                t_ngtdm_features = Threads.@spawn CUDA.stream!(ngtdm_stream) do
+                    result = @timed begin
+                        r = get_ngtdm_features(
+                            img, mask, voxel_spacing;
+                            n_bins=n_bins,
+                            bin_width=bin_width,
+                            get_raw_matrices=get_raw_matrices,
+                            gpu_data=gpu_data,
+                            verbose=verbose
+                        )
+                        CUDA.synchronize(ngtdm_stream)
+                        r
+                    end
+                    (result.value, result.time)
+                end
+            else
+                result = @timed CUDA.@sync get_ngtdm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
+                t_ngtdm_features = (result.value, result.time)
+            end
         end
     end
 
     # GLRLM features
     if compute_all || :glrlm in features
-        t_glrlm_features = Threads.@spawn begin
-            result = @timed get_glrlm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                features_std=features_std,
-                weighting_norm=weighting_norm,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
+        if !use_gpu
+            t_glrlm_features = Threads.@spawn begin
+                result = @timed get_glrlm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    features_std=features_std,
+                    weighting_norm=weighting_norm,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
+        else
+            if cuda_streams
+                glrlm_stream = CUDA.CuStream()
+                t_glrlm_features = Threads.@spawn CUDA.stream!(glrlm_stream) do
+                    result = @timed begin
+                        r = get_glrlm_features(
+                            img, mask, voxel_spacing;
+                            n_bins=n_bins,
+                            bin_width=bin_width,
+                            features_std=features_std,
+                            weighting_norm=weighting_norm,
+                            get_raw_matrices=get_raw_matrices,
+                            gpu_data=gpu_data,
+                            verbose=verbose
+                        )
+                        CUDA.synchronize(glrlm_stream)
+                        r
+                    end
+                    (result.value, result.time)
+                end
+            else
+                result = @timed CUDA.@sync get_glrlm_features(
+                    img,
+                    mask,
+                    voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    features_std=features_std,
+                    weighting_norm=weighting_norm,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
+                t_glrlm_features = (result.value, result.time)
+            end
         end
     end
 
     # GLDM features
     if compute_all || :gldm in features
-        t_gldm_features = Threads.@spawn begin
-            result = @timed get_gldm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
+        if !use_gpu
+            t_gldm_features = Threads.@spawn begin
+                result = @timed get_gldm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose,
+                    gpu_data=gpu_data
+                )
+                (result.value, result.time)
+            end
+        else
+            if cuda_streams
+                gldm_stream = CUDA.CuStream()
+                t_gldm_features = Threads.@spawn CUDA.stream!(gldm_stream) do
+                    result = @timed begin
+                        r = get_gldm_features(
+                            img, mask, voxel_spacing;
+                            n_bins=n_bins,
+                            bin_width=bin_width,
+                            get_raw_matrices=get_raw_matrices,
+                            verbose=verbose,
+                            gpu_data=gpu_data
+                        )
+                        CUDA.synchronize(gldm_stream)
+                        r
+                    end
+                    (result.value, result.time)
+                end
+            else
+                result = @timed CUDA.@sync get_gldm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose,
+                    gpu_data=gpu_data
+                )
+                t_gldm_features = (result.value, result.time)
+            end
         end
     end
 
@@ -516,13 +686,41 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     if ndims(mask) == 3
         # 3D shape features
         if compute_all || :shape3d in features
-            t_shape3d_features = Threads.@spawn begin
-                result = @timed get_shape3d_features(
-                    mask, voxel_spacing;
-                    verbose=verbose,
-                    keep_largest_only=keep_largest_only
-                )
-                (result.value, result.time)
+            if !use_gpu
+                t_shape3d_features = Threads.@spawn begin
+                    result = @timed get_shape3d_features(
+                        mask, voxel_spacing;
+                        verbose=verbose,
+                        keep_largest_only=keep_largest_only,
+                        gpu_data=gpu_data
+                    )
+                    (result.value, result.time)
+                end
+            else
+                if cuda_streams
+                    shape_stream = CUDA.CuStream()
+                    t_shape3d_features = Threads.@spawn CUDA.stream!(shape_stream) do
+                        result = @timed begin
+                            r = get_shape3d_features(
+                                mask, voxel_spacing;
+                                verbose=verbose,
+                                keep_largest_only=keep_largest_only,
+                                gpu_data=gpu_data
+                            )
+                            CUDA.synchronize(shape_stream)
+                            r
+                        end
+                        (result.value, result.time)
+                    end
+                else
+                    result = @timed CUDA.@sync get_shape3d_features(
+                        mask, voxel_spacing;
+                        verbose=verbose,
+                        keep_largest_only=keep_largest_only,
+                        gpu_data=gpu_data
+                    )
+                    t_shape3d_features = (result.value, result.time)
+                end
             end
         end
     end
@@ -530,13 +728,40 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     # Launch parallel threads for 2D features
     if ndims(mask) == 2
         if compute_all || :shape2d in features
-            t_shape2d_features = Threads.@spawn begin
-                result = @timed get_shape2d_features(
-                    mask, voxel_spacing;
-                    verbose=verbose,
-                    keep_largest_only=keep_largest_only
-                )
-                (result.value, result.time)
+            if !use_gpu
+                t_shape2d_features = Threads.@spawn begin
+                    result = @timed get_shape2d_features(
+                        mask, voxel_spacing;
+                        verbose=verbose,
+                        keep_largest_only=keep_largest_only
+                    )
+                    (result.value, result.time)
+                end
+            else
+                if cuda_streams
+                    shape2d_stream = CUDA.CuStream()
+                    t_shape3d_features = Threads.@spawn CUDA.stream!(shape2d_stream) do
+                        result = @timed begin
+                            r = get_shape2d_features(
+                                mask, voxel_spacing;
+                                verbose=verbose,
+                                keep_largest_only=keep_largest_only,
+                                gpu_data=gpu_data
+                            )
+                            CUDA.synchronize(shape2d_stream)
+                            r
+                        end
+                        (result.value, result.time)
+                    end
+                else
+                    result = @timed CUDA.@sync get_shape2d_features(
+                        mask, voxel_spacing;
+                        verbose=verbose,
+                        keep_largest_only=keep_largest_only,
+                        gpu_data=gpu_data
+                    )
+                    t_shape2d_features = (result.value, result.time)
+                end
             end
         end
     end
@@ -714,6 +939,19 @@ end
 
     spacing = [1.0, 1.0, 1.0]
 
+    if CUDA.functional()
+        img_small_gpu = reshape(Float64.(1:1000), 10, 10, 10)
+        mask_small_gpu = zeros(Float64, 10, 10, 10)
+        mask_small_gpu[1:6, 1:6, 1:6] .= 1.0
+        mask_cpu = BitArray(mask_small_gpu .!= 0.0)
+
+        img = CuArray(img_small_gpu)
+        mask = CuArray(mask_cpu)
+        mask_indices = CuArray(findall(vec(mask_cpu)))
+
+        gpu_data = GPUData(img, mask, mask_indices)
+    end
+
     @compile_workload begin
         # 2D
         extract_radiomic_features(
@@ -845,6 +1083,15 @@ end
             keep_largest_only=false,
             verbose=false
         )
+        if CUDA.functional()
+            disc, _, gray_levels, _ = discretize_image_gpu(img_small, mask_cpu, gpu_data)
+            compute_glcm_gpu(disc, gray_levels, gpu_data)
+            compute_gldm_gpu(disc, mask, mask_indices, gray_levels, 1)
+            compute_glrlm_gpu(mask, mask_indices, disc, gray_levels)
+            compute_ngtdm_gpu(disc, mask, mask_indices, gray_levels)
+
+            get_shape3d_features(mask_cpu, spacing; verbose=false, keep_largest_only=false, gpu_data=gpu_data)
+        end
     end
 end
 

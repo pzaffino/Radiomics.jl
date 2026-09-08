@@ -33,12 +33,13 @@ using StatsBase
         features = get_ngtdm_features(img, mask, spacing)
     """
 function get_ngtdm_features(img::AbstractArray{Float64},
-                             mask::BitArray,
-                             voxel_spacing::Vector{Float64};
-                             n_bins::Union{Int,Nothing}=nothing,
-                             bin_width::Union{Float64,Nothing}=nothing,
-                             get_raw_matrices::Bool=false,
-                             verbose::Bool=false)::Dict{String,Any}
+    mask::BitArray,
+    voxel_spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    get_raw_matrices::Bool=false,
+    verbose::Bool=false,
+    gpu_data::Union{GPUData,Nothing}=nothing)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("NGTDM calculation with $(n_bins) bins...")
@@ -49,13 +50,17 @@ function get_ngtdm_features(img::AbstractArray{Float64},
         end
     end
 
-    ngtdm_features = Dict{String, Any}()
+    ngtdm_features = Dict{String,Any}()
 
     # 1. Discretize the image
-    discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+    if gpu_data !== nothing
+        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image_gpu(img, mask, gpu_data; n_bins=n_bins, bin_width=bin_width)
+    else
+        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+    end
 
     # 2. Calculate the NGTDM matrix
-    P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, verbose)
+    P_ngtdm, gray_levels = calculate_ngtdm_matrix(discretized_img, mask, gray_levels, verbose, gpu_data)
 
     if get_raw_matrices
         if verbose
@@ -99,93 +104,98 @@ end
     # Returns
     - A tuple containing the NGTDM matrix and the gray levels present in the ROI.
     """
-function calculate_ngtdm_matrix(discretized_img::Array{Int},
-                                 mask::BitArray,
-                                 verbose::Bool)::Tuple{Matrix{Float64}, Vector{Int}}
+function calculate_ngtdm_matrix(discretized_img::AbstractArray{Int},
+    mask::BitArray,
+    gray_levels::AbstractArray{Int},
+    verbose::Bool,
+    gpu_data::Union{GPUData,Nothing}=nothing)::Tuple{Matrix{Float64},Vector{Int}}
 
     verbose && println("Calculating NGTDM matrix...")
+    if gpu_data === nothing
+        masked_img = discretized_img[mask]
+        gray_levels = sort(unique(masked_img))
+        num_gl = length(gray_levels)
 
-    masked_img  = discretized_img[mask]
-    gray_levels = sort(unique(masked_img))
-    num_gl      = length(gray_levels)
-
-    # Lookup array invece di Dict
-    min_gl = minimum(gray_levels)
-    max_gl = maximum(gray_levels)
-    gl_map = zeros(Int, max_gl - min_gl + 1)
-    @inbounds for (i, gl) in enumerate(gray_levels)
-        gl_map[gl - min_gl + 1] = i
-    end
-
-    P_ngtdm = zeros(Float64, num_gl, 3)
-
-    n_dims  = ndims(discretized_img)
-    offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
-               if !all(iszero, o)]
-
-    sz            = size(discretized_img)
-    cart_indices  = CartesianIndices(sz)
-    linear_indices = LinearIndices(sz)
-
-    mask_indices  = findall(mask)
-    interior_mask = eltype(mask_indices)[]
-    border_mask   = eltype(mask_indices)[]
-    sizehint!(interior_mask, length(mask_indices))
-    sizehint!(border_mask,   length(mask_indices))
-
-    for idx in mask_indices
-        t = Tuple(idx)
-        if all(t[k] > 1 && t[k] < sz[k] for k in 1:n_dims)
-            push!(interior_mask, idx)
-        else
-            push!(border_mask, idx)
+        # Lookup array invece di Dict
+        min_gl = minimum(gray_levels)
+        max_gl = maximum(gray_levels)
+        gl_map = zeros(Int, max_gl - min_gl + 1)
+        @inbounds for (i, gl) in enumerate(gray_levels)
+            gl_map[gl-min_gl+1] = i
         end
-    end
 
-    @inbounds for idx in interior_mask
-        gl     = discretized_img[idx]
-        gl_idx = gl_map[gl - min_gl + 1]
+        P_ngtdm = zeros(Float64, num_gl, 3)
 
-        neighborhood_sum   = 0
-        neighborhood_count = 0
+        n_dims = ndims(discretized_img)
+        offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
+                                                if !all(iszero, o)]
 
-        for o in offsets
-            nidx = idx + o
-            if mask[nidx]
-                neighborhood_sum   += discretized_img[nidx]
-                neighborhood_count += 1
+        sz = size(discretized_img)
+        cart_indices = CartesianIndices(sz)
+        linear_indices = LinearIndices(sz)
+
+        mask_indices = findall(mask)
+        interior_mask = eltype(mask_indices)[]
+        border_mask = eltype(mask_indices)[]
+        sizehint!(interior_mask, length(mask_indices))
+        sizehint!(border_mask, length(mask_indices))
+
+        for idx in mask_indices
+            t = Tuple(idx)
+            if all(t[k] > 1 && t[k] < sz[k] for k in 1:n_dims)
+                push!(interior_mask, idx)
+            else
+                push!(border_mask, idx)
             end
         end
 
-        if neighborhood_count > 0
-            neighborhood_avg    = neighborhood_sum / neighborhood_count
-            P_ngtdm[gl_idx, 1] += 1
-            P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
-            P_ngtdm[gl_idx, 3]  = gl
-        end
-    end
+        @inbounds for idx in interior_mask
+            gl = discretized_img[idx]
+            gl_idx = gl_map[gl-min_gl+1]
 
-    for idx in border_mask
-        gl     = discretized_img[idx]
-        gl_idx = gl_map[gl - min_gl + 1]
+            neighborhood_sum = 0
+            neighborhood_count = 0
 
-        neighborhood_sum   = 0
-        neighborhood_count = 0
+            for o in offsets
+                nidx = idx + o
+                if mask[nidx]
+                    neighborhood_sum += discretized_img[nidx]
+                    neighborhood_count += 1
+                end
+            end
 
-        for o in offsets
-            nidx = idx + o
-            if checkbounds(Bool, discretized_img, nidx) && mask[nidx]
-                neighborhood_sum   += discretized_img[nidx]
-                neighborhood_count += 1
+            if neighborhood_count > 0
+                neighborhood_avg = neighborhood_sum / neighborhood_count
+                P_ngtdm[gl_idx, 1] += 1
+                P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
+                P_ngtdm[gl_idx, 3] = gl
             end
         end
 
-        if neighborhood_count > 0
-            neighborhood_avg    = neighborhood_sum / neighborhood_count
-            P_ngtdm[gl_idx, 1] += 1
-            P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
-            P_ngtdm[gl_idx, 3]  = gl
+        for idx in border_mask
+            gl = discretized_img[idx]
+            gl_idx = gl_map[gl-min_gl+1]
+
+            neighborhood_sum = 0
+            neighborhood_count = 0
+
+            for o in offsets
+                nidx = idx + o
+                if checkbounds(Bool, discretized_img, nidx) && mask[nidx]
+                    neighborhood_sum += discretized_img[nidx]
+                    neighborhood_count += 1
+                end
+            end
+
+            if neighborhood_count > 0
+                neighborhood_avg = neighborhood_sum / neighborhood_count
+                P_ngtdm[gl_idx, 1] += 1
+                P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
+                P_ngtdm[gl_idx, 3] = gl
+            end
         end
+    else
+        P_ngtdm, gray_levels = compute_ngtdm_gpu(discretized_img, gpu_data.mask, gpu_data.mask_indices, gray_levels)
     end
 
     return P_ngtdm, gray_levels
@@ -204,7 +214,7 @@ end
     - A tuple containing the number of voxels with a valid region, the gray level probability vector, the sum of absolute differences vector, the gray level vector, and the number of gray levels for which `p_i` > 0.
     """
 function calculate_ngtdm_coefficients(P_ngtdm::Matrix{Float64},
-                                      gray_levels::Vector{Int})::Tuple{Float64,Vector{Float64},Vector{Float64},Vector{Float64},Int}
+    gray_levels::Vector{Int})::Tuple{Float64,Vector{Float64},Vector{Float64},Vector{Float64},Int}
     Nvp = sum(P_ngtdm[:, 1])
     p_i = P_ngtdm[:, 1] ./ Nvp
     s_i = P_ngtdm[:, 2]
@@ -228,10 +238,10 @@ end
     Calculates the Contrast feature.
     """
 function contrast(p_i::Vector{Float64},
-                  s_i::Vector{Float64},
-                  i::Vector{Float64},
-                  Ngp::Int,
-                  Nvp::Float64)::Float64
+    s_i::Vector{Float64},
+    i::Vector{Float64},
+    Ngp::Int,
+    Nvp::Float64)::Float64
     Ngp <= 1 && return 0.0
     n = length(p_i)
     val = 0.0
@@ -246,8 +256,8 @@ end
     Calculates the Busyness feature.
     """
 function busyness(p_i::Vector{Float64},
-                  s_i::Vector{Float64},
-                  i::Vector{Float64})::Float64
+    s_i::Vector{Float64},
+    i::Vector{Float64})::Float64
     n = length(p_i)
     num = 0.0
     den = 0.0
@@ -269,9 +279,9 @@ end
     Calculates the Complexity feature.
     """
 function complexity(p_i::Vector{Float64},
-                    s_i::Vector{Float64},
-                    i::Vector{Float64},
-                    Nvp::Float64)::Float64
+    s_i::Vector{Float64},
+    i::Vector{Float64},
+    Nvp::Float64)::Float64
     n = length(p_i)
     val = 0.0
     @inbounds for a in 1:n
@@ -290,8 +300,8 @@ end
     Calculates the Strength feature.
     """
 function strength(p_i::Vector{Float64},
-                  s_i::Vector{Float64},
-                  i::Vector{Float64})::Float64
+    s_i::Vector{Float64},
+    i::Vector{Float64})::Float64
     sum_s_i = sum(s_i)
     sum_s_i == 0 && return 0.0
     n = length(p_i)

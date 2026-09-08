@@ -1,4 +1,22 @@
 """
+    optimal_device(mask_voxels::Int
+                   voxel_threshold_warning::Int=0)
+    Warns the user that CPU execution may be faster when the voxel count is small
+    
+    # Arguments
+    - `mask_voxels`: Number of voxels in the mask
+    - `voxel_threshold_warning`: If `mask_voxels` is less than or equal to this value, a warning is displayed
+"""
+
+function optimal_device(mask_voxels, voxel_threshold_warning::Union{Int64,Nothing}=nothing)
+    if !isnothing(voxel_threshold_warning)
+        if mask_voxels <= voxel_threshold_warning
+            @warn "GPU initialization will proceed normally, but due to small voxel count, CPU execution may be faster"
+        end
+    end
+end
+
+"""
     bounding_box(img::AbstractArray{Float64},
                  mask::AbstractArray,
                  verbose::Bool;
@@ -12,6 +30,7 @@
     - `img`: The input image (2D or 3D array).
     - `mask`: The binary mask defining the region of interest (same shape as `img`).
     - `verbose`: If `true`, prints the original and cropped sizes with reduction percentage.
+    - `use_gpu`: If `true`, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
 
     # Returns
     - `cropped_img`: image array cropped to the bounding box of the mask.
@@ -19,6 +38,7 @@
 function bounding_box(img::AbstractArray{Float64},
     mask::AbstractArray,
     verbose::Bool;
+    use_gpu::Bool=false,
     log_buffer::Union{Vector{String},Nothing}=nothing)::Tuple{AbstractArray{Float64},BitArray}
     function _bb_log(msg)
         if !isnothing(log_buffer)
@@ -36,6 +56,10 @@ function bounding_box(img::AbstractArray{Float64},
 
     idx = findall(mask .== 1)
     n = ndims(mask)
+
+    if use_gpu
+        optimal_device(length(idx), 128 * 128)
+    end
 
     mins = [typemax(Int) for _ in 1:n]
     maxs = [typemin(Int) for _ in 1:n]
@@ -329,7 +353,7 @@ function print_features(title::String,
     push!(output, "\n--- $title ---")
 
     base_keys = sort([k for k in keys(features)
-                      if !endswith(k, "_std") && !endswith(k, "_min") && !endswith(k, "_max")])
+                            if !endswith(k, "_std") && !endswith(k, "_min") && !endswith(k, "_max")])
 
     for (i, k) in enumerate(base_keys)
         val = features[k]
@@ -386,9 +410,11 @@ function _cast_inputs(
     slices_2d,
     keep_largest_only,
     get_raw_matrices,
+    use_gpu,
+    cuda_streams,
     verbose
 )::NamedTuple{
-    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :verbose),
+    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :cuda_streams, :verbose),
     Tuple{
         Union{Array{Float64,2},Array{Float64,3}},
         Union{Array{Int,2},Array{Int,3}},
@@ -400,6 +426,8 @@ function _cast_inputs(
         Union{Nothing,String},
         Bool,
         Union{Nothing,Vector{Tuple{Int,Int}}},
+        Bool,
+        Bool,
         Bool,
         Bool,
         Bool
@@ -498,6 +526,8 @@ function _cast_inputs(
         slices_2d=slices_2d_out,
         keep_largest_only=Bool(keep_largest_only),
         get_raw_matrices=Bool(get_raw_matrices),
+        use_gpu=Bool(use_gpu),
+        cuda_streams=Bool(cuda_streams),
         verbose=Bool(verbose)
     )
 end
