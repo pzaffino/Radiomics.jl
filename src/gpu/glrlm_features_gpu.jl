@@ -2,8 +2,11 @@
     compute_glrlm_gpu(
         mask::CuArray{Bool},
         mask_indices::CuArray{Int},
-        discretized_img::CuArray{Int}
-    )::Array{Float64}
+        discretized_img::CuArray{Int},
+        gray_levels::CuArray{Int},
+        num_gl::Int,
+        max_gl::Int,
+        min_gl::Int)::Array{Float64}
 
     Computes the Gray Level Run Length Matrix (GLRLM) on the GPU.
 
@@ -11,12 +14,22 @@
     - `mask`: ROI mask stored on the GPU.
     - `mask_indices`: Linear indices of valid ROI voxels.
     - `discretized_img`: Discretized image stored on the GPU.
+    - `gray_levels`: Array containing all gray levels
+    - `num_gl`: Number of gray levels 
+    - `max_gl`: Maximum gray level 
+    - `min_gl`: Minimum gray level
 
     # Returns
     - `Array{Float64}` containing the GLRLM 
     - `Int` actual max run
 """
-function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, discretized_img::CuArray{Int}, gray_levels::CuArray{Int})::Tuple{Array{Float64},Int}
+function compute_glrlm_gpu(mask::CuArray{Bool},
+    mask_indices::CuArray{Int},
+    discretized_img::CuArray{Int},
+    gray_levels::CuArray{Int},
+    num_gl::Int,
+    max_gl::Int,
+    min_gl::Int)::Tuple{Array{Float64},Int}
     dim = ndims(discretized_img)
 
     if dim == 2
@@ -29,8 +42,6 @@ function compute_glrlm_gpu(mask::CuArray{Bool}, mask_indices::CuArray{Int}, disc
         angles_z = CuArray([0, 0, 0, 0, 1, -1, 0, 0, 0, 0, 1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1, 1, -1, -1, 1])
     end
 
-    num_gl = max_gl = length(gray_levels)
-    min_gl = 1
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     Nx, Ny = size(discretized_img)

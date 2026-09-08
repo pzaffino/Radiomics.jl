@@ -170,6 +170,8 @@ end
 """
 function bin_nbins_kernel!(img::CuDeviceArray{Float64},
     mask_indices::CuDeviceArray{Int},
+    max_gl::CuDeviceArray{Int,1},
+    min_gl::CuDeviceArray{Int,1},
     inv_bin_width::Float64,
     n_bins::Int,
     vmin::Float64,
@@ -183,6 +185,9 @@ function bin_nbins_kernel!(img::CuDeviceArray{Float64},
     v = img[mask_indices[i]]
     b = CUDA.min(Int(floor((v - vmin) * inv_bin_width)) + 1, n_bins)
     disc[mask_indices[i]] = b
+
+    CUDA.atomic_max!(pointer(max_gl, 1), Int(b))
+    CUDA.atomic_min!(pointer(min_gl, 1), Int(b))
 
     return nothing
 end
@@ -211,8 +216,9 @@ end
 """
 function bin_width_kernel!(img::CuDeviceArray{Float64},
     mask_indices::CuDeviceArray{Int},
-    inv_bin_width::Float64,
-    bin_offset::Int,
+    max_gl::CuDeviceArray{Int,1},
+    min_gl::CuDeviceArray{Int,1},
+    inv_bin_width::Float64, bin_offset::Int,
     disc::CuDeviceArray{Int},
     n_of_indices::Int)
     i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
@@ -223,6 +229,9 @@ function bin_width_kernel!(img::CuDeviceArray{Float64},
     v = img[mask_indices[i]]
     b = Int(floor(v * inv_bin_width)) - bin_offset + 1
     disc[mask_indices[i]] = b
+
+    CUDA.atomic_max!(pointer(max_gl, 1), Int(b))
+    CUDA.atomic_min!(pointer(min_gl, 1), Int(b))
 
     return nothing
 end

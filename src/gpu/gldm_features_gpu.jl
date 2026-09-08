@@ -1,33 +1,40 @@
 """
     compute_gldm_gpu(discretized_img::CuArray{Int},
-                     mask::CuArray{Bool},
-                     mask_cpu::BitArray,
-                     mask_indices::CuArray{Int},
-                     gldm_a::Int)::Tuple{CuArray{Int},CuArray{Int}}
+        mask::CuArray{Bool},
+        mask_indices::CuArray{Int},
+        gray_levels::CuArray{Int},
+        num_gl::Int,
+        max_gl::Int,
+        min_gl::Int,
+        gldm_a::Int)::Tuple{CuArray{Int},CuArray{Int}}
 
     Computes the Gray Level Dependence Matrix (GLDM) on the GPU.
 
     # Arguments
-    - `discretized_img::CuArray`: Discretized image stored on the GPU.
-    - `mask::CuArray{Bool}`: ROI mask stored on the GPU.
-    - `mask_cpu::BitArray`: CPU copy of the ROI mask.
-    - `mask_indices::CuArray{Int}`: Linear indices of ROI voxels.
-    - `gldm_a::Int`: Maximum gray-level difference allowed for dependence.
+    - `discretized_img`: Discretized image stored on the GPU.
+    - `mask`: ROI mask stored on the GPU.
+    - `mask_indices`: Linear indices of ROI voxels.
+    - `gray_levels`: Array containing all gray levels
+    - `num_gl`: Number of gray levels 
+    - `max_gl`: Maximum gray level 
+    - `min_gl`: Minimum gray level
+    - `gldm_a`: Maximum gray-level difference allowed for dependence.
 
     # Returns
     - `Tuple{Matrix{Int}, Array{Int}}`:
-        - `P_gldm`: GLDM matrix.
-        - `gray_levels`: Unique gray levels present in the ROI.
+        - `P_gldm`: GLDM matrix transferred to the CPU.
+        - `gray_levels`: Unique gray levels present in the ROI transferred to the CPU.
 """
 function compute_gldm_gpu(
     discretized_img::CuArray{Int},
     mask::CuArray{Bool},
     mask_indices::CuArray{Int},
     gray_levels::CuArray{Int},
+    num_gl::Int,
+    max_gl::Int,
+    min_gl::Int,
     gldm_a::Int)::Tuple{Matrix{Int},Array{Int}}
 
-    num_gl = max_gl = length(gray_levels)
-    min_gl = 1
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     @cuda threads = CUDA_THREADS blocks = cld(num_gl, CUDA_THREADS) lut_kernel!(
