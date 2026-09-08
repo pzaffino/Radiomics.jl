@@ -939,6 +939,19 @@ end
 
     spacing = [1.0, 1.0, 1.0]
 
+    if CUDA.functional()
+        img_small_gpu = reshape(Float64.(1:1000), 10, 10, 10)
+        mask_small_gpu = zeros(Float64, 10, 10, 10)
+        mask_small_gpu[1:6, 1:6, 1:6] .= 1.0
+        mask_cpu = BitArray(mask_small_gpu .!= 0.0)
+
+        img = CuArray(img_small_gpu)
+        mask = CuArray(mask_cpu)
+        mask_indices = CuArray(findall(vec(mask_cpu)))
+
+        gpu_data = GPUData(img, mask, mask_indices)
+    end
+
     @compile_workload begin
         # 2D
         extract_radiomic_features(
@@ -1070,6 +1083,15 @@ end
             keep_largest_only=false,
             verbose=false
         )
+        if CUDA.functional()
+            disc, _, gray_levels, _ = discretize_image_gpu(img_small, mask_cpu, gpu_data)
+            compute_glcm_gpu(disc, gray_levels, gpu_data)
+            compute_gldm_gpu(disc, mask, mask_indices, gray_levels, 1)
+            compute_glrlm_gpu(mask, mask_indices, disc, gray_levels)
+            compute_ngtdm_gpu(disc, mask, mask_indices, gray_levels)
+
+            get_shape3d_features(mask_cpu, spacing; verbose=false, keep_largest_only=false, gpu_data=gpu_data)
+        end
     end
 end
 
