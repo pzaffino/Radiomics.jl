@@ -34,10 +34,9 @@ function compute_glcm_gpu(disc::CuArray{Int},
         dirs_y = CuArray([0, 1, 0, 1, -1, 0, 0, 1, 1, 1, 1, -1, 1])
         dirs_z = CuArray([0, 0, 1, 0, 0, 1, -1, 1, -1, 1, -1, 1, 1])
     end
-
-    Ng = length(gray_levels)
-    min_gl = 1
-    max_gl = length(gray_levels)
+    max_gl = gpu_data.texture_data.max_gl
+    min_gl = gpu_data.texture_data.min_gl
+    Ng = gpu_data.texture_data.num_gl
     lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     @cuda threads = CUDA_THREADS blocks = cld(Ng, CUDA_THREADS) lut_kernel!(gray_levels, lut, min_gl, Ng)

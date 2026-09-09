@@ -7,10 +7,19 @@ CUDA_BLOCK_HEIGHT_3D = 8
 CUDA_BLOCK_WIDTH_3D = 8
 CUDA_BLOCK_DEPTH_3D = 4
 
-struct GPUData
-    img::CuArray
-    mask::CuArray
-    mask_indices::CuArray
+mutable struct TextureData
+    discretized_image::CuArray{Int}
+    gray_levels::CuArray{Int}
+    num_gl::Int
+    max_gl::Int
+    min_gl::Int
+end
+
+mutable struct GPUData
+    img::CuArray{Float64}
+    mask::CuArray{Bool}
+    mask_indices::CuArray{Int}
+    texture_data::Union{TextureData,Nothing}
 end
 
 struct GPUDict{T}
@@ -215,7 +224,7 @@ function discretize_image_gpu(img_cpu::AbstractArray{Float64},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{<:Real,Nothing}=nothing,
     vmin::Union{Float64,Nothing}=nothing,
-    vmax::Union{Float64,Nothing}=nothing)::Tuple{CuArray{Int},Int,CuArray{Int},Float64}
+    vmax::Union{Float64,Nothing}=nothing)::Tuple{CuArray{Int},Int,CuArray{Int},Float64,TextureData}
 
     if length(gpu_data.mask_indices) == 0
         return zeros(Int, size(img)), 0, Int[], 0.0f0
@@ -237,6 +246,9 @@ function discretize_image_gpu(img_cpu::AbstractArray{Float64},
 
     n_of_indices = length(gpu_data.mask_indices)
 
+    max_gl = CuArray([typemin(Int64)])
+    min_gl = CuArray([typemax(Int64)])
+
     if !isnothing(n_bins)
         bin_width_used = (vmax - vmin) / Float64(n_bins)
         if bin_width_used ≈ 0.0
@@ -246,7 +258,7 @@ function discretize_image_gpu(img_cpu::AbstractArray{Float64},
         inv_bin_width = 1.0 / bin_width_used
 
         blocks = cld(n_of_indices, CUDA_THREADS)
-        @cuda threads = CUDA_THREADS blocks = blocks bin_nbins_kernel!(gpu_data.img, gpu_data.mask_indices, inv_bin_width, n_bins, vmin, disc, n_of_indices)
+        @cuda threads = CUDA_THREADS blocks = blocks bin_nbins_kernel!(gpu_data.img, gpu_data.mask_indices, max_gl, min_gl, inv_bin_width, n_bins, vmin, disc, n_of_indices)
         n_bins_actual = n_bins
     else
         bin_width_used = bin_width
@@ -254,13 +266,14 @@ function discretize_image_gpu(img_cpu::AbstractArray{Float64},
         bin_offset = Int(floor(vmin * inv_bin_width))
 
         blocks = cld(n_of_indices, CUDA_THREADS)
-        @cuda threads = CUDA_THREADS blocks = blocks bin_width_kernel!(gpu_data.img, gpu_data.mask_indices, inv_bin_width, bin_offset, disc, n_of_indices)
+        @cuda threads = CUDA_THREADS blocks = blocks bin_width_kernel!(gpu_data.img, gpu_data.mask_indices, max_gl, min_gl, inv_bin_width, bin_offset, disc, n_of_indices)
         n_bins_actual = Int(floor((vmax - vmin) * inv_bin_width)) + 1
 
     end
-    gray_levels = CuArray(1:n_bins_actual)
+    gray_levels = unique_gpu(apply_mask(disc, gpu_data.mask_indices))
+    texture_data = TextureData(disc, gray_levels, length(gray_levels), Array(max_gl)[1], Array(min_gl)[1])
 
-    return disc, n_bins_actual, gray_levels, bin_width_used
+    return disc, n_bins_actual, gray_levels, bin_width_used, texture_data
 end
 
 """

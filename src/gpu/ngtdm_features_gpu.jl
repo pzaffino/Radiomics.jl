@@ -1,9 +1,11 @@
 """
-    compute_ngtdm_gpu(
-        discretized_img::CuArray{Int},
+    compute_ngtdm_gpu(discretized_img::CuArray{Int},
         mask::CuArray{Bool},
-        mask_indices::CuArray{Int}
-    )::Tuple{Array{Float64}, Array{Int}}
+        mask_indices::CuArray{Int},
+        gray_levels::CuArray{Int},
+        num_gl::Int,
+        max_gl::Int,
+        min_gl::Int)::Tuple{Array{Float64},Array{Int}}
 
     Computes the Neighborhood Gray-Tone Difference Matrix (NGTDM) on the GPU.
 
@@ -11,6 +13,11 @@
     - `discretized_img`: Discretized image stored on the GPU.
     - `mask`: Binary ROI mask stored on the GPU.
     - `mask_indices`: Linear indices of ROI voxels.
+    - `gray_levels`: Array containing all gray levels
+    - `num_gl`: Number of gray levels 
+    - `max_gl`: Maximum gray level 
+    - `min_gl`: Minimum gray level
+
 
     # Returns
     - `P_ngtdm`: NGTDM matrix transferred back to the CPU
@@ -19,10 +26,11 @@
 function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     mask::CuArray{Bool},
     mask_indices::CuArray{Int},
-    gray_levels::CuArray{Int})::Tuple{Array{Float64},Array{Int}}
+    gray_levels::CuArray{Int},
+    num_gl::Int,
+    max_gl::Int,
+    min_gl::Int)::Tuple{Array{Float64},Array{Int}}
 
-    num_gl = max_gl = length(gray_levels)
-    min_gl = 1
     gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
 
     @cuda threads = CUDA_THREADS blocks = cld(num_gl, CUDA_THREADS) lut_kernel!(

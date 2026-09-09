@@ -54,7 +54,12 @@ function get_ngtdm_features(img::AbstractArray{Float64},
 
     # 1. Discretize the image
     if gpu_data !== nothing
-        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image_gpu(img, mask, gpu_data; n_bins=n_bins, bin_width=bin_width)
+        if gpu_data.texture_data === nothing
+            disc, n_levels, gray_levels, bin_width_used, texture_data = discretize_image_gpu(img, mask, gpu_data; n_bins=n_bins, bin_width=bin_width)
+            gpu_data.texture_data = texture_data
+        end
+        discretized_img = gpu_data.texture_data.discretized_image
+        gray_levels = gpu_data.texture_data.gray_levels
     else
         discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
     end
@@ -195,7 +200,7 @@ function calculate_ngtdm_matrix(discretized_img::AbstractArray{Int},
             end
         end
     else
-        P_ngtdm, gray_levels = compute_ngtdm_gpu(discretized_img, gpu_data.mask, gpu_data.mask_indices, gray_levels)
+        P_ngtdm, gray_levels = compute_ngtdm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl)
     end
 
     return P_ngtdm, gray_levels

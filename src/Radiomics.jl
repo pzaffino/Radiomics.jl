@@ -455,7 +455,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     gpu_data = nothing
     if use_gpu
         img_gpu, mask_gpu, mask_indices_gpu = init_gpu(img, mask, verbose)
-        gpu_data = GPUData(img_gpu, mask_gpu, mask_indices_gpu)
+        gpu_data = GPUData(img_gpu, mask_gpu, mask_indices_gpu, nothing)
     end
 
     # GLCM features
@@ -949,7 +949,7 @@ end
         mask = CuArray(mask_cpu)
         mask_indices = CuArray(findall(vec(mask_cpu)))
 
-        gpu_data = GPUData(img, mask, mask_indices)
+        gpu_data = GPUData(img, mask, mask_indices, nothing)
     end
 
     @compile_workload begin
@@ -1084,11 +1084,13 @@ end
             verbose=false
         )
         if CUDA.functional()
-            disc, _, gray_levels, _ = discretize_image_gpu(img_small, mask_cpu, gpu_data)
-            compute_glcm_gpu(disc, gray_levels, gpu_data)
-            compute_gldm_gpu(disc, mask, mask_indices, gray_levels, 1)
-            compute_glrlm_gpu(mask, mask_indices, disc, gray_levels)
-            compute_ngtdm_gpu(disc, mask, mask_indices, gray_levels)
+            disc, _, gray_levels, _, texture_data = discretize_image_gpu(img_small, mask_cpu, gpu_data)
+            gpu_data.texture_data = texture_data
+
+            compute_glcm_gpu(gpu_data.texture_data.discretized_image, gpu_data.texture_data.gray_levels, gpu_data)
+            compute_gldm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl, 1)
+            compute_glrlm_gpu(gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.discretized_image, gpu_data.texture_data.gray_levels, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl)
+            compute_ngtdm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl)
 
             get_shape3d_features(mask_cpu, spacing; verbose=false, keep_largest_only=false, gpu_data=gpu_data)
         end
