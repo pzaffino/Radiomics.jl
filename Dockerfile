@@ -2,7 +2,7 @@
 FROM julia:1.10-bookworm
 LABEL org.opencontainers.image.source=https://github.com/pzaffino/Radiomics.jl
 LABEL org.opencontainers.image.description="Radiomics.jl Docker Image"
-LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>, Ciro Benito Raggio <[ciro.raggio@kit.edu]>, Mohammadreza Javadi Namin <[mohammadreza.javadi@mail.polimi.it]>, Nastaran Ghaffari Elkhechi <[nastaran.ghaffari@mail.polimi.it]>, Jakub Mitura <[jakub.mitura14@gmail.com]>"
+LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>, Ciro Benito Raggio <[ciro.raggio@kit.edu]>, Mohammadreza Javadi Namin <[mohammadreza.javadi@mail.polimi.it]>, Nastaran Ghaffari Elkhechi <[nastaran.ghaffari@mail.polimi.it]>, Jakub Mitura <[jakub.mitura14@gmail.com], Marco Tullio Giannotti <marcotullio.giannotti@studenti.unicz.it>">
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
