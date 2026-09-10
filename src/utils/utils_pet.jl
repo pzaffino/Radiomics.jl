@@ -105,23 +105,41 @@ end
 """
     _PLACEHOLDER_DATES
 
-    Date DICOM (formato YYYYMMDD) comunemente usate dai tool di
-    anonimizzazione per sostituire una data reale. Se una data DA/DT
-    coincide con uno di questi valori, viene trattata come ASSENTE
-    (non affidabile), non come una data valida.
+    DICOM dates (YYYYMMDD format) commonly used by anonymization tools
+    to replace a real date. If a DA/DT date matches one of these values,
+    it is treated as ABSENT (unreliable) rather than as a valid date.
 
-    ATTENZIONE: euristica non verificata contro il tool di
-    anonimizzazione realmente usato per generare i DRO — verificare e
-    aggiornare questo set se il comportamento osservato differisce.
+    WARNING: This heuristic has not been verified against the specific
+    anonymization tool used to generate the DROs; verify and update
+    this set if the observed behavior differs.
 """
 const _PLACEHOLDER_DATES = Set(["00010101", "18000101", "19000101"])
+
+"""
+    _MIN_PLAUSIBLE_YEAR
+
+    The minimum year considered plausible for a DICOM acquisition,
+    series, or administration date. It serves as a safety net
+    complementary to `_PLACEHOLDER_DATES`: an anonymization tool might
+    replace a real date with a value that is syntactically valid but
+    historically impossible for clinical PET (e.g., "19600101", observed
+    in a real DRO—a value not found in `_PLACEHOLDER_DATES` and thus
+    otherwise accepted as a genuine date). Rather than trying to keep
+    pace with every possible anonymization convention using an
+    inevitably incomplete list of strings, any year prior to this
+    threshold is rejected and treated as missing—consistent with the
+    history of clinical PET and DICOM (no actual PET acquisitions
+    exist prior to the 1990s).
+"""
+const _MIN_PLAUSIBLE_YEAR = 1990
 
 """
     parse_date(d_raw)
 
     Parses a DICOM DA value (YYYYMMDD) into a `Date`. Returns `nothing`
-    if missing, malformed, or matching a known anonymization placeholder
-    (see `_PLACEHOLDER_DATES`).
+    if missing, malformed, matching a known anonymization placeholder
+    (see `_PLACEHOLDER_DATES`), or with a year before `_MIN_PLAUSIBLE_YEAR`
+    (vedi la nota lì).
 """
 function parse_date(d_raw)
     d = sanitize(d_raw)
@@ -130,6 +148,7 @@ function parse_date(d_raw)
     d8 ∈ _PLACEHOLDER_DATES && return nothing
     try
         y = parse(Int, d8[1:4])
+        y < _MIN_PLAUSIBLE_YEAR && return nothing
         mo = parse(Int, d8[5:6])
         day = parse(Int, d8[7:8])
         return Date(y, mo, day)
@@ -142,12 +161,13 @@ end
     parse_datetime(dt_raw)
 
     Parses a DICOM DT value (YYYYMMDDHHMMSS[.ffffff][&ZZXX]) into a
-    full `DateTime` (data E ora) — a differenza della vecchia
-    `parse_datetime_to_sec`, che scartava la data. Ritorna `nothing`
-    se assente, malformato, o se la data coincide con un placeholder
-    di anonimizzazione (vedi `_PLACEHOLDER_DATES`): in tal caso il
-    chiamante deve considerare il valore come se fosse disponibile
-    solo l'ora, non un riferimento datato affidabile.
+    full `DateTime` (date and time)—unlike the old
+    `parse_datetime_to_sec`, which discarded the date. Returns `nothing`
+    if the value is missing or malformed, if the date matches an
+    anonymization placeholder, or if the year precedes `_MIN_PLAUSIBLE_YEAR`
+    (see `_PLACEHOLDER_DATES` and `_MIN_PLAUSIBLE_YEAR`): in such cases,
+    the caller should treat the value as providing only the time,
+    rather than a reliable date reference.
 """
 function parse_datetime(dt_raw)
     dt = sanitize(dt_raw)
@@ -155,6 +175,7 @@ function parse_datetime(dt_raw)
     dt[1:8] ∈ _PLACEHOLDER_DATES && return nothing
     try
         y = parse(Int, dt[1:4])
+        y < _MIN_PLAUSIBLE_YEAR && return nothing
         mo = parse(Int, dt[5:6])
         day = parse(Int, dt[7:8])
         h = parse(Int, dt[9:10])
@@ -172,10 +193,10 @@ end
 """
     parse_datetime_to_sec(dt_raw)
 
-    [LEGACY] Ritorna solo la componente oraria (secondi nel giorno) di
-    un valore DT, scartando la data. Non più usata internamente dal
-    pacchetto (sostituita da `parse_datetime`); mantenuta solo per
-    compatibilità con eventuale codice esterno che la richiami.
+    [LEGACY] Returns only the time component (seconds into the day) of
+    a DT value, discarding the date. No longer used internally by the
+    package (replaced by `parse_datetime`); retained solely for
+    compatibility with any external code that might call it.
 """
 function parse_datetime_to_sec(dt_raw)
     dt = sanitize(dt_raw)
@@ -186,9 +207,9 @@ end
 """
     combine_date_time(date, time_sec)
 
-    Combina una `Date` e un'ora-nel-giorno (secondi, come ritornato da
-    `parse_time`) in un `DateTime` completo. Ritorna `nothing` se uno
-    dei due argomenti manca.
+    Combines a `Date` and a time-of-day (seconds, as returned by
+    `parse_time`) into a complete `DateTime`. Returns `nothing` if either
+    argument is missing.
 """
 function combine_date_time(date, time_sec)
     (date === nothing || time_sec === nothing) && return nothing
@@ -256,31 +277,31 @@ end
 """
     get_tadm(item, t_acq_dt)
 
-    Determina l'orario di somministrazione come `DateTime` pieno
-    (data + ora), risolvendo l'ambiguità multi-giorno che affliggeva
-    la vecchia implementazione basata solo su "secondi nel giorno".
+    Determines the administration time as a full `DateTime`
+    (date + time), resolving the multi-day ambiguity that affected
+    the old implementation based solely on "seconds into the day".
 
-    Ordine di risoluzione:
-      1) Radiopharmaceutical Start DateTime (0018,1078) con data valida
-         (non placeholder di anonimizzazione) → fonte più affidabile,
-         usata direttamente. `qualified = true`.
-      2) Se (1) è assente o con data non valida, si tenta comunque di
-         estrarne la sola componente oraria e la si combina con la
-         data di `t_acq_dt` (assunzione "stesso giorno
-         dell'acquisizione", con correzione di un giorno se l'orario
-         risultante precede l'acquisizione di più di un'ora).
+    Resolution order:
+      1) Radiopharmaceutical Start DateTime (0018,1078) with a valid date
+         (not an anonymization placeholder) → most reliable source,
+         used directly. `qualified = true`.
+      2) If (1) is missing or has an invalid date, an attempt is still made
+         to extract just the time component and combine it with the
+         date from `t_acq_dt` (assuming "same day
+         as acquisition", with a one-day correction if the resulting
+         time precedes the acquisition by more than an hour).
          `qualified = false`.
-      3) Fallback finale: Radiopharmaceutical Start Time (0018,1072),
-         stessa logica del punto 2. `qualified = false`.
+      3) Final fallback: Radiopharmaceutical Start Time (0018,1072),
+         same logic as point 2. `qualified = false`.
 
     # Arguments:
-    - `item`: DICOMData – il dataset (o RadiopharmaceuticalInformationSequence item)
-    - `t_acq_dt`: Union{DateTime,Nothing} – l'orario di acquisizione, usato
-      come riferimento di data per i fallback non qualificati
+    - `item`: DICOMData – the dataset (or RadiopharmaceuticalInformationSequence item)
+    - `t_acq_dt`: Union{DateTime,Nothing} – the acquisition time, used
+      as a date reference for unqualified fallbacks
 
     # Returns:
-    - `Union{DateTime,Nothing}` – l'orario di somministrazione
-    - `Bool` – `true` se la data è nota con certezza, `false` se assunta
+    - `Union{DateTime,Nothing}` – the administration time
+    - `Bool` – `true` if the date is known with certainty, `false` if assumed
 """
 function get_tadm(item, t_acq_dt::Union{DateTime,Nothing})
     acq_date = t_acq_dt === nothing ? nothing : Date(t_acq_dt)
@@ -299,8 +320,6 @@ function get_tadm(item, t_acq_dt::Union{DateTime,Nothing})
         v = parse_datetime(dt_raw)
         v !== nothing && return v, true
 
-        # tag presente ma data assente/anonimizzata: proviamo comunque
-        # a recuperarne la sola componente oraria
         raw = sanitize(dt_raw)
         if length(raw) >= 14
             tod = parse_time(raw[9:end])
@@ -376,63 +395,67 @@ const _LONG_UPTAKE_HALFLIFE_SEC = 24 * 3600.0
 """
     _MAX_PLAUSIBLE_DECAY_SEC
 
-    Soglia (in secondi) sul valore assoluto di `Δt = t_ref - t_adm` usato
-    nel calcolo del decadimento. Oltre questa soglia, `exp(-λΔt)` va in
-    overflow o underflow a seconda del segno, producendo silenziosamente
-    SUV = 0 (tutta l'immagine) o SUV = Inf (che a sua volta manda in
-    crash le fasi successive, es. il binning delle feature).
+    Threshold (in seconds) for the absolute value of `Δt = t_ref - t_adm` used
+    in the decay calculation. Beyond this threshold, `exp(-λΔt)` results in
+    overflow or underflow depending on the sign, silently producing
+    SUV = 0 (for the entire image) or SUV = Inf (which in turn causes
+    subsequent stages—e.g., feature binning—to crash).
 
-    30 giorni è generoso rispetto a qualunque radionuclide/protocollo
-    clinico plausibile (anche imaging ritardato multi-giorno con
-    radionuclidi a emivita lunga come Zr-89/I-124 resta ben sotto
-    questa soglia), ma abbastanza stretto da intercettare un mismatch
-    di epoca (es. una data anonimizzata non riconosciuta da
-    `_PLACEHOLDER_DATES`, che può introdurre scarti di decenni tra
-    `t_ref` e `t_adm`).
+    30 days is a generous limit compared to any plausible clinical
+    radionuclide or protocol (even multi-day delayed imaging with
+    long-half-life radionuclides like Zr-89 or I-124 remains well below
+    this threshold), yet it is tight enough to catch timestamp mismatches
+    (e.g., an anonymized date not recognized by `_PLACEHOLDER_DATES`,
+    which could introduce discrepancies of decades between `t_ref` and `t_adm`).
 
-    Nota: questa guardia è una rete di sicurezza generica, non sostituisce
-    la necessità di tenere `_PLACEHOLDER_DATES` aggiornato rispetto alle
-    convenzioni di anonimizzazione realmente usate — trasforma però un
-    bug di quel tipo da "risultato numerico silenziosamente sbagliato o
-    crash a valle" a "errore esplicito e diagnosticabile".
+    Note: This safeguard is a generic safety net; it does not replace the
+    need to keep `_PLACEHOLDER_DATES` updated in line with the actual
+    anonymization conventions used. However, it transforms a bug of that
+    nature from a "silently incorrect numerical result or downstream crash"
+    into an "explicit, diagnosable error."
 """
 const _MAX_PLAUSIBLE_DECAY_SEC = 30 * 24 * 3600.0
 
 """
-    get_tref(d, λ, manufacturer)
+    _infer_date_from_tadm(t_adm, tod)
+
+    Derives an absolute `DateTime` by combining the time-of-day `tod`
+    (as returned by `parse_time`) with the date from `t_adm` (the
+    administration time)—used as an anchor when neither `AcquisitionDate`
+    nor `SeriesDate` is available. If the result precedes `t_adm` (which
+    is impossible, as acquisition always occurs after administration),
+    it is assumed that midnight has been crossed, and one day is added.
+
+    This is the exact counterpart to `_same_day_fallback` within `get_tadm`:
+    there, the administration time is derived from the acquisition day;
+    here, the acquisition day is derived from the administration time.
+"""
+function _infer_date_from_tadm(t_adm::Union{DateTime,Nothing}, tod)
+    (t_adm === nothing || tod === nothing) && return nothing
+    v = DateTime(Date(t_adm)) + Millisecond(round(Int, tod * 1000))
+    v < t_adm && (v += Day(1))
+    return v
+end
+
+"""
+    get_tref(d, λ, manufacturer, t_adm=nothing)
     
-    Gets the reference time from the DICOM data, come `DateTime` pieno.
+    Retrieves the reference time from the DICOM data as a full `DateTime`.
     
     # Arguments:
-    - `d`: DICOMData – the DICOM data (o una `FrameView` per Enhanced/MultiFrame)
+    - `d`: DICOMData – the DICOM data (or a `FrameView` for Enhanced/MultiFrame)
     - `λ`: Float64 – the decay constant
     - `manufacturer`: String – the manufacturer
+    - `t_adm`: Union{DateTime,Nothing} – the administration time already
+      resolved by `get_tadm`, used as a date anchor when neither
+      `AcquisitionDate` nor `SeriesDate` are usable (see note below)
 
     # Returns:
     - `Symbol` – the reference time mode (:admin, :start, :none, or :error)
     - `Union{DateTime,Nothing}` – the reference time
 
-    # Note (fix Enhanced — Frame Reference DateTime):
-    - Per i file Enhanced/MultiFrame, `(0018,9151) Frame Reference DateTime`
-      (dentro `FrameContentSequence`, instradato per-frame da `FrameView`)
-      è un tempo di riferimento ASSOLUTO fornito direttamente dallo
-      standard DICOM per questo scopo — quando presente e valido, ha
-      priorità su qualunque ricostruzione Δt/T_s/vendor-specifica pensata
-      per il classico single-frame (che per l'Enhanced non si applica:
-      i tag legacy `DecayCorrection`/`AcquisitionDate`/`ActualFrameDuration`
-      non sono tipicamente popolati a livello a cui `get_tref` li cerca).
-
-    # Note (fix vendor-gating):
-    - La correzione Δt/T_s (Frame Reference Time / Actual Frame Duration)
-      per il caso multi-bed (Tacq≠Ts) non è più gated sul manufacturer:
-      si applica a QUALUNQUE vendor tranne GE (che ha una convenzione nota
-      e diversa, senza il termine `t_ave`), quando Δt e T_s sono presenti
-      e validi. Per SIEMENS/PHILIPS l'assenza di questi dati resta un
-      errore esplicito (comportamento invariato); per vendor sconosciuti
-      senza questi tag si degrada al fallback generico (SeriesTime) anziché
-      fallire, dato che non c'è garanzia che li popolino.
 """
-function get_tref(d, λ, manufacturer)
+function get_tref(d, λ, manufacturer, t_adm::Union{DateTime,Nothing}=nothing)
     dc = sanitize(get_tag(d, (0x0054, 0x1102)))
 
     s_date = parse_date(get_tag(d, (0x0008, 0x0021)))  # SeriesDate
@@ -440,9 +463,20 @@ function get_tref(d, λ, manufacturer)
     t_s_tod = parse_time(get_tag(d, (0x0008, 0x0031))) # SeriesTime
     t_acq_tod = parse_time(get_tag(d, (0x0008, 0x0032))) # AcquisitionTime
 
-    ref_date = acq_date !== nothing ? acq_date : (s_date !== nothing ? s_date : Date(2000, 1, 1))
-    t_s = combine_date_time(s_date !== nothing ? s_date : ref_date, t_s_tod)
-    t_acq = combine_date_time(acq_date !== nothing ? acq_date : ref_date, t_acq_tod)
+    ref_date = acq_date !== nothing ? acq_date : s_date
+
+    if ref_date !== nothing
+        t_s = combine_date_time(s_date !== nothing ? s_date : ref_date, t_s_tod)
+        t_acq = combine_date_time(acq_date !== nothing ? acq_date : ref_date, t_acq_tod)
+    else
+
+        t_s = _infer_date_from_tadm(t_adm, t_s_tod)
+        t_acq = _infer_date_from_tadm(t_adm, t_acq_tod)
+        if t_s === nothing && t_acq === nothing
+            t_s = combine_date_time(Date(2000, 1, 1), t_s_tod)
+            t_acq = combine_date_time(Date(2000, 1, 1), t_acq_tod)
+        end
+    end
 
     Δt_ms_raw = get_tag(d, (0x0054, 0x1300))
     T_ms_raw = get_tag(d, (0x0018, 0x1242))
@@ -458,9 +492,12 @@ function get_tref(d, λ, manufacturer)
 
     else  # START (default)
 
-        # 0) Enhanced/MultiFrame: Frame Reference DateTime (0018,9151) è già
-        #    un riferimento assoluto per-frame — priorità massima quando
-        #    disponibile e valido (non placeholder di anonimizzazione).
+        dcdt_raw = get_tag(d, (0x0018, 0x9701))
+        if dcdt_raw !== nothing
+            dcdt = parse_datetime(dcdt_raw)
+            dcdt !== nothing && return :start, dcdt
+        end
+
         frdt_raw = get_tag(d, (0x0018, 0x9151))
         if frdt_raw !== nothing
             frdt = parse_datetime(frdt_raw)
@@ -490,18 +527,9 @@ function get_tref(d, λ, manufacturer)
         known_vendor = manuf_is(manufacturer, "SIEMENS") || manuf_is(manufacturer, "GE") || manuf_is(manufacturer, "PHILIPS")
         same_time = t_acq !== nothing && t_s !== nothing && abs(Dates.value(t_acq - t_s)) < 1000.0
 
-        # 3) Tacq == Ts → nessun offset multi-bed da correggere: usa
-        #    direttamente t_acq. Generalizzato a qualunque vendor (non
-        #    c'è nulla di vendor-specifico da correggere se non c'è
-        #    offset).
         same_time && return :start, t_acq
 
-        # 4) Tacq != Ts (multi-bed): formula generica (t_acq + t_ave(λ,T_s) - Δt),
-        #    valida per qualunque vendor tranne GE (vedi punto 5). Prima era
-        #    gated su SIEMENS/PHILIPS: ora si applica anche a vendor
-        #    sconosciuti/conformi allo standard quando Δt e T_s sono
-        #    presenti e validi. Per SIEMENS/PHILIPS l'assenza di questi dati
-        #    resta un errore esplicito (comportamento invariato).
+
         if !manuf_is(manufacturer, "GE") && t_acq !== nothing && t_s !== nothing
             if Δt !== nothing && T_s !== nothing && T_s > 0
                 return :start, t_acq + Millisecond(round(Int, (t_ave(λ, T_s) - Δt) * 1000))
@@ -535,15 +563,6 @@ end
     
     Computes the SUVbw value for a single PET slice.
 
-    # Note (fix — guardia di plausibilità su Δt):
-    - Prima di usare `Δt = t_ref - t_adm` nel calcolo del decadimento,
-      si verifica `abs(Δt) <= _MAX_PLAUSIBLE_DECAY_SEC`. Senza questa
-      guardia, un mismatch di epoca tra `t_ref` e `t_adm` (es. per una
-      data di anonimizzazione non riconosciuta da `_PLACEHOLDER_DATES`)
-      produce `exp(-λΔt)` in overflow o underflow, e quindi SUV
-      silenziosamente pari a 0 (tutta l'immagine) o Inf (che manda in
-      crash le fasi successive, es. il binning delle feature) —
-      invece di un errore esplicito e diagnosticabile.
 """
 function compute_slice_suv(d, units, suv_type, sex, W_kg, H_m,
     D_adm, T_half, t_adm, t_adm_qualified, manufacturer)
@@ -616,7 +635,7 @@ function compute_slice_suv(d, units, suv_type, sex, W_kg, H_m,
         end
 
         λ === nothing && return nothing, "error-no-T½"
-        dc_mode, t_ref = get_tref(d, λ, manufacturer)
+        dc_mode, t_ref = get_tref(d, λ, manufacturer, t_adm)
 
         if dc_mode == :admin
             D_adm === nothing && return nothing, "error-no-dose"
@@ -657,15 +676,7 @@ For each requested tag, the search order is:
   3) Within SharedFunctionalGroupsSequence[1], same sub-sequences.
   4) Fallback: the top-level tag on the original dataset `d0`.
 
-# Note (fix — Frame Reference DateTime):
-`(0x0018, 0x9151)` (Frame Reference DateTime) è stato aggiunto a
-`_FRAME_SUBSEQUENCES`, instradato verso `FrameContentSequence`
-(0x0020, 0x9111): prima non c'era alcun mapping per questo tag, quindi
-`get_tag(fv, (0x0018,0x9151))` cadeva sempre sul fallback top-level
-(`fv.d0[tag]`), dove per un Enhanced PET questo tag non esiste —
-risultando sempre in `nothing` anche quando il valore per-frame era
-presente e valido.
-"""
+  """
 struct FrameView
     d0::Any
     frame_idx::Int
