@@ -270,7 +270,7 @@ function get_dose(item)
     d = get_tag(item, (0x0018, 0x1074))
     d === nothing && return nothing
     D = Float64(d isa AbstractArray ? first(d) : d)
-    D < 0.0 && return nothing  # dose negativa trattata come assente → "error-no-dose"
+    D < 0.0 && return nothing
     return D < 1e4 ? D * 1e6 : D
 end
 
@@ -536,20 +536,16 @@ function get_tref(d, λ, manufacturer, t_adm::Union{DateTime,Nothing}=nothing)
             elseif known_vendor
                 return :error, nothing
             end
-            # vendor sconosciuto senza Δt/T_s → si scende al fallback generico (punto 6)
         end
 
-        # 5) Fallback multi-bed GE (Tacq != Ts): convenzione nota e diversa,
-        #    senza termine t_ave.
+
         if manuf_is(manufacturer, "GE") && t_acq !== nothing && t_s !== nothing
             Δt === nothing && return :error, nothing
             return :start, t_acq - Millisecond(round(Int, Δt * 1000))
         end
 
-        # 6) Fallback generico: preferisci SeriesTime
         t_s !== nothing && return :start, t_s
 
-        # 7) Ultimo fallback: AcquisitionTime
         t_acq !== nothing && return :start, t_acq
 
         return :error, nothing
