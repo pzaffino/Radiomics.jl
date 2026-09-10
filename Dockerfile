@@ -19,8 +19,14 @@ RUN apt-get update && apt-get install -y \
 RUN julia -e 'using Pkg; \
     Pkg.add(url="https://github.com/pzaffino/Radiomics.jl"); \
     pkgs = ["NIfTI", "ArgParse", "CSV", "DataFrames", "PrecompileTools"]; \
-    ENV["USE_CUDA"] == "true" && push!(pkgs, "CUDA"); \
-    Pkg.add(pkgs); \
+    if get(ENV, "USE_CUDA", "false") == "true"; \
+        push!(pkgs, "CUDA"); \
+        Pkg.add(pkgs); \
+        using CUDA; \
+        CUDA.set_runtime_version!(v"12.2.0"; local_toolkit=false); \
+    else; \
+        Pkg.add(pkgs); \
+    end; \
     Pkg.precompile()'
 
 # Set working directory and generate the embedded Julia script
