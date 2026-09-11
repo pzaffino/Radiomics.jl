@@ -1300,6 +1300,20 @@ features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing
                         <pre><code>docker pull ghcr.io/pzaffino/radiomics.jl:latest</code></pre>
                     </div>
 
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Installing Image of
+                        Radiomics.jl compliant with CUDA</h4>
+                    <p>Install the image of Radiomics.jl compliant with CUDA in your Docker development environment:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+
+                        <pre><code>docker pull ghcr.io/pzaffino/radiomics.jl:latest-gpu</code></pre>
+                    </div>
+
                     <h2>Feature Extraction with Docker</h2>
                     <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
                     <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Basic usage</h4>
@@ -1345,6 +1359,21 @@ features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing
                             <span class="code-dot"></span>
                         </div>
                         <pre><code>docker run -it <span class="julia-keyword">-e</span> JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz <span class="julia-keyword">--keep_largest_only</span> false</code></pre>
+                    </div>
+
+                    <h2>Feature Extraction with Docker using GPU</h2>
+                    <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Basic usage</h4>
+                    <p>To run feature extraction with GPU acceleration, execute the container using the <span
+                            class="julia-keyword">--gpus</span> all flag. Mount your local directory to /data inside the
+                        container and pass the input CT image and mask paths as positional arguments:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run --rm --gpus all -v /path/to/data:/data ghcr.io/pzaffino/radiomics.jl:latest-gpu /data/image.nii /data/mask.nii -o /data/features.csv</code></pre>
                     </div>
 
                 </div>
