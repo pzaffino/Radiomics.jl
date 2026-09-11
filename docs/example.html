@@ -603,6 +603,8 @@
                           keep_largest_only<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">true</span>,
                           get_raw_matrices<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
                           slices_2d<span class="julia-keyword">=</span><span class="julia-literal">nothing</span>,
+                          use_gpu<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
+                          cuda_streams<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>,
                           verbose<span class="julia-keyword">::</span><span class="julia-type">Bool</span><span class="julia-keyword">=</span><span class="julia-literal">false</span>)
 
 <span class="julia-comment"># Parameters:</span>
@@ -622,6 +624,8 @@
 <span class="julia-comment">#  get_raw_matrices    – If true, returns the raw matrices for texture features.</span>
 <span class="julia-comment">#  slices_2d           – If present, calculate all features on 2D slices - mask. When this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index.</span>
+<span class="julia-comment">#  use_gpu             – If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available..</span>
+<span class="julia-comment">#  cuda_streams        – If true, enables CUDA streams for concurrent extraction of feature families.</span>
 <span class="julia-comment">#  verbose             – Print progress information during extraction.</span>
 
 <span class="julia-comment"># Returns:</span>
