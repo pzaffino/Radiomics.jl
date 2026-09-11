@@ -1376,6 +1376,19 @@ features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing
                         <pre><code>docker run --rm --gpus all -v /path/to/data:/data ghcr.io/pzaffino/radiomics.jl:latest-gpu /data/image.nii /data/mask.nii -o /data/features.csv</code></pre>
                     </div>
 
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Execute in a specific GPU</h4>
+                    <p>To target a specific GPU (e.g., GPU 0), pass <span class="julia-keyword">"device=0"</span> to the
+                        <span class="julia-keyword">--gpus</span> flag:
+                    </p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run --rm --gpus '"device=0"' -v /path/to/data:/data ghcr.io/pzaffino/radiomics.jl:latest-gpu /data/image.nii /data/mask.nii -o /data/features.csv</code></pre>
+                    </div>
+
                 </div>
 
             </div>
