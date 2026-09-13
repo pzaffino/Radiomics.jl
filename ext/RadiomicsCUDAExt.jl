@@ -75,12 +75,12 @@ function Radiomics.extract_radiomics_features_gpu(
     end
 
     if compute_all || :glcm in features
-        if cuda_streams
-            glcm_stream = CUDA.CuStream()
-            t_glcm_features = Threads.@spawn CUDA.stream!(glcm_stream) do
-                verbose && println("[GLCM CUDA stream] extracting GLCM features on the GPU")
-                result = @timed begin
-                    r = get_glcm_features(
+        t_glcm_features = Threads.@spawn begin
+            if cuda_streams
+                glcm_stream = CUDA.CuStream()
+
+                CUDA.stream!(glcm_stream) do
+                    result = @timed get_glcm_features(
                         img, mask, voxel_spacing;
                         n_bins=n_bins,
                         bin_width=bin_width,
@@ -91,33 +91,30 @@ function Radiomics.extract_radiomics_features_gpu(
                         verbose=verbose
                     )
                     CUDA.synchronize(glcm_stream)
-                    verbose && println("[GLCM CUDA stream] GLCM feature extraction complete")
-                    r
+                    (result.value, result.time)
                 end
+            else
+                result = @timed CUDA.@sync get_glcm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    features_std=features_std,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
                 (result.value, result.time)
             end
-        else
-            result = @timed CUDA.@sync get_glcm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                weighting_norm=weighting_norm,
-                features_std=features_std,
-                get_raw_matrices=get_raw_matrices,
-                gpu_data=gpu_data,
-                verbose=verbose
-            )
-            t_glcm_features = (result.value, result.time)
         end
     end
 
     if compute_all || :ngtdm in features
-        if cuda_streams
-            ngtdm_stream = CUDA.CuStream()
-            t_ngtdm_features = Threads.@spawn CUDA.stream!(ngtdm_stream) do
-                verbose && println("[NGTDM CUDA stream] extracting NGTDM features on the GPU")
-                result = @timed begin
-                    r = get_ngtdm_features(
+        t_ngtdm_features = Threads.@spawn begin
+            if cuda_streams
+                ngtdm_stream = CUDA.CuStream()
+                CUDA.stream!(ngtdm_stream) do
+                    result = @timed get_ngtdm_features(
                         img, mask, voxel_spacing;
                         n_bins=n_bins,
                         bin_width=bin_width,
@@ -125,34 +122,34 @@ function Radiomics.extract_radiomics_features_gpu(
                         gpu_data=gpu_data,
                         verbose=verbose
                     )
-                    CUDA.synchronize(ngtdm_stream)
-                    verbose && println("[NGTDM CUDA stream] NGTDM feature extraction complete")
 
-                    r
+                    CUDA.synchronize(ngtdm_stream)
+                    (result.value, result.time)
                 end
+            else
+                result = @timed CUDA.@sync get_ngtdm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
                 (result.value, result.time)
             end
-        else
-            result = @timed CUDA.@sync get_ngtdm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                gpu_data=gpu_data,
-                verbose=verbose
-            )
-            t_ngtdm_features = (result.value, result.time)
         end
     end
 
+
     if compute_all || :glrlm in features
-        if cuda_streams
-            glrlm_stream = CUDA.CuStream()
-            t_glrlm_features = Threads.@spawn CUDA.stream!(glrlm_stream) do
-                verbose && println("[GLRLM CUDA stream] extracting GLRLM features on the GPU")
-                result = @timed begin
-                    r = get_glrlm_features(
-                        img, mask, voxel_spacing;
+        t_glrlm_features = Threads.@spawn begin
+            if cuda_streams
+                glrlm_stream = CUDA.CuStream()
+                CUDA.stream!(glrlm_stream) do
+                    result = @timed get_glrlm_features(
+                        img,
+                        mask,
+                        voxel_spacing;
                         n_bins=n_bins,
                         bin_width=bin_width,
                         features_std=features_std,
@@ -162,36 +159,34 @@ function Radiomics.extract_radiomics_features_gpu(
                         verbose=verbose
                     )
                     CUDA.synchronize(glrlm_stream)
-                    verbose && println("[GLRLM CUDA stream] GLRLM feature extraction complete")
-
-                    r
+                    (result.value, result.time)
                 end
+            else
+                result = @timed CUDA.@sync get_glrlm_features(
+                    img,
+                    mask,
+                    voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    features_std=features_std,
+                    weighting_norm=weighting_norm,
+                    get_raw_matrices=get_raw_matrices,
+                    gpu_data=gpu_data,
+                    verbose=verbose
+                )
                 (result.value, result.time)
             end
-        else
-            result = @timed CUDA.@sync get_glrlm_features(
-                img,
-                mask,
-                voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                features_std=features_std,
-                weighting_norm=weighting_norm,
-                get_raw_matrices=get_raw_matrices,
-                gpu_data=gpu_data,
-                verbose=verbose
-            )
-            t_glrlm_features = (result.value, result.time)
         end
     end
 
+
     if compute_all || :gldm in features
-        if cuda_streams
-            gldm_stream = CUDA.CuStream()
-            t_gldm_features = Threads.@spawn CUDA.stream!(gldm_stream) do
-                verbose && println("[GLDM CUDA stream] extracting GLDM features on the GPU")
-                result = @timed begin
-                    r = get_gldm_features(
+        t_gldm_features = Threads.@spawn begin
+            if cuda_streams
+                gldm_stream = CUDA.CuStream()
+
+                CUDA.stream!(gldm_stream) do
+                    result = @timed get_gldm_features(
                         img, mask, voxel_spacing;
                         n_bins=n_bins,
                         bin_width=bin_width,
@@ -200,25 +195,40 @@ function Radiomics.extract_radiomics_features_gpu(
                         gpu_data=gpu_data
                     )
                     CUDA.synchronize(gldm_stream)
-                    verbose && println("[GLDM CUDA stream] GLDM feature extraction complete")
-                    r
+                    (result.value, result.time)
                 end
+            else
+                result = @timed CUDA.@sync get_gldm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose,
+                    gpu_data=gpu_data
+                )
                 (result.value, result.time)
             end
-        else
-            result = @timed CUDA.@sync get_gldm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose,
-                gpu_data=gpu_data
-            )
-            t_gldm_features = (result.value, result.time)
         end
     end
 
+    if compute_all || :glcm in features
+        t_glcm_features = fetch(t_glcm_features)
+    end
+
+    if compute_all || :ngtdm in features
+        t_ngtdm_features = fetch(t_ngtdm_features)
+    end
+
+    if compute_all || :glrlm in features
+        t_glrlm_features = fetch(t_glrlm_features)
+    end
+
+    if compute_all || :gldm in features
+        t_gldm_features = fetch(t_gldm_features)
+    end
+
     return t_glcm_features, t_gldm_features, t_glrlm_features, t_ngtdm_features
+
 
 end
 
