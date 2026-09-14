@@ -634,6 +634,58 @@
                 </div>
             </div>
 
+            <!-- SNIPPET GPU -->
+            <div class="section">
+                <h2>Features Extraction with CUDA</h2>
+                <h3>Setting flag to use GPU</h3>
+                <p>Load a NIfTI image and mask, then extract all radiomic features using specific flag to activate GPU:
+                </p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span> 
+<span class="julia-keyword">using</span> <span class="julia-type">CUDA</span>
+
+<span class="julia-comment"># Load image and mask</span>
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+
+<span class="julia-comment"># Extract voxel spacing from header (x, y, z in mm)</span>
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-literal">use_gpu=true</span>);</code></pre>
+                </div>
+            </div>
+
+            <!-- SNIPPET cuda_stream -->
+            <div class="section">
+                <h3>Setting of cuda_streams</h3>
+                <p>If true, enables CUDA streams for concurrent extraction of feature families.</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
+<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+<span class="julia-keyword">using</span> <span class="julia-type">CUDA</span>
+
+ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
+mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
+spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
+
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; use_gpu=true, <span class="julia-literal">cuda_stream=true</span>);</code></pre>
+                </div>
+            </div>
+
+
             <!-- SNIPPET 2 -->
             <div class="section">
                 <h2>Features Extraction</h2>
@@ -678,7 +730,7 @@ ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sa
 mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
 spacing = [ct.header.pixdim[<span class="julia-literal">2</span>], ct.header.pixdim[<span class="julia-literal">3</span>], ct.header.pixdim[<span class="julia-literal">4</span>]]
 
-features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-string"></span>features=[:first_order, :glcm]</span>);</code></pre>
+features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing; <span class="julia-literal">features=[:first_order, :glcm]</span>);</code></pre>
                 </div>
             </div>
 
