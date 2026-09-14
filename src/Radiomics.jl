@@ -439,33 +439,6 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     t_shape3d_features = nothing
     t_shape2d_features = nothing
 
-    # First order features
-    if compute_all || :first_order in features
-        t_first_order_features = Threads.@spawn begin
-            result = @timed get_first_order_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                verbose=verbose
-            )
-            (result.value, result.time)
-        end
-    end
-
-    # GLSZM features
-    if compute_all || :glszm in features
-        t_glszm_features = Threads.@spawn begin
-            result = @timed get_glszm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
-        end
-    end
-
     if !use_gpu
         # GLCM features
         if compute_all || :glcm in features
@@ -677,6 +650,33 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
                 log_println("2D shape: $(shape2d_time) sec")
                 print_features("2D Shape Features", shape2d_dict; log_buffer=log_buffer)
             end
+        end
+    end
+
+    # GLSZM features
+    if compute_all || :glszm in features
+        t_glszm_features = Threads.@spawn begin
+            result = @timed get_glszm_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                get_raw_matrices=get_raw_matrices,
+                verbose=verbose
+            )
+            (result.value, result.time)
+        end
+    end
+
+    # First order features
+    if compute_all || :first_order in features
+        t_first_order_features = Threads.@spawn begin
+            result = @timed get_first_order_features(
+                img, mask, voxel_spacing;
+                n_bins=n_bins,
+                bin_width=bin_width,
+                verbose=verbose
+            )
+            (result.value, result.time)
         end
     end
 
@@ -938,7 +938,7 @@ end
     Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
 """
 function extract_radiomics_features_gpu(args...; kwargs...)
-    error("use_gpu=true requires CUDA.jl to be loaded. Run 'using CUDA' before calling this function")
+    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
 end
 
 end

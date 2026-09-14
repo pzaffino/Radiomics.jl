@@ -156,8 +156,8 @@ function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float64})
         c12 += dx * dy
         c22 += dy * dy
     end
-    c11 /= Np;
-    c12 /= Np;
+    c11 /= Np
+    c12 /= Np
     c22 /= Np
 
     ev = eigen(Symmetric([c11 c12; c12 c22])).values
@@ -387,7 +387,7 @@ end
     Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
 """
 function get_coefficients_gpu_wrapper(args...; kwargs...)
-    error("use_gpu=true requires CUDA.jl to be loaded. Run 'using CUDA' before calling this function")
+    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
 end
 
 """
@@ -401,5 +401,5 @@ end
     Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
 """
 function max_dist2_gpu_wrapper(args...; kwargs...)
-    error("use_gpu=true requires CUDA.jl to be loaded. Run 'using CUDA' before calling this function")
+    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
 end
