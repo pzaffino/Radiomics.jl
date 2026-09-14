@@ -130,6 +130,11 @@ spacing = ct_sitk.GetSpacing()
 
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
+# Install Radiomics.jl with CUDA from Docker
+Install the image of Radiomics.jl compliant with CUDA in your Docker development environment:
+```bash
+docker pull ghcr.io/pzaffino/radiomics.jl:latest-gpu
+```
 # Using Radiomics.jl from Docker
 Run the container mounting the current directory as /data and passing the CT image and mask as arguments.
 ```bash
