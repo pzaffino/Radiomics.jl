@@ -284,6 +284,11 @@ function Radiomics.max_dist2_gpu_wrapper(h::Int, hull::Vector{Tuple{Float64,Floa
     @cuda threads=(16, 16) blocks=blocks max_dist!(hull, max_dist2, h)
     return Array(max_dist2)[1]
 end
+
+function Radiomics.cuda_availability_check()
+    return nothing
+end
+
 @setup_workload begin
     img_small = Float64.(reshape(1:1000, 10, 10, 10))
     mask_small = zeros(Float64, 10, 10, 10)

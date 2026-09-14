@@ -88,6 +88,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         verbose
     )
 
+    if use_gpu
+        cuda_availability_check()
+    end
+
     (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
 
     compute_all = isempty(p.features) || :all in p.features
@@ -938,6 +942,10 @@ end
     Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
 """
 function extract_radiomics_features_gpu(args...; kwargs...)
+    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
+end
+
+function cuda_availability_check(args...; kwargs...)
     error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
 end
 
