@@ -26,6 +26,8 @@ include("diagnostic_features.jl")
                               keep_largest_only::Bool=true,
                               get_raw_matrices::Bool=false,
                               slices_2d=nothing,
+                              use_gpu::Bool=false,
+                              cuda_streams::Bool=false,
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -49,6 +51,8 @@ include("diagnostic_features.jl")
     - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
+    - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
+    - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -89,7 +93,13 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     )
 
     if use_gpu
-        cuda_availability_check()
+        if Base.get_extension(@__MODULE__, :RadiomicsCUDAExt) === nothing
+            try
+                Main.eval(:(using CUDA))
+            catch err
+                error("GPU acceleration requested (`use_gpu=true`) but CUDA.jl could not be loaded.\nPlease install CUDA before calling `extract_radiomic_features()`:\n`import Pkg; Pkg.add(\"CUDA\")`")
+            end
+        end
     end
 
     (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
@@ -532,7 +542,8 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     else
         t_gpu_features = Threads.@spawn begin
-            extract_radiomics_features_gpu(
+            Base.invokelatest(
+                extract_radiomics_features_gpu,
                 features, img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width,
@@ -552,8 +563,10 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         # 3D shape features
         if compute_all || :shape3d in features
             t_shape3d_features = Threads.@spawn begin
-                result = @timed get_shape3d_features(
-                    mask, voxel_spacing;
+                result = @timed Base.invokelatest(
+                    get_shape3d_features,
+                    mask,
+                    voxel_spacing;
                     verbose=verbose,
                     keep_largest_only=keep_largest_only,
                     use_gpu=use_gpu
@@ -567,8 +580,10 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     if ndims(mask) == 2
         if compute_all || :shape2d in features
             t_shape2d_features = Threads.@spawn begin
-                result = @timed get_shape2d_features(
-                    mask, voxel_spacing;
+                result = @timed Base.invokelatest(
+                    get_shape2d_features,
+                    mask,
+                    voxel_spacing;
                     verbose=verbose,
                     keep_largest_only=keep_largest_only,
                     use_gpu=use_gpu
@@ -946,7 +961,16 @@ function extract_radiomics_features_gpu(args...; kwargs...)
 end
 
 function cuda_availability_check(args...; kwargs...)
-    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
+    extension = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
+    if extension !== nothing
+        return extension
+    end
+
+    try
+        Main.eval(:(using CUDA))
+    catch err
+        error("GPU acceleration requested (`use_gpu=true`) but CUDA.jl could not be loaded.\nPlease install CUDA before calling `extract_radiomic_features()`:\n`import Pkg; Pkg.add(\"CUDA\")`")
+    end
 end
 
 end
