@@ -1,8 +1,75 @@
 """
+    get_gldm_features(img::AbstractArray{Float64},
+                      mask::BitArray,
+                      voxel_spacing::Vector{Float64};
+                      n_bins::Union{Int,Nothing}=nothing,
+                      bin_width::Union{Float64,Nothing}=nothing,
+                      get_raw_matrices::Bool=false,
+                      verbose::Bool=false,
+                      gldm_a::Int=0,
+                      gpu_data::GPUData)
+
+    Compute GLDM features using GPU-accelerated GLDM calculation.
+
+    # Arguments
+    - `img`: Input image.
+    - `mask`: Binary ROI mask.
+    - `voxel_spacing`: Voxel spacing.
+    - `n_bins`: Number of gray level bins.
+    - `bin_width`: Width of the gray level bins.
+    - `get_raw_matrices`: Flag used to return the raw GLDM matrices.
+    - `verbose`: Flag used to print progress information.
+    - `gldm_a`: Threshold used for GLDM calculation.
+    - `gpu_data`: GPU data container
+
+    # Returns
+    GLDM features
+"""
+function get_gldm_features(img::AbstractArray{Float64},
+    mask::BitArray,
+    voxel_spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    get_raw_matrices::Bool=false,
+    verbose::Bool=false,
+    gldm_a::Int=0,
+    gpu_data::GPUData)
+
+    P_gldm = compute_gldm_gpu(gpu_data.texture_data.discretized_image,
+        gpu_data.mask,
+        gpu_data.mask_indices,
+        gpu_data.texture_data.gray_levels,
+        gpu_data.texture_data.gl_lut,
+        gpu_data.texture_data.num_gl,
+        gpu_data.texture_data.max_gl,
+        gpu_data.texture_data.min_gl,
+        gldm_a)
+
+    P_gldm, _ = Radiomics.calculate_gldm_matrix([0],
+        mask,
+        gldm_a,
+        verbose,
+        P_gldm,
+        gpu_data.texture_data.gray_levels_cpu)
+
+    return Radiomics.get_gldm_features(img,
+        mask,
+        voxel_spacing;
+        n_bins=n_bins,
+        bin_width=bin_width,
+        gldm_a=gldm_a,
+        get_raw_matrices=get_raw_matrices,
+        verbose=verbose,
+        P_gldm=P_gldm,
+        gray_levels=gpu_data.texture_data.gray_levels_cpu)
+end
+
+"""
     compute_gldm_gpu(discretized_img::CuArray{Int},
         mask::CuArray{Bool},
         mask_indices::CuArray{Int},
         gray_levels::CuArray{Int},
+        gl_lut::CuArray{Int},
         num_gl::Int,
         max_gl::Int,
         min_gl::Int,
@@ -15,6 +82,7 @@
     - `mask`: ROI mask stored on the GPU.
     - `mask_indices`: Linear indices of ROI voxels.
     - `gray_levels`: Array containing all gray levels
+    - `gl_lut`: Gray level look up table
     - `num_gl`: Number of gray levels 
     - `max_gl`: Maximum gray level 
     - `min_gl`: Minimum gray level
@@ -30,15 +98,11 @@ function compute_gldm_gpu(
     mask::CuArray{Bool},
     mask_indices::CuArray{Int},
     gray_levels::CuArray{Int},
+    gl_lut::CuArray{Int},
     num_gl::Int,
     max_gl::Int,
     min_gl::Int,
-    gldm_a::Int)::Tuple{Matrix{Int},Array{Int}}
-
-    gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
-
-    @cuda threads = CUDA_THREADS blocks = cld(num_gl, CUDA_THREADS) lut_kernel!(
-        gray_levels, gl_lut, min_gl, num_gl)
+    gldm_a::Int)::Matrix{Int}
 
     n_dims = ndims(discretized_img)
     sz = size(discretized_img)
@@ -98,7 +162,7 @@ function compute_gldm_gpu(
     last_col = findlast(col_has_data_cpu)
     last_col = last_col === nothing ? 0 : last_col
     P_gldm = P_gldm[:, 1:last_col]
-    return Array(P_gldm), Array(gray_levels)
+    return Array(P_gldm)
 end
 
 """

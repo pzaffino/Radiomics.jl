@@ -21,7 +21,6 @@
     # Caller functions:
     - `init_gpu` in `utils/utils_gpu/utils.jl`
 """
-
 function findall_kernel!(mask::CuDeviceArray{Bool},
     idx::CuDeviceArray{Int},
     valid_idx::CuDeviceArray{Int32},
@@ -56,7 +55,6 @@ end
     # Caller functions:
     - `unique_gpu` in `utils/utils_gpu/utils.jl`
 """
-
 function assign_uniques!(img::CuDeviceArray{T},
     is_boundary::CuDeviceArray{Int32},
     counter::CuDeviceArray{Int},
@@ -89,7 +87,6 @@ end
     # Caller functions:
     - `unique_gpu.jl` in `utils/utils_gpu/utils.jl`
 """
-
 function set_boundaries!(x::CuDeviceArray{T},
     is_boundary::CuDeviceArray{Int32},
     num_of_uniques::CuDeviceArray{Int}) where T
@@ -127,7 +124,6 @@ end
     # Caller functions:
     - `apply_mask` in `utils/utils_gpu/utils.jl`
 """
-
 function assign!(img::CuDeviceArray{Int},
     mask_indices::CuDeviceArray{Int},
     roi::CuDeviceArray{Int},
@@ -472,4 +468,55 @@ end
 """
 @inline function encode_xyz(x::Int, y::Int, z::Int, Nx::Int, Ny::Int)::Int
     return x + (y - 1) * Nx + (z - 1) * Nx * Ny
+end
+
+function assign_uniques_partial!(uniques::CuDeviceArray{Int}, values::CuDeviceArray{Bool}, num_values::Int)
+    return nothing
+end
+
+function assign_uniques_full!(
+    values::CuDeviceArray{UInt32},
+    uniques::CuDeviceArray{Int},
+    counter::CuDeviceArray{Int},
+    max_gl::Int,
+)
+    i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if i > max_gl
+        return nothing
+    end
+
+    if values[i] != UInt32(0)
+        pos = CUDA.atomic_add!(pointer(counter), 1)
+        uniques[pos+1] = i
+    end
+
+    return nothing
+end
+
+
+function mark_existing_values!(
+    img::CuDeviceArray{Int64},
+    values::CuDeviceArray{UInt32},
+    num_values::CuDeviceArray{Int64},
+    img_size::Int64,
+)
+    i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if i > img_size
+        return
+    end
+
+    value = img[i]
+
+    old = CUDA.atomic_xchg!(
+        pointer(values, value),
+        UInt32(1),
+    )
+
+    if old == UInt32(0)
+        CUDA.@atomic num_values[1] += Int64(1)
+    end
+
+    return
 end

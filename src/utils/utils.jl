@@ -7,7 +7,6 @@
     - `mask_voxels`: Number of voxels in the mask
     - `voxel_threshold_warning`: If `mask_voxels` is less than or equal to this value, a warning is displayed
 """
-
 function optimal_device(mask_voxels, voxel_threshold_warning::Union{Int64,Nothing}=nothing)
     if !isnothing(voxel_threshold_warning)
         if mask_voxels <= voxel_threshold_warning

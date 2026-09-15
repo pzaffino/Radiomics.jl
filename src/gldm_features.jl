@@ -19,7 +19,12 @@ using StatsBase
     - `get_raw_matrices`: If true, returns the raw GLDM matrix.
     - `gldm_a`: The alpha parameter for the GLDM calculation.
     - `verbose`: If true, prints progress messages.
-    - `gpu_data`: Optional object containing copies of the image, mask and ROI indices stored on the GPU. If provided, GPU acceleration is used.
+    - `P_gldm`: GLDM matrix computed on the GPU.
+    - `gray_levels`: Gray levels computed on the GPU
+
+    # Notes
+    `P_gldm`, `gray_levels` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLDM matrix on the CPU. 
+    If GLDM features are being extracted on the CPU, these values are computed inside this function
 
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
@@ -42,7 +47,8 @@ function get_gldm_features(img::AbstractArray{Float64},
     gldm_a::Int=0,
     get_raw_matrices::Bool=false,
     verbose::Bool=false,
-    gpu_data::Union{GPUData,Nothing}=nothing,)::Dict{String,Any}
+    P_gldm::Union{Matrix{Int},Nothing}=nothing,
+    gray_levels::Union{Array{Int},Nothing}=nothing)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("Calculating GLDM with $(n_bins) bins...")
@@ -55,17 +61,10 @@ function get_gldm_features(img::AbstractArray{Float64},
 
     gldm_features = Dict{String,Any}()
 
-    if gpu_data !== nothing
-        if gpu_data.texture_data === nothing
-            disc, n_levels, gray_levels, bin_width_used, texture_data = discretize_image_gpu(img, mask, gpu_data; n_bins=n_bins, bin_width=bin_width)
-            gpu_data.texture_data = texture_data
-        end
-        discretized_img = gpu_data.texture_data.discretized_image
-        gray_levels = gpu_data.texture_data.gray_levels
-    else
+    if P_gldm === nothing
         discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+        P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gldm_a, verbose)
     end
-    P_gldm, gray_levels = calculate_gldm_matrix(discretized_img, mask, gray_levels, gldm_a, verbose, gpu_data)
 
     if get_raw_matrices
         if verbose
@@ -94,7 +93,9 @@ end
     calculate_gldm_matrix(discretized_img::Array{Int},
                                 mask::BitArray,
                                 gldm_a::Int,
-                                verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
+                                verbose::Bool,
+                                P_gldm::Union{Matrix{Int},Nothing}=nothing,
+                                gray_levels::Union{Array{Int},Nothing}=nothing)::Tuple{Matrix{Int}, Vector{Int}}
 
     Calculates the Gray Level Dependence Matrix (GLDM).
 
@@ -103,20 +104,25 @@ end
     - `mask`: The mask defining the region of interest.
     - `gldm_a`: The alpha parameter for the GLDM calculation.
     - `verbose`: If true, prints progress messages.
-    - `gpu_data`: Optional object containing copies of the image, mask and ROI indices stored on the GPU. If provided, GPU acceleration is used.
+    - `P_gldm`: GLDM matrix computed on the GPU.
+    - `gray_levels`: Gray levels computed on the GPU
 
     # Returns
     - A tuple containing the GLDM matrix and the gray levels present in the ROI.
+    
+    # Notes
+    `P_gldm`, `gray_levels` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLDM matrix on the CPU. 
+    If GLDM features are being extracted on the CPU, these values are computed inside this function
 """
-function calculate_gldm_matrix(discretized_img::AbstractArray{Int},
+function calculate_gldm_matrix(discretized_img::Array{Int},
     mask::BitArray,
-    gray_levels::AbstractArray{Int},
     gldm_a::Int,
     verbose::Bool,
-    gpu_data::Union{GPUData,Nothing}=nothing)::Tuple{Matrix{Int},Vector{Int}}
-    verbose && println("Calculating GLDM matrix...")
+    P_gldm::Union{Matrix{Int},Nothing}=nothing,
+    gray_levels::Union{Array{Int},Nothing}=nothing)::Tuple{Matrix{Int},Vector{Int}}
+    if P_gldm === nothing
+        verbose && println("Calculating GLDM matrix...")
 
-    if gpu_data === nothing
         masked_img = discretized_img[mask]
         gray_levels = sort(unique(masked_img))
         num_gl = length(gray_levels)
@@ -196,8 +202,6 @@ function calculate_gldm_matrix(discretized_img::AbstractArray{Int},
             end
         end
         P_gldm = P_gldm[:, 1:last_col]
-    else
-        P_gldm, gray_levels = compute_gldm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gray_levels, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl, gldm_a)
     end
 
     return P_gldm, gray_levels

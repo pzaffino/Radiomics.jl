@@ -10,13 +10,14 @@ using StatsBase
     # Returns
     - first_order_features::Dict{String, Float64}: Dictionary containing the extracted first order
       features
-    """ 
+    """
 function get_first_order_features(img::AbstractArray{Float64},
-                                   mask::BitArray,
-                                   voxel_spacing::Vector{Float64};
-                                   n_bins::Union{Int,Nothing}=nothing,
-                                   bin_width::Union{Float64,Nothing}=nothing,
-                                   verbose::Bool=false)::Dict{String,Any}
+    mask::BitArray,
+    voxel_spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    verbose::Bool=false,
+    disc::Union{Array{Int},Nothing}=nothing)::Dict{String,Any}
 
     verbose && println("Extracting first order features...")
 
@@ -42,14 +43,16 @@ function get_first_order_features(img::AbstractArray{Float64},
     p90 = _percentile(sorted_voxels, 90.0)
 
     mean_val = sum(roi_voxels) / n
+    if disc === nothing
+        disc, n_bins_actual, gray_levels, bin_width_used = discretize_image(
+            img, mask;
+            n_bins=n_bins,
+            bin_width=bin_width,
+            vmin=vmin,
+            vmax=vmax
+        )
+    end
 
-    disc, n_bins_actual, gray_levels, bin_width_used = discretize_image(
-        img, mask;
-        n_bins=n_bins,
-        bin_width=bin_width,
-        vmin=vmin,
-        vmax=vmax
-    )
     discretized_roi_voxels = disc[mask]
     p_probs = get_voxel_probabilities(discretized_roi_voxels)
 
@@ -165,10 +168,10 @@ function get_robust_mean_absolute_deviation_feature_value(roi_voxels::Vector{Flo
             count += 1
         end
     end
-    
+
     count == 0 && return 0.0
     mean_10_90 = sum_val / count
-    
+
     mad_sum = 0.0
     @inbounds for x in roi_voxels
         if p10 <= x <= p90
@@ -203,13 +206,15 @@ function get_skewness_and_kurtosis(roi_voxels::Vector{Float64}, mean_val::Float6
     n = length(roi_voxels)
     mu2 = mu3 = mu4 = 0.0
     @inbounds for x in roi_voxels
-        d  = x - mean_val
+        d = x - mean_val
         d2 = d * d
         mu2 += d2
         mu3 += d2 * d
         mu4 += d2 * d2
     end
-    mu2 /= n; mu3 /= n; mu4 /= n
+    mu2 /= n;
+    mu3 /= n;
+    mu4 /= n
     return mu3 / mu2^1.5, mu4 / mu2^2
 end
 

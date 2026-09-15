@@ -2,7 +2,7 @@ using LinearAlgebra
 using Random
 using Statistics
 
-include("utils/utils_cpu/shape_3D_features_lookup_tables.jl")
+include("utils/shape_3D_features_lookup_tables.jl")
 
 const Point3D = NTuple{3,Float64}
 const Triangle3D = NTuple{3,Point3D}
@@ -15,18 +15,21 @@ const Triangle3D = NTuple{3,Point3D}
     valp1::Real, valp2::Real,
     isolevel::Float64)::Point3D
     if abs(isolevel - valp1) < 1e-5
+
         return p1
     end
     if abs(isolevel - valp2) < 1e-5
+
         return p2
     end
     if abs(valp2 - valp1) < 1e-5
+
         return p1
     end
     mu = (isolevel - valp1) / (valp2 - valp1)
-    return (p1[1] + mu * (p2[1] - p1[1]),
-        p1[2] + mu * (p2[2] - p1[2]),
-        p1[3] + mu * (p2[3] - p1[3]))
+    return (p1[1] + mu*(p2[1]-p1[1]),
+        p1[2] + mu*(p2[2]-p1[2]),
+        p1[3] + mu*(p2[3]-p1[3]))
 end
 """
     This function is used to get the vertex on the edge of a cube.
@@ -74,36 +77,44 @@ function marching_cubes_surface(mask::BitArray{3},
 
         cubeindex = 0
         if v0 > isolevel
+
             cubeindex |= 1
         end
         if v1 > isolevel
+
             cubeindex |= 2
         end
         if v2 > isolevel
+
             cubeindex |= 4
         end
         if v3 > isolevel
+
             cubeindex |= 8
         end
         if v4 > isolevel
+
             cubeindex |= 16
         end
         if v5 > isolevel
+
             cubeindex |= 32
         end
         if v6 > isolevel
+
             cubeindex |= 64
         end
         if v7 > isolevel
+
             cubeindex |= 128
         end
 
         (cubeindex == 0 || cubeindex == 255) && continue
 
         sx, sy, sz = spacing[1], spacing[2], spacing[3]
-        x0, x1 = (x - 1) * sx, x * sx
-        y0, y1 = (y - 1) * sy, y * sy
-        z0, z1 = (z - 1) * sz, z * sz
+        x0, x1 = (x-1)*sx, x*sx
+        y0, y1 = (y-1)*sy, y*sy
+        z0, z1 = (z-1)*sz, z*sz
 
         p0 = (x0, y0, z0)
         p1 = (x1, y0, z0)
@@ -145,10 +156,10 @@ function maximum_2d_diameters_from_vertices(verts::Vector{Point3D})::NTuple{3,Fl
         a = verts[i]
         for j in (i+1):n
             b = verts[j]
-            dx = a[1] - b[1]
-            dy = a[2] - b[2]
-            dz = a[3] - b[3]
-            dist2 = dx * dx + dy * dy + dz * dz
+            dx = a[1]-b[1]
+            dy = a[2]-b[2]
+            dz = a[3]-b[3]
+            dist2 = dx*dx + dy*dy + dz*dz
             a[3] == b[3] && dist2 > d_slice && (d_slice = dist2)
             a[2] == b[2] && dist2 > d_row && (d_row = dist2)
             a[1] == b[1] && dist2 > d_column && (d_column = dist2)
@@ -165,21 +176,21 @@ function calculate_mesh_metrics(triangles::Vector{Triangle3D})::Tuple{Float64,Fl
     area = 0.0
     volume = 0.0
     @inbounds for (p1, p2, p3) in triangles
-        ax = p2[1] - p1[1]
-        ay = p2[2] - p1[2]
-        az = p2[3] - p1[3]
-        bx = p3[1] - p1[1]
-        by = p3[2] - p1[2]
-        bz = p3[3] - p1[3]
-        cx = ay * bz - az * by
-        cy = az * bx - ax * bz
-        cz = ax * by - ay * bx
-        area += 0.5 * sqrt(cx * cx + cy * cy + cz * cz)
-        volume += (p1[1] * (p2[2] * p3[3] - p2[3] * p3[2])
-                   -
-                   p1[2] * (p2[1] * p3[3] - p2[3] * p3[1])
-                   +
-                   p1[3] * (p2[1] * p3[2] - p2[2] * p3[1])) / 6.0
+        ax = p2[1]-p1[1]
+        ay = p2[2]-p1[2]
+        az = p2[3]-p1[3]
+        bx = p3[1]-p1[1]
+        by = p3[2]-p1[2]
+        bz = p3[3]-p1[3]
+        cx = ay*bz - az*by
+        cy = az*bx - ax*bz
+        cz = ax*by - ay*bx
+        area += 0.5 * sqrt(cx*cx + cy*cy + cz*cz)
+        volume += (p1[1]*(p2[2]*p3[3] - p2[3]*p3[2])
+            -
+            p1[2]*(p2[1]*p3[3] - p2[3]*p3[1])
+            +
+            p1[3]*(p2[1]*p3[2] - p2[2]*p3[1])) / 6.0
     end
     return area, abs(volume)
 end
@@ -189,7 +200,7 @@ end
 """
 function sphericity(area::Float64, volume::Float64)::Float64
     (area <= 0.0 || volume <= 0.0) && return 0.0
-    return (π^(1 / 3) * (6.0 * volume)^(2 / 3)) / area
+    return (π^(1/3) * (6.0 * volume)^(2/3)) / area
 end
 """
     This function is used to calculate the maximum 3D diameter of a mesh.
@@ -230,7 +241,7 @@ function maximum_3d_diameter(triangles::Vector{Triangle3D})::Float64
     d2_center = Vector{Float64}(undef, nv)
     @inbounds for i in 1:nv
         p = verts[i]
-        d2_center[i] = (p[1] - cx)^2 + (p[2] - cy)^2 + (p[3] - cz)^2
+        d2_center[i] = (p[1]-cx)^2 + (p[2]-cy)^2 + (p[3]-cz)^2
     end
 
     # Sort the points by distance from the center in descending order
@@ -246,7 +257,7 @@ function maximum_3d_diameter(triangles::Vector{Triangle3D})::Float64
     p1 = verts_sorted[1]
     @inbounds for j in 2:nv
         p2 = verts_sorted[j]
-        d2 = (p1[1] - p2[1])^2 + (p1[2] - p2[2])^2 + (p1[3] - p2[3])^2
+        d2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2 + (p1[3]-p2[3])^2
         if d2 > max_sq
             max_sq = d2
             max_d = sqrt(max_sq)
@@ -269,7 +280,7 @@ function maximum_3d_diameter(triangles::Vector{Triangle3D})::Float64
             end
 
             pj = verts_sorted[j]
-            d2 = (pi[1] - pj[1])^2 + (pi[2] - pj[2])^2 + (pi[3] - pj[3])^2
+            d2 = (pi[1]-pj[1])^2 + (pi[2]-pj[2])^2 + (pi[3]-pj[3])^2
             if d2 > max_sq
                 max_sq = d2
                 max_d = sqrt(max_sq)
@@ -289,9 +300,9 @@ function get_voxel_coords(mask::AbstractArray{Bool,3}, spacing::Vector{Float64})
     k = 1
     @inbounds for I in CartesianIndices(mask)
         if mask[I]
-            coords[k] = ((I[1] - 1 + 0.5) * Float64(spacing[1]),
-                (I[2] - 1 + 0.5) * Float64(spacing[2]),
-                (I[3] - 1 + 0.5) * Float64(spacing[3]))
+            coords[k] = ((I[1]-1+0.5)*Float64(spacing[1]),
+                (I[2]-1+0.5)*Float64(spacing[2]),
+                (I[3]-1+0.5)*Float64(spacing[3]))
             k += 1
         end
     end
@@ -307,34 +318,35 @@ function principal_axes_features(coords::Vector{Point3D})::Tuple{Vector{Float64}
 
     mx = my = mz = 0.0
     @inbounds for p in coords
-        mx += p[1]
-        my += p[2]
-        mz += p[3]
+
+        mx+=p[1]
+        my+=p[2]
+        mz+=p[3]
     end
-    mx /= n
-    my /= n
-    mz /= n
+    mx/=n
+    my/=n
+    mz/=n
 
     sn = sqrt(Float64(n - 1))
-    c11 = c12 = c13 = c22 = c23 = c33 = 0.0
+    c11=c12=c13=c22=c23=c33 = 0.0
     @inbounds for p in coords
-        dx = (p[1] - mx) / sn
-        dy = (p[2] - my) / sn
-        dz = (p[3] - mz) / sn
-        c11 += dx * dx
-        c12 += dx * dy
-        c13 += dx * dz
-        c22 += dy * dy
-        c23 += dy * dz
-        c33 += dz * dz
+        dx=(p[1]-mx)/sn
+        dy=(p[2]-my)/sn
+        dz=(p[3]-mz)/sn
+        c11+=dx*dx
+        c12+=dx*dy
+        c13+=dx*dz
+        c22+=dy*dy
+        c23+=dy*dz
+        c33+=dz*dz
     end
 
     ev = sort(eigen(Symmetric([c11 c12 c13; c12 c22 c23; c13 c23 c33])).values)
     l1, l2, l3 = max(0.0, ev[1]), max(0.0, ev[2]), max(0.0, ev[3])
 
-    axes = [4 * sqrt(l) for l in (l1, l2, l3)]
-    elong = (l3 > 0 && l2 > 0) ? sqrt(l2 / l3) : NaN
-    flat = (l3 > 0 && l1 > 0) ? sqrt(l1 / l3) : NaN
+    axes = [4*sqrt(l) for l in (l1, l2, l3)]
+    elong = (l3>0 && l2>0) ? sqrt(l2/l3) : NaN
+    flat = (l3>0 && l1>0) ? sqrt(l1/l3) : NaN
     return axes, Float64(elong), Float64(flat)
 end
 """
@@ -343,8 +355,25 @@ end
 """
 function voxel_volume(mask::AbstractArray, spacing::Vector{Float64})::Float64
     return Float64(count(mask)) *
-           Float64(spacing[1]) * Float64(spacing[2]) * Float64(spacing[3])
+        Float64(spacing[1]) * Float64(spacing[2]) * Float64(spacing[3])
 end
+function calculate_diam2d(triangles::Vector{Triangle3D}, verbose::Bool=false)
+    verbose && println("[Thread 4] Calculating 2D diameters from mesh...")
+    all_verts = Vector{Point3D}(undef, length(triangles) * 3)
+    k = 1
+
+    for (a, b, c) in triangles
+        all_verts[k] = a
+        all_verts[k+1] = b
+        all_verts[k+2] = c
+        k += 3
+    end
+
+    unique!(all_verts)
+
+    maximum_2d_diameters_from_vertices(all_verts)
+end
+
 """
     get_shape3d_features(mask::AbstractArray{<:Real, 3}, spacing::Vector{Float64}; verbose=false, keep_largest_only=true, pad_width=1, threshold=0)
     
@@ -372,7 +401,7 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
     keep_largest_only::Bool=true,
     pad_width::Int=1,
     threshold::Float64=0.5,
-    gpu_data::Union{GPUData,Nothing}=nothing)::Dict{String,Any}
+    use_gpu::Bool=false)::Dict{String,Any}
 
     verbose && println("Extracting 3D shape features...")
 
@@ -411,23 +440,12 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
         verbose && println("[Thread 3] Calculating maximum diameter...")
         maximum_3d_diameter(triangles)
     end
-
-    if gpu_data === nothing
+    if !use_gpu
         task_diam2d = Threads.@spawn begin
-            verbose && println("[Thread 4] Calculating 2D diameters from mesh...")
-            all_verts = Vector{Point3D}(undef, length(triangles) * 3)
-            k = 1
-            for (a, b, c) in triangles
-                all_verts[k] = a
-                all_verts[k+1] = b
-                all_verts[k+2] = c
-                k += 3
-            end
-            unique!(all_verts)
-            maximum_2d_diameters_from_vertices(all_verts)
+            calculate_diam2d(triangles, verbose)
         end
     else
-        task_diam2d = calculate_diam2d_gpu(CuArray(triangles), verbose)
+        task_diam2d = calculate_diam2d_gpu(triangles, verbose)
     end
 
     vol_voxel = voxel_volume(processed_mask, spacing)
@@ -459,4 +477,8 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
     shape_3d_features["shape3d_maximum_2d_diameter_column"] = diam_column
 
     return shape_3d_features
+end
+
+function calculate_diam2d_gpu(args...; kwargs...)
+    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
 end

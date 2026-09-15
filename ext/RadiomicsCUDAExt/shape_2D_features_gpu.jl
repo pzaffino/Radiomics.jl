@@ -44,7 +44,6 @@ const POINTS_EDGES_2D_GPU = (
 
     # Arguments
     - `mask`: Binary 2D mask stored on the GPU.
-    - `mask_indices`: Mask indices stored on the GPU.
     - `spacing`: Pixel spacing.
 
     # Returns
@@ -54,7 +53,6 @@ const POINTS_EDGES_2D_GPU = (
         - Diameter
 """
 function get_coefficients_gpu(mask::CuArray{Bool,2},
-    mask_indices::CuArray{Int},
     spacing::CuArray{Float64})::Tuple{Float64,Float64,Float64}
 
     padded = CUDA.zeros(Bool, size(mask, 1) + 2, size(mask, 2) + 2)
@@ -85,7 +83,7 @@ function get_coefficients_gpu(mask::CuArray{Bool,2},
 
     n = Array(num_vertices)[1]
     vertices_cpu = Array(vertices)[1:(2*n)]
-    diameter = calculate_mesh_diameter2d(vertices_cpu, vertices)
+    diameter = Radiomics.calculate_mesh_diameter2d(vertices_cpu, vertices)
 
     return Float64(perimeter), Float64(surface), Float64(diameter)
 end

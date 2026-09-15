@@ -1,8 +1,77 @@
 """
+    get_ngtdm_features(img::AbstractArray{Float64},
+                       mask::BitArray,
+                       voxel_spacing::Vector{Float64};
+                       n_bins::Union{Int,Nothing}=nothing,
+                       bin_width::Union{Float64,Nothing}=nothing,
+                       get_raw_matrices::Bool=false,
+                       verbose::Bool=false,
+                       gpu_data::GPUData)
+
+    # Arguments
+    - `img`: Input image.
+    - `mask`: Binary ROI mask.
+    - `voxel_spacing`: Voxel spacing.
+    - `n_bins`: Number of gray level bins.
+    - `bin_width`: Width of the gray level bins.
+    - `get_raw_matrices`: Flag used to return the raw NGTDM matrices.
+    - `verbose`: Flag used to print progress information.
+    - `gpu_data`: GPU data container
+
+    # Returns
+    NGTDM features
+"""
+function get_ngtdm_features(img::AbstractArray{Float64},
+    mask::BitArray,
+    voxel_spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    get_raw_matrices::Bool=false,
+    verbose::Bool=false,
+    gpu_data::GPUData)::Dict{String,Any}
+
+    P_ngtdm = compute_ngtdm_gpu(
+        gpu_data.texture_data.discretized_image,
+        gpu_data.mask,
+        gpu_data.mask_indices,
+        gpu_data.texture_data.gray_levels,
+        gpu_data.texture_data.gray_levels_cpu,
+        gpu_data.texture_data.gl_lut,
+        gpu_data.texture_data.num_gl,
+        gpu_data.texture_data.max_gl,
+        gpu_data.texture_data.min_gl
+    )
+
+    P_ngtdm, _ = Radiomics.calculate_ngtdm_matrix(
+        [0],
+        mask,
+        verbose,
+        P_ngtdm,
+        gpu_data.texture_data.gray_levels_cpu,
+    )
+
+    return Radiomics.get_ngtdm_features(
+        img,
+        mask,
+        voxel_spacing;
+        n_bins=n_bins,
+        bin_width=bin_width,
+        get_raw_matrices=get_raw_matrices,
+        verbose=verbose,
+        P_ngtdm=P_ngtdm,
+        gray_levels=gpu_data.texture_data.gray_levels_cpu
+    )
+
+end
+
+
+"""
     compute_ngtdm_gpu(discretized_img::CuArray{Int},
         mask::CuArray{Bool},
         mask_indices::CuArray{Int},
         gray_levels::CuArray{Int},
+        gray_levels_cpu::Array{Int},
+        gl_lut::CuArray{Int},
         num_gl::Int,
         max_gl::Int,
         min_gl::Int)::Tuple{Array{Float64},Array{Int}}
@@ -14,6 +83,8 @@
     - `mask`: Binary ROI mask stored on the GPU.
     - `mask_indices`: Linear indices of ROI voxels.
     - `gray_levels`: Array containing all gray levels
+    - `gray_levels_cpu`: Array containing all gray levels stored in CPU memory
+    - `gl_lut`: Gray level look up table
     - `num_gl`: Number of gray levels 
     - `max_gl`: Maximum gray level 
     - `min_gl`: Minimum gray level
@@ -27,14 +98,11 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     mask::CuArray{Bool},
     mask_indices::CuArray{Int},
     gray_levels::CuArray{Int},
+    gray_levels_cpu::Array{Int},
+    gl_lut::CuArray{Int},
     num_gl::Int,
     max_gl::Int,
-    min_gl::Int)::Tuple{Array{Float64},Array{Int}}
-
-    gl_lut = CUDA.zeros(Int, max_gl - min_gl + 1)
-
-    @cuda threads = CUDA_THREADS blocks = cld(num_gl, CUDA_THREADS) lut_kernel!(
-        gray_levels, gl_lut, min_gl, num_gl)
+    min_gl::Int)::Array{Float64}
 
     n_dims = ndims(discretized_img)
     sz = size(discretized_img)
@@ -54,8 +122,8 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     num_offsets = length(offsets_x)
 
     num_indices = length(mask_indices)
-    is_interior = CUDA.zeros(Bool, num_indices)
-    is_border = CUDA.ones(Bool, num_indices)
+    is_interior = CuArray{Bool}(undef, num_indices)
+    is_border = CuArray{Bool}(undef, num_indices)
     interior_length = CuArray([0])
     @cuda threads = CUDA_THREADS blocks = cld(num_indices, CUDA_THREADS) classify_mask_indices!(mask_indices, is_interior, is_border, interior_length, Nx, Ny, Nz, num_indices)
 
@@ -80,9 +148,8 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     @cuda threads = CUDA_THREADS blocks = cld(n_bord, CUDA_THREADS) shmem = shmem_size ngtdm_neighborhood_count_border!(discretized_img, mask, border_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_bord, num_offsets)
 
     P_ngtdm = Array(P_ngtdm)
-    gray_levels = Array(gray_levels)
-    P_ngtdm[:, 3] = gray_levels
-    return P_ngtdm, gray_levels
+    P_ngtdm[:, 3] = gray_levels_cpu
+    return P_ngtdm
 end
 
 """
@@ -186,11 +253,13 @@ function ngtdm_neighborhood_count_interior!(
 
     CUDA.sync_threads()
 
-    if tid <= num_gl
-        if sh_counts[tid] > 0
-            CUDA.@atomic P_ngtdm[tid, 1] += sh_counts[tid]
-            CUDA.@atomic P_ngtdm[tid, 2] += sh_sums[tid]
+    g = tid
+    while g <= num_gl
+        if sh_counts[g] > 0
+            CUDA.@atomic P_ngtdm[g, 1] += sh_counts[g]
+            CUDA.@atomic P_ngtdm[g, 2] += sh_sums[g]
         end
+        g += blockDim().x
     end
     return nothing
 end
@@ -284,11 +353,13 @@ function ngtdm_neighborhood_count_border!(
 
     CUDA.sync_threads()
 
-    if tid <= num_gl
-        if sh_counts[tid] > 0
-            CUDA.@atomic P_ngtdm[tid, 1] += sh_counts[tid]
-            CUDA.@atomic P_ngtdm[tid, 2] += sh_sums[tid]
+    g = tid
+    while g <= num_gl
+        if sh_counts[g] > 0
+            CUDA.@atomic P_ngtdm[g, 1] += sh_counts[g]
+            CUDA.@atomic P_ngtdm[g, 2] += sh_sums[g]
         end
+        g += blockDim().x
     end
     return nothing
 end

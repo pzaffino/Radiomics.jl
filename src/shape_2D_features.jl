@@ -41,7 +41,7 @@ function get_shape2d_features(mask_array::BitArray{2},
     spacing::Vector{Float64};
     verbose::Bool=false,
     keep_largest_only::Bool=true,
-    gpu_data::Union{GPUData,Nothing}=nothing)::Dict{String,Any}
+    use_gpu::Bool=false)::Dict{String,Any}
 
     verbose && println("Extracting 2D shape features...")
 
@@ -58,14 +58,10 @@ function get_shape2d_features(mask_array::BitArray{2},
     end
 
     shape_2d_features = Dict{String,Any}()
-
-    if gpu_data === nothing
+    if !use_gpu
         perimeter, surface, diameter = get_coefficients(mask_array, spacing)
-        ev = get_eigenvalues(mask_array, spacing)
     else
-        gpu_spacing = CuArray(spacing)
-        perimeter, surface, diameter = get_coefficients_gpu(gpu_data.mask, gpu_data.mask_indices, gpu_spacing)
-        ev = get_eigenvalues_gpu(gpu_data.mask, gpu_data.mask_indices, gpu_spacing)
+        perimeter, surface, diameter = get_coefficients_gpu_wrapper(mask_array, spacing)
     end
 
     # Perimeter
@@ -85,6 +81,8 @@ function get_shape2d_features(mask_array::BitArray{2},
 
     # Sphericity
     shape_2d_features["shape2d_sphericity"] = get_sphericity(perimeter, surface)
+
+    ev = get_eigenvalues(mask_array, spacing)
 
     # Major Axis Length
     shape_2d_features["shape2d_major_axis_length"] = get_major_axis_length(ev)
@@ -158,8 +156,8 @@ function get_eigenvalues(mask::AbstractMatrix{<:Bool}, spacing::Vector{Float64})
         c12 += dx * dy
         c22 += dy * dy
     end
-    c11 /= Np;
-    c12 /= Np;
+    c11 /= Np
+    c12 /= Np
     c22 /= Np
 
     ev = eigen(Symmetric([c11 c12; c12 c22])).values
@@ -203,11 +201,24 @@ function get_elongation(ev::Vector{Float64})::Float64
     return sqrt(ev[1] / ev[2])
 end
 
+function max_dist2(h::Int, hull::Vector{Tuple{Float64,Float64}})::Float64
+    max_dist2 = 0.0
+    @inbounds for i in 1:h
+        p1 = hull[i]
+        for j in (i+1):h
+            p2 = hull[j]
+            dist2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2
+            dist2 > max_dist2 && (max_dist2 = dist2)
+        end
+    end
+    return max_dist2
+end
+
 """
 Helper functions to calculate the maximum diameter of a 2D mesh and coefficients for the 2D shape
 Original C code: https://github.com/AIM-Harvard/pyradiomics/blob/master/radiomics/src/cshape.c
 """
-function calculate_mesh_diameter2d(points_flat::Vector{Float64}, points_flat_gpu::Union{Nothing,CuArray{Float64}}=nothing)::Float64
+function calculate_mesh_diameter2d(points_flat::Vector{Float64}, points_flat_gpu::Union{Nothing,AbstractArray{Float64}}=nothing, use_gpu::Bool=false)::Float64
     n = div(length(points_flat), 2)
     n < 2 && return 0.0
 
@@ -255,29 +266,16 @@ function calculate_mesh_diameter2d(points_flat::Vector{Float64}, points_flat_gpu
         k += 1
         hull[k] = p
     end
+
     # 3. Compute maximum distance over hull vertices (h = k-1 to ignore duplicate point)
     h = k - 1
-    # CPU
-    if points_flat_gpu === nothing
-        max_dist2 = 0.0
-        @inbounds for i in 1:h
-            p1 = hull[i]
-            for j in (i+1):h
-                p2 = hull[j]
-                dist2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2
-                dist2 > max_dist2 && (max_dist2 = dist2)
-            end
-        end
-        # GPU
+    if !use_gpu
+        md2 = max_dist2(h, hull)
     else
-        hull = CuArray(hull)
-        max_dist2 = CuArray([0.0])
-        blocks = (cld(h, 16), cld(h, 16))
-        @cuda threads=(16, 16) blocks=blocks max_dist!(hull, max_dist2, h)
-        max_dist2 = Array(max_dist2)[1]
+        md2 = max_dist2_gpu_wrapper(h, hull)
     end
 
-    return sqrt(max_dist2)
+    return sqrt(md2)
 end
 
 """Calculate perimeter, surface, and maximum diameter of a 2D shape represented by a binary mask.
@@ -376,4 +374,32 @@ function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float
     surface = abs(surface) / 2.0
     diameter = calculate_mesh_diameter2d(vertices)
     return Float64(perimeter), Float64(surface), Float64(diameter)
+end
+
+"""
+    get_coefficients_gpu_wrapper(args...; kwargs...)
+
+    # Arguments
+    - `args`: Positional arguments
+    - `kwargs`: Keyword arguments
+
+    # Returns
+    Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
+"""
+function get_coefficients_gpu_wrapper(args...; kwargs...)
+    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
+end
+
+"""
+    max_dist2_gpu_wrapper(args...; kwargs...)
+
+    # Arguments
+    - `args`: Positional arguments
+    - `kwargs`: Keyword arguments
+
+    # Returns
+    Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
+"""
+function max_dist2_gpu_wrapper(args...; kwargs...)
+    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
 end
