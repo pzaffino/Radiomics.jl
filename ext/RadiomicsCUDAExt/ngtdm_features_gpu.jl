@@ -206,8 +206,8 @@ function ngtdm_neighborhood_count_interior!(
     num_interior::Int,
     num_offsets::Int,)
 
-    sh_counts = @cuDynamicSharedMem(Int, num_gl)
-    sh_sums = @cuDynamicSharedMem(Float64, num_gl, num_gl*sizeof(Int))
+    sh_counts = CuDynamicSharedArray(Int, num_gl)
+    sh_sums = CuDynamicSharedArray(Float64, num_gl, num_gl*sizeof(Int))
 
     tid = threadIdx().x
     i = tid + (blockIdx().x - 1) * blockDim().x
@@ -304,8 +304,8 @@ end
 function ngtdm_neighborhood_count_border!(
     discretized_img::CuDeviceArray{Int}, mask::CuDeviceArray{Bool}, border_mask::CuDeviceArray{Int}, gl_map::CuDeviceArray{Int}, offsets_x::CuDeviceArray{Int}, offsets_y::CuDeviceArray{Int}, offsets_z::CuDeviceArray{Int}, P_ngtdm::CuDeviceArray{Float64}, Nx::Int, Ny::Int, Nz::Int, min_gl::Int, num_gl::Int, num_border::Int, num_offsets::Int,)
 
-    sh_counts = @cuDynamicSharedMem(Int, num_gl)
-    sh_sums = @cuDynamicSharedMem(Float64, num_gl, num_gl*sizeof(Int))
+    sh_counts = CuDynamicSharedArray(Int, num_gl)
+    sh_sums = CuDynamicSharedArray(Float64, num_gl, num_gl*sizeof(Int))
 
     tid = threadIdx().x
     i = tid + (blockIdx().x - 1) * blockDim().x
