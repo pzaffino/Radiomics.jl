@@ -196,6 +196,9 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         tasks = map(p.labels) do label
             Threads.@spawn let label = label
+                # `local`: these names also exist in the enclosing function; without it all tasks would share them
+                local radiomic_features, time_acc, diagnosis_features, total_start_time,
+                      total_time_accumulated, total_time_real, spacing_to_use, error_msg
                 log_buffer = String[]
 
                 push!(log_buffer, "\n=== Processing LABEL $label ===")
