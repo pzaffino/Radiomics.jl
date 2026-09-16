@@ -39,7 +39,7 @@ include("RadiomicsCUDAExt/gldm_features_gpu.jl")
     # Returns:
     - Tuple of (radiomic_features::Dict, total_time_accumulated::Float64)
 """
-function Radiomics.extract_radiomics_features_gpu(
+function extract_radiomics_features_gpu(
     features::Vector{Symbol},
     img::Array{Float64},
     mask::BitArray,
@@ -243,16 +243,16 @@ end
     # Returns
     2D diameters
 """
-function Radiomics.calculate_diam2d_gpu(
+function calculate_diam2d_gpu(
     triangles::Vector{Radiomics.Triangle3D},
     verbose::Bool=false)
     verbose && println("[CUDA] Calculating 2D diameters on the GPU...")
 
-    return calculate_diam2d_gpu(CuArray(triangles), verbose)
+    return calculate_diam2d(CuArray(triangles), verbose)
 end
 
 """
-    Radiomics.get_coefficients_gpu_wrapper(mask_array::BitArray{2},
+    get_coefficients_gpu(mask_array::BitArray{2},
                                            spacing::Vector{Float64})
 
     # Arguments
@@ -262,27 +262,8 @@ end
     # Returns
     Coefficients
 """
-function Radiomics.get_coefficients_gpu_wrapper(mask_array::BitArray{2}, spacing::Vector{Float64})
+function get_coefficients_gpu(mask_array::BitArray{2}, spacing::Vector{Float64})
     return get_coefficients_gpu(CuArray(mask_array), CuArray(spacing))
-end
-
-"""
-    Radiomics.max_dist2_gpu_wrapper(h::Int,
-                                    hull::Vector{Tuple{Float64,Float64}})
-
-    # Arguments
-    - `h`: Number of points in the hull.
-    - `hull`: Holl
-
-    # Returns
-    Maximum squared distance
-"""
-function Radiomics.max_dist2_gpu_wrapper(h::Int, hull::Vector{Tuple{Float64,Float64}})::Float64
-    hull = CuArray(hull)
-    max_dist2 = CuArray([0.0])
-    blocks = (cld(h, 16), cld(h, 16))
-    @cuda threads=(16, 16) blocks=blocks max_dist!(hull, max_dist2, h)
-    return Array(max_dist2)[1]
 end
 
 function Radiomics.cuda_availability_check()
@@ -305,6 +286,16 @@ end
 
     gpu_data = GPUData(img, mask, mask_indices, nothing)
 
+    Point3D = NTuple{3,Float64}
+    Triangle3D = NTuple{3,Point3D}
+
+    p1 = (0.0, 0.0, 0.0)
+    p2 = (1.0, 0.0, 0.1)
+    p3 = (1.0, 1.0, 0.2)
+    p4 = (0.0, 1.0, 0.3)
+
+    triangles = CuArray(Triangle3D[(p1, p2, p3), (p1, p3, p4)])
+
     spacing = [1.0, 1.0, 1.0]
 
     @compile_workload begin
@@ -316,7 +307,7 @@ end
         compute_glrlm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.min_gl)
         compute_ngtdm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.gray_levels_cpu, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl)
 
-        Radiomics.get_shape3d_features(mask_cpu, spacing; verbose=false, keep_largest_only=false, use_gpu=true)
+        calculate_diam2d(triangles, false)
     end
 end
 

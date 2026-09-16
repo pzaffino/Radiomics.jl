@@ -16,6 +16,8 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
+const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
+
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                               features=Symbol[],
@@ -93,14 +95,19 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     )
 
     if use_gpu
-        if Base.get_extension(@__MODULE__, :RadiomicsCUDAExt) === nothing
+        ext = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
+        if ext === nothing
             try
                 Main.eval(:(using CUDA))
             catch err
                 error("GPU acceleration requested (`use_gpu=true`) but CUDA.jl could not be loaded.\nPlease install CUDA before calling `extract_radiomic_features()`:\n`import Pkg; Pkg.add(\"CUDA\")`")
             end
+            ext = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
         end
+        CUDA_EXT[] = ext
     end
+
+    @show CUDA_EXT[] # solo debug, stampa RadiomicsCUDAExt durante un'esecuzione normale se use_gpu=true, 'nothing' nel runtest
 
     (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
 
@@ -543,7 +550,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     else
         t_gpu_features = Threads.@spawn begin
             Base.invokelatest(
-                extract_radiomics_features_gpu,
+                CUDA_EXT[].extract_radiomics_features_gpu,
                 features, img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width,

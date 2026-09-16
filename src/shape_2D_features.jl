@@ -61,7 +61,7 @@ function get_shape2d_features(mask_array::BitArray{2},
     if !use_gpu
         perimeter, surface, diameter = get_coefficients(mask_array, spacing)
     else
-        perimeter, surface, diameter = get_coefficients_gpu_wrapper(mask_array, spacing)
+        perimeter, surface, diameter = CUDA_EXT[].get_coefficients_gpu(mask_array, spacing)
     end
 
     # Perimeter
@@ -270,12 +270,20 @@ function calculate_mesh_diameter2d(points_flat::Vector{Float64}, points_flat_gpu
     # 3. Compute maximum distance over hull vertices (h = k-1 to ignore duplicate point)
     h = k - 1
     if !use_gpu
-        md2 = max_dist2(h, hull)
+        max_dist2 = 0.0
+        @inbounds for i in 1:h
+            p1 = hull[i]
+            for j in (i+1):h
+                p2 = hull[j]
+                dist2 = (p1[1]-p2[1])^2 + (p1[2]-p2[2])^2
+                dist2 > max_dist2 && (max_dist2 = dist2)
+            end
+        end
     else
-        md2 = max_dist2_gpu_wrapper(h, hull)
+        max_dist2 = CUDA_EXT[].max_dist2_gpu(h, hull)
     end
 
-    return sqrt(md2)
+    return sqrt(max_dist2)
 end
 
 """Calculate perimeter, surface, and maximum diameter of a 2D shape represented by a binary mask.
@@ -374,32 +382,4 @@ function get_coefficients(mask::AbstractMatrix{<:Integer}, spacing::Vector{Float
     surface = abs(surface) / 2.0
     diameter = calculate_mesh_diameter2d(vertices)
     return Float64(perimeter), Float64(surface), Float64(diameter)
-end
-
-"""
-    get_coefficients_gpu_wrapper(args...; kwargs...)
-
-    # Arguments
-    - `args`: Positional arguments
-    - `kwargs`: Keyword arguments
-
-    # Returns
-    Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
-"""
-function get_coefficients_gpu_wrapper(args...; kwargs...)
-    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
-end
-
-"""
-    max_dist2_gpu_wrapper(args...; kwargs...)
-
-    # Arguments
-    - `args`: Positional arguments
-    - `kwargs`: Keyword arguments
-
-    # Returns
-    Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
-"""
-function max_dist2_gpu_wrapper(args...; kwargs...)
-    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
 end

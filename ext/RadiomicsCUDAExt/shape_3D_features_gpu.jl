@@ -42,7 +42,7 @@ end
     # Returns
     - `Point3D`: Maximum 2D diameters
 """
-function calculate_diam2d_gpu(triangles::CuArray{Triangle3D}, verbose::Bool)::Point3D
+function calculate_diam2d(triangles::CuArray{Triangle3D}, verbose::Bool)::Point3D
     verbose && println("Calculating 2D diameters from mesh on the GPU...")
 
     num_triangles = length(triangles)
