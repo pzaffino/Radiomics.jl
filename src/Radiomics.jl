@@ -16,6 +16,8 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
+const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
+
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                               features=Symbol[],
@@ -26,6 +28,8 @@ include("diagnostic_features.jl")
                               keep_largest_only::Bool=true,
                               get_raw_matrices::Bool=false,
                               slices_2d=nothing,
+                              use_gpu::Bool=false,
+                              cuda_streams::Bool=false,
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -49,6 +53,8 @@ include("diagnostic_features.jl")
     - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
+    - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
+    - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -89,7 +95,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     )
 
     if use_gpu
-        cuda_availability_check()
+        ext = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
+        if ext === nothing
+            try
+                Main.eval(:(using CUDA))
+            catch err
+                error("GPU acceleration requested (`use_gpu=true`) but CUDA.jl could not be loaded.\nPlease install CUDA before calling `extract_radiomic_features()`:\n`import Pkg; Pkg.add(\"CUDA\")`")
+            end
+            ext = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
+        end
+        CUDA_EXT[] = ext
     end
 
     (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
@@ -179,6 +194,9 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         tasks = map(p.labels) do label
             Threads.@spawn let label = label
+                # `local`: these names also exist in the enclosing function; without it all tasks would share them
+                local radiomic_features, time_acc, diagnosis_features, total_start_time,
+                total_time_accumulated, total_time_real, spacing_to_use, error_msg
                 log_buffer = String[]
 
                 push!(log_buffer, "\n=== Processing LABEL $label ===")
@@ -532,7 +550,8 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     else
         t_gpu_features = Threads.@spawn begin
-            extract_radiomics_features_gpu(
+            Base.invokelatest(
+                CUDA_EXT[].extract_radiomics_features_gpu,
                 features, img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width,
@@ -552,8 +571,10 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         # 3D shape features
         if compute_all || :shape3d in features
             t_shape3d_features = Threads.@spawn begin
-                result = @timed get_shape3d_features(
-                    mask, voxel_spacing;
+                result = @timed Base.invokelatest(
+                    get_shape3d_features,
+                    mask,
+                    voxel_spacing;
                     verbose=verbose,
                     keep_largest_only=keep_largest_only,
                     use_gpu=use_gpu
@@ -567,8 +588,10 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     if ndims(mask) == 2
         if compute_all || :shape2d in features
             t_shape2d_features = Threads.@spawn begin
-                result = @timed get_shape2d_features(
-                    mask, voxel_spacing;
+                result = @timed Base.invokelatest(
+                    get_shape2d_features,
+                    mask,
+                    voxel_spacing;
                     verbose=verbose,
                     keep_largest_only=keep_largest_only,
                     use_gpu=use_gpu
@@ -930,23 +953,5 @@ end
     
     # Note: If no label is specified, the function defaults to label=1
 """
-
-"""
-    extract_radiomics_features_gpu(args...; kwargs...)
-
-    # Arguments
-    - `args`: Positional arguments
-    - `kwargs`: Keyword arguments
-
-    # Returns
-    Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
-"""
-function extract_radiomics_features_gpu(args...; kwargs...)
-    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
-end
-
-function cuda_availability_check(args...; kwargs...)
-    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
-end
 
 end

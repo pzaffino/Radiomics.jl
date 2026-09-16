@@ -343,3 +343,22 @@ function mask_coordinates!(
 
     return nothing
 end
+
+"""
+    max_dist2_gpu(h::Int,
+                                    hull::Vector{Tuple{Float64,Float64}})
+
+    # Arguments
+    - `h`: Number of points in the hull.
+    - `hull`: Holl
+
+    # Returns
+    Maximum squared distance
+"""
+function max_dist2_gpu(h::Int, hull::Vector{Tuple{Float64,Float64}})::Float64
+    hull = CuArray(hull)
+    max_dist2 = CuArray([0.0])
+    blocks = (cld(h, 16), cld(h, 16))
+    @cuda threads=(16, 16) blocks=blocks max_dist!(hull, max_dist2, h)
+    return Array(max_dist2)[1]
+end

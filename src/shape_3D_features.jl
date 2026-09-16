@@ -445,7 +445,7 @@ function get_shape3d_features(mask::AbstractArray{<:Real,3},
             calculate_diam2d(triangles, verbose)
         end
     else
-        task_diam2d = calculate_diam2d_gpu(triangles, verbose)
+        task_diam2d = CUDA_EXT[].calculate_diam2d_gpu(triangles, verbose)
     end
 
     vol_voxel = voxel_volume(processed_mask, spacing)
