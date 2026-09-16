@@ -75,7 +75,7 @@ const GPU_PRESENT = gpu_present()
 if !GPU_PRESENT
     @info "No GPU detected in the system: GPU tests will be skipped."
 else
-    @info "GPU detected in the system: GPU tests in progress"
+    @info "GPU detected in the system: GPU tests will be done"
 end
 
 #Control of CUDA
