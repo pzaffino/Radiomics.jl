@@ -267,43 +267,45 @@ function get_coefficients_gpu(mask_array::BitArray{2}, spacing::Vector{Float64})
 end
 
 @setup_workload begin
-    img_small = Float64.(reshape(1:1000, 10, 10, 10))
-    mask_small = zeros(Float64, 10, 10, 10)
-    mask_small[3:7, 3:7, 3:7] .= 1.0
+    if CUDA.functional()
+        img_small = Float64.(reshape(1:1000, 10, 10, 10))
+        mask_small = zeros(Float64, 10, 10, 10)
+        mask_small[3:7, 3:7, 3:7] .= 1.0
 
-    img_small_gpu = reshape(Float64.(1:1000), 10, 10, 10)
-    mask_small_gpu = zeros(Float64, 10, 10, 10)
-    mask_small_gpu[1:6, 1:6, 1:6] .= 1.0
-    mask_cpu = BitArray(mask_small_gpu .!= 0.0)
+        img_small_gpu = reshape(Float64.(1:1000), 10, 10, 10)
+        mask_small_gpu = zeros(Float64, 10, 10, 10)
+        mask_small_gpu[1:6, 1:6, 1:6] .= 1.0
+        mask_cpu = BitArray(mask_small_gpu .!= 0.0)
 
-    img = CuArray(img_small_gpu)
-    mask = CuArray(mask_cpu)
-    mask_indices = CuArray(findall(vec(mask_cpu)))
+        img = CuArray(img_small_gpu)
+        mask = CuArray(mask_cpu)
+        mask_indices = CuArray(findall(vec(mask_cpu)))
 
-    gpu_data = GPUData(img, mask, mask_indices, nothing)
+        gpu_data = GPUData(img, mask, mask_indices, nothing)
 
-    Point3D = NTuple{3,Float64}
-    Triangle3D = NTuple{3,Point3D}
+        Point3D = NTuple{3,Float64}
+        Triangle3D = NTuple{3,Point3D}
 
-    p1 = (0.0, 0.0, 0.0)
-    p2 = (1.0, 0.0, 0.1)
-    p3 = (1.0, 1.0, 0.2)
-    p4 = (0.0, 1.0, 0.3)
+        p1 = (0.0, 0.0, 0.0)
+        p2 = (1.0, 0.0, 0.1)
+        p3 = (1.0, 1.0, 0.2)
+        p4 = (0.0, 1.0, 0.3)
 
-    triangles = CuArray(Triangle3D[(p1, p2, p3), (p1, p3, p4)])
+        triangles = CuArray(Triangle3D[(p1, p2, p3), (p1, p3, p4)])
 
-    spacing = [1.0, 1.0, 1.0]
+        spacing = [1.0, 1.0, 1.0]
 
-    @compile_workload begin
-        texture_data = discretize_image_gpu(img_small, mask_cpu, gpu_data)
-        gpu_data.texture_data = texture_data
+        @compile_workload begin
+            texture_data = discretize_image_gpu(img_small, mask_cpu, gpu_data)
+            gpu_data.texture_data = texture_data
 
-        compute_glcm_gpu(gpu_data.texture_data.discretized_image, gpu_data)
-        compute_gldm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl, 1)
-        compute_glrlm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.min_gl)
-        compute_ngtdm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.gray_levels_cpu, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl)
+            compute_glcm_gpu(gpu_data.texture_data.discretized_image, gpu_data)
+            compute_gldm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl, 1)
+            compute_glrlm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.min_gl)
+            compute_ngtdm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.gray_levels_cpu, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl)
 
-        calculate_diam2d(triangles, false)
+            calculate_diam2d(triangles, false)
+        end
     end
 end
 
