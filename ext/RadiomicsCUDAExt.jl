@@ -266,10 +266,6 @@ function get_coefficients_gpu(mask_array::BitArray{2}, spacing::Vector{Float64})
     return get_coefficients_gpu(CuArray(mask_array), CuArray(spacing))
 end
 
-function Radiomics.cuda_availability_check()
-    return nothing
-end
-
 @setup_workload begin
     img_small = Float64.(reshape(1:1000, 10, 10, 10))
     mask_small = zeros(Float64, 10, 10, 10)

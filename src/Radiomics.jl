@@ -107,8 +107,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         CUDA_EXT[] = ext
     end
 
-    @show CUDA_EXT[] # solo debug, stampa RadiomicsCUDAExt durante un'esecuzione normale se use_gpu=true, 'nothing' nel runtest
-
     (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
 
     compute_all = isempty(p.features) || :all in p.features
@@ -198,7 +196,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             Threads.@spawn let label = label
                 # `local`: these names also exist in the enclosing function; without it all tasks would share them
                 local radiomic_features, time_acc, diagnosis_features, total_start_time,
-                      total_time_accumulated, total_time_real, spacing_to_use, error_msg
+                total_time_accumulated, total_time_real, spacing_to_use, error_msg
                 log_buffer = String[]
 
                 push!(log_buffer, "\n=== Processing LABEL $label ===")
@@ -955,32 +953,5 @@ end
     
     # Note: If no label is specified, the function defaults to label=1
 """
-
-"""
-    extract_radiomics_features_gpu(args...; kwargs...)
-
-    # Arguments
-    - `args`: Positional arguments
-    - `kwargs`: Keyword arguments
-
-    # Returns
-    Throws an error indicating that CUDA.jl must be loaded when `use_gpu=true`.
-"""
-function extract_radiomics_features_gpu(args...; kwargs...)
-    error("`use_gpu=true` requires CUDA.jl. Add `using CUDA` before calling `extract_radiomic_features()`.")
-end
-
-function cuda_availability_check(args...; kwargs...)
-    extension = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
-    if extension !== nothing
-        return extension
-    end
-
-    try
-        Main.eval(:(using CUDA))
-    catch err
-        error("GPU acceleration requested (`use_gpu=true`) but CUDA.jl could not be loaded.\nPlease install CUDA before calling `extract_radiomic_features()`:\n`import Pkg; Pkg.add(\"CUDA\")`")
-    end
-end
 
 end
