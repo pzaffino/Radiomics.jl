@@ -2,6 +2,7 @@ using Test
 using NIfTI
 using Radiomics
 using Downloads
+using CUDA
 
 """
 IBSI Validation Test Suite
@@ -56,25 +57,27 @@ function ibsi_test(actual::Real, reference::Real, tolerance::Real)
 end
 
 """
-    Verify if CUDA.jl is installed in the environment
+    gpu_present() -> Bool
+
+    Check if an NVIDIA GPU is present in the system using `nvidia-smi`
 """
-const CUDA_LOADED = let
+function gpu_present()
     try
-        if Base.find_package("CUDA") !== nothing
-            @eval using CUDA
-            true
-        else
-            @info "CUDA.jl not found in the environment: GPU tests will be skipped."
-            false
-        end
-    catch e
-        @warn "Error loading CUDA.jl; GPU tests will be skipped."
-        false
+        io = IOBuffer()
+        return success(pipeline(`nvidia-smi`, stdout=io, stderr=io))
+    catch
+        return false
     end
 end
 
+const GPU_PRESENT = gpu_present()
+
+if !GPU_PRESENT
+    @info "No GPU detected in the system: GPU tests will be skipped."
+end
+
 #Control of CUDA
-is_gpu_available = CUDA_LOADED && CUDA.functional()
+is_gpu_available = GPU_PRESENT && CUDA.functional()
 
 mktempdir() do tmpdir
     phantom_path = joinpath(tmpdir, "phantom.nii.gz")
