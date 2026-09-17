@@ -649,7 +649,6 @@
                     </div>
                     <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
 <span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span> 
-<span class="julia-keyword">using</span> <span class="julia-type">CUDA</span>
 
 <span class="julia-comment"># Load image and mask</span>
 ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
@@ -674,7 +673,6 @@ features = <span class="julia-type">Radiomics</span>.<span class="julia-function
                     </div>
                     <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
 <span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
-<span class="julia-keyword">using</span> <span class="julia-type">CUDA</span>
 
 ct   = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/CTChest.nii.gz"</span>)
 mask = <span class="julia-function">niread</span>(<span class="julia-string">"sample_data/Lungs.nii.gz"</span>)
