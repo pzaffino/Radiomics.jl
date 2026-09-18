@@ -16,6 +16,8 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
+const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
+
 """
     extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                               features=Symbol[],
@@ -26,6 +28,8 @@ include("diagnostic_features.jl")
                               keep_largest_only::Bool=true,
                               get_raw_matrices::Bool=false,
                               slices_2d=nothing,
+                              use_gpu::Bool=false,
+                              cuda_streams::Bool=false,
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -49,6 +53,8 @@ include("diagnostic_features.jl")
     - `slices_2d`: If present, calcule all features on 2d slice - mask, when this parameter is used you can pass 
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
+    - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
+    - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -65,6 +71,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     get_raw_matrices::Bool=false,
     features_std::Bool=false,
     slices_2d=nothing,
+    use_gpu::Bool=false,
+    cuda_streams::Bool=false,
     verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
 
     # Cast all inputs to correct types
@@ -81,8 +89,25 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         slices_2d,
         keep_largest_only,
         get_raw_matrices,
+        use_gpu,
+        cuda_streams,
         verbose
     )
+
+    if use_gpu
+        ext = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
+        if ext === nothing
+            try
+                Main.eval(:(using CUDA))
+            catch err
+                error("GPU acceleration requested (`use_gpu=true`) but CUDA.jl could not be loaded.\nPlease install CUDA before calling `extract_radiomic_features()`:\n`import Pkg; Pkg.add(\"CUDA\")`")
+            end
+            ext = Base.get_extension(@__MODULE__, :RadiomicsCUDAExt)
+        end
+        CUDA_EXT[] = ext
+    end
+
+    (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
 
     compute_all = isempty(p.features) || :all in p.features
 
@@ -138,6 +163,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 features_std=p.features_std,
                 keep_largest_only=p.keep_largest_only,
                 get_raw_matrices=p.get_raw_matrices,
+                use_gpu=p.use_gpu,
+                cuda_streams=p.cuda_streams,
                 verbose=p.verbose
             )
 
@@ -169,7 +196,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             Threads.@spawn let label = label
                 # `local`: these names also exist in the enclosing function; without it all tasks would share them
                 local radiomic_features, time_acc, diagnosis_features, total_start_time,
-                      total_time_accumulated, total_time_real, spacing_to_use, error_msg
+                total_time_accumulated, total_time_real, spacing_to_use, error_msg
                 log_buffer = String[]
 
                 push!(log_buffer, "\n=== Processing LABEL $label ===")
@@ -217,6 +244,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         features_std=p.features_std,
                         features=p.features,
                         get_raw_matrices=p.get_raw_matrices,
+                        use_gpu=p.use_gpu,
+                        cuda_streams=p.cuda_streams,
                         log_buffer=log_buffer
                     )
 
@@ -334,6 +363,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         features_std=p.features_std,
         compute_all=compute_all,
         features=p.features,
+        use_gpu=p.use_gpu,
+        cuda_streams=p.cuda_streams,
         get_raw_matrices=p.get_raw_matrices
     )
 
@@ -399,6 +430,8 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     features_std::Bool=false,
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
+    use_gpu::Bool=false,
+    cuda_streams::Bool=false,
     log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any},Float64}
 
     radiomic_features = Dict{String,Any}()
@@ -428,22 +461,6 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     t_shape3d_features = nothing
     t_shape2d_features = nothing
 
-    # GLCM features
-    if compute_all || :glcm in features
-        t_glcm_features = Threads.@spawn begin
-            result = @timed get_glcm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                weighting_norm=weighting_norm,
-                features_std=features_std,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
-        end
-    end
-
     # First order features
     if compute_all || :first_order in features
         t_first_order_features = Threads.@spawn begin
@@ -471,47 +488,81 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
-    # NGTDM features
-    if compute_all || :ngtdm in features
-        t_ngtdm_features = Threads.@spawn begin
-            result = @timed get_ngtdm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
+    if !use_gpu
+        # GLCM features
+        if compute_all || :glcm in features
+            t_glcm_features = Threads.@spawn begin
+                result = @timed get_glcm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    features_std=features_std,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
         end
-    end
 
-    # GLRLM features
-    if compute_all || :glrlm in features
-        t_glrlm_features = Threads.@spawn begin
-            result = @timed get_glrlm_features(
-                img, mask, voxel_spacing;
+        # NGTDM features
+        if compute_all || :ngtdm in features
+            t_ngtdm_features = Threads.@spawn begin
+                result = @timed get_ngtdm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
+        end
+
+        # GLRLM features
+        if compute_all || :glrlm in features
+            t_glrlm_features = Threads.@spawn begin
+                result = @timed get_glrlm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    features_std=features_std,
+                    weighting_norm=weighting_norm,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
+        end
+
+        # GLDM features
+        if compute_all || :gldm in features
+            t_gldm_features = Threads.@spawn begin
+                result = @timed get_gldm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
+        end
+    else
+        t_gpu_features = Threads.@spawn begin
+            Base.invokelatest(
+                CUDA_EXT[].extract_radiomics_features_gpu,
+                features, img, mask, voxel_spacing;
                 n_bins=n_bins,
                 bin_width=bin_width,
-                features_std=features_std,
                 weighting_norm=weighting_norm,
+                keep_largest_only=keep_largest_only,
+                compute_all=compute_all,
+                features_std=features_std,
                 get_raw_matrices=get_raw_matrices,
+                cuda_streams=cuda_streams,
                 verbose=verbose
             )
-            (result.value, result.time)
-        end
-    end
-
-    # GLDM features
-    if compute_all || :gldm in features
-        t_gldm_features = Threads.@spawn begin
-            result = @timed get_gldm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
         end
     end
 
@@ -520,10 +571,13 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         # 3D shape features
         if compute_all || :shape3d in features
             t_shape3d_features = Threads.@spawn begin
-                result = @timed get_shape3d_features(
-                    mask, voxel_spacing;
+                result = @timed Base.invokelatest(
+                    get_shape3d_features,
+                    mask,
+                    voxel_spacing;
                     verbose=verbose,
-                    keep_largest_only=keep_largest_only
+                    keep_largest_only=keep_largest_only,
+                    use_gpu=use_gpu
                 )
                 (result.value, result.time)
             end
@@ -534,10 +588,13 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     if ndims(mask) == 2
         if compute_all || :shape2d in features
             t_shape2d_features = Threads.@spawn begin
-                result = @timed get_shape2d_features(
-                    mask, voxel_spacing;
+                result = @timed Base.invokelatest(
+                    get_shape2d_features,
+                    mask,
+                    voxel_spacing;
                     verbose=verbose,
-                    keep_largest_only=keep_largest_only
+                    keep_largest_only=keep_largest_only,
+                    use_gpu=use_gpu
                 )
                 (result.value, result.time)
             end
@@ -555,19 +612,6 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
-    # GLCM features
-    if !isnothing(t_glcm_features)
-        glcm_dict, glcm_time = fetch(t_glcm_features)::Tuple{Dict{String,Any},Float64}
-        merge!(radiomic_features, glcm_dict)
-        total_time_accumulated += glcm_time
-        if verbose
-            log_println("GLCM: $(glcm_time) sec")
-            if !get_raw_matrices
-                print_features("GLCM Features", glcm_dict; log_buffer=log_buffer)
-            end
-        end
-    end
-
     # GLSZM features
     if !isnothing(t_glszm_features)
         glszm_dict, glszm_time = fetch(t_glszm_features)::Tuple{Dict{String,Any},Float64}
@@ -577,6 +621,23 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
             log_println("GLSZM: $(glszm_time) sec")
             if !get_raw_matrices
                 print_features("GLSZM Features", glszm_dict; log_buffer=log_buffer)
+            end
+        end
+    end
+
+    if use_gpu
+        t_glcm_features, t_gldm_features, t_glrlm_features, t_ngtdm_features = fetch(t_gpu_features)
+    end
+
+    # GLCM features
+    if !isnothing(t_glcm_features)
+        glcm_dict, glcm_time = fetch(t_glcm_features)::Tuple{Dict{String,Any},Float64}
+        merge!(radiomic_features, glcm_dict)
+        total_time_accumulated += glcm_time
+        if verbose
+            log_println("GLCM: $(glcm_time) sec")
+            if !get_raw_matrices
+                print_features("GLCM Features", glcm_dict; log_buffer=log_buffer)
             end
         end
     end

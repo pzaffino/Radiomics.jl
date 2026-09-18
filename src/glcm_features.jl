@@ -1,7 +1,12 @@
 using LinearAlgebra
 using Statistics
+
 """ 
-    function calculate_glcm(img::Array{Float64,3}, mask::BitArray{3}, spacing::Vector{Float64}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false)
+    function calculate_glcm(img::Array{Float64,3}, mask::BitArray{3}, spacing::Vector{Float64}; n_bins::Union{Int,Nothing}=nothing, bin_width::Union{Float64,Nothing}=nothing, verbose::Bool=false, 
+    G_all::Union{Float64,Nothing}=nothing, 
+    gray_levels::Union{Array{Int},Nothing}=nothing,
+    bin_width_used::Union{<:Real,Nothing}=nothing,
+    n_bins_actual::Union{Int,Nothing}=nothing)
 
     Calculates the Gray Level Co-occurrence Matrix (GLCM) for a 3D image within a specified mask.
     You can specify EITHER n_bins OR bin_width, but not both.
@@ -14,6 +19,14 @@ using Statistics
         - `bin_width`: The width of each bin (optional).
         - `weighting_norm`: The norm used for weighting the GLCM (optional), Weighting method ("infinity (Chebyshev)", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
         - `verbose`: If true, enables verbose output for debugging or detailed processing information.
+        - `G_all`: G matrix calculated on the GPU
+        - `gray_levels`: Gray levels calculated on the GPU
+        - `bin_width_used`: The bin width used for discretization coming from the CUDA extension
+        - `n_bins_actual`: The number of bins used for discretization coming from the CUDA extension 
+
+    # Notes:
+    `G_all`, `gray_levels`, `bin_width_used`, `n_bins_actual` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLCM matrix on the CPU. 
+    If GLCM features are being extracted on the CPU, these values are computed inside this function
 
     # Returns:
         - `glcm_matrices`: A vector of GLCM matrices calculated for each direction.
@@ -21,57 +34,82 @@ using Statistics
         - `bin_width_used`: The bin width used for discretization.
 """
 function calculate_glcm(img::AbstractArray{Float64},
-                         mask::BitArray,
-                         spacing::Vector{Float64};
-                         n_bins::Union{Int,Nothing}=nothing,
-                         bin_width::Union{Float64,Nothing}=nothing,
-                         weighting_norm::Union{String,Nothing}=nothing,
-                         verbose::Bool=false)::Tuple{Vector{Matrix{Float64}}, Vector{Int}, Float64}
+    mask::BitArray,
+    spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
+    verbose::Bool=false,
+    G_all::Union{Array{Float64},Nothing}=nothing,
+    gray_levels::Union{Array{Int},Nothing}=nothing,
+    bin_width_used::Union{<:Real,Nothing}=nothing,
+    n_bins_actual::Union{Int,Nothing}=nothing)::Tuple{Vector{Matrix{Float64}},Vector{Int},Float64}
 
-    disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+    dim = ndims(img)
+    dirs = dim == 2 ?
+           [(1, 0), (0, 1), (1, 1), (1, -1)] :
+           [
+        (1, 0, 0), (0, 1, 0), (0, 0, 1),
+        (1, 1, 0), (1, -1, 0), (1, 0, 1), (1, 0, -1),
+        (0, 1, 1), (0, 1, -1), (1, 1, 1), (1, 1, -1),
+        (1, -1, 1), (-1, 1, 1)
+    ]
 
-    dim = ndims(disc)
-    dirs = dim == 2 ? 
-        [(1, 0), (0, 1), (1, 1), (1, -1)] : 
-        [
-            (1, 0, 0), (0, 1, 0), (0, 0, 1),
-            (1, 1, 0), (1, -1, 0), (1, 0, 1), (1, 0, -1),
-            (0, 1, 1), (0, 1, -1), (1, 1, 1), (1, 1, -1),
-            (1, -1, 1), (-1, 1, 1)
-        ]
-
-    if verbose
-        if !isnothing(n_bins)
-            println("Calculating GLCM ($(dim)D) with $(n_bins) bins...")
-        elseif !isnothing(bin_width)
-            println("Calculating GLCM ($(dim)D) with bin_width=$(bin_width)...")
-        else
-            println("Calculating GLCM ($(dim)D) with default bin_width=25...")
-        end
-
-        println(dim == 2 ? "2D image detected. Using $(length(dirs)) directions." :
-                           "3D image detected. Using $(length(dirs)) directions.")
-        if weighting_norm !== nothing
-            println("Weighting norm applied: $(weighting_norm)")
-        end
-    end
-
-    Ng = length(gray_levels)
     glcm_matrices = Vector{Matrix{Float64}}()
     sizehint!(glcm_matrices, length(dirs))
+    # if G_all is nothing, the call to the function wasn't made from the GPU extension. If it's not nothing, G_all has already been calculated on the GPU
+    if G_all === nothing
+        disc, n_levels, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
-    min_gl = Int(minimum(gray_levels))
-    max_gl = Int(maximum(gray_levels))
-    lut = zeros(Int, max_gl - min_gl + 1)
+        if verbose
+            if !isnothing(n_bins)
+                println("Calculating GLCM ($(dim)D) with $(n_bins) bins...")
+            elseif !isnothing(bin_width)
+                println("Calculating GLCM ($(dim)D) with bin_width=$(bin_width)...")
+            else
+                println("Calculating GLCM ($(dim)D) with default bin_width=25...")
+            end
 
-    @inbounds for (i, gl) in enumerate(gray_levels)
-        lut[Int(gl) - min_gl + 1] = i
-    end
+            println(dim == 2 ? "2D image detected. Using $(length(dirs)) directions." :
+                    "3D image detected. Using $(length(dirs)) directions.")
+            if weighting_norm !== nothing
+                println("Weighting norm applied: $(weighting_norm)")
+            end
+        end
 
-    mapped_disc = zeros(Int, size(disc))
-    @inbounds for i in CartesianIndices(disc)
-        if mask[i]
-            mapped_disc[i] = lut[disc[i] - min_gl + 1]
+        Ng = length(gray_levels)
+
+        min_gl = Int(minimum(gray_levels))
+        max_gl = Int(maximum(gray_levels))
+        lut = zeros(Int, max_gl - min_gl + 1)
+
+        @inbounds for (i, gl) in enumerate(gray_levels)
+            lut[Int(gl)-min_gl+1] = i
+        end
+
+        mapped_disc = zeros(Int, size(disc))
+        @inbounds for i in CartesianIndices(disc)
+            if mask[i]
+                mapped_disc[i] = lut[disc[i]-min_gl+1]
+            end
+        end
+
+        mask_indices = findall(mask)
+        c_dirs = [CartesianIndex(dir) for dir in dirs]
+
+        # 3D tensor allocation to eliminate indirection and maximize cache
+        G_all = zeros(Float64, length(dirs), Ng, Ng)
+
+        @inbounds for idx in mask_indices
+            i_val = mapped_disc[idx]
+            for (dir_idx, c_dir) in enumerate(c_dirs)
+                nidx = idx + c_dir
+                if checkbounds(Bool, disc, nidx) && mask[nidx]
+                    j_val = mapped_disc[nidx]
+                    G_all[dir_idx, i_val, j_val] += 1.0
+                    G_all[dir_idx, j_val, i_val] += 1.0
+                end
+            end
         end
     end
 
@@ -93,24 +131,6 @@ function calculate_glcm(img::AbstractArray{Float64},
             end
         end
         verbose && println("Weights computed: ", weights)
-    end
-
-    mask_indices = findall(mask)
-    c_dirs = [CartesianIndex(dir) for dir in dirs]
-    
-    # 3D tensor allocation to eliminate indirection and maximize cache
-    G_all = zeros(Float64, length(dirs), Ng, Ng)
-
-    @inbounds for idx in mask_indices
-        i_val = mapped_disc[idx]
-        for (dir_idx, c_dir) in enumerate(c_dirs)
-            nidx = idx + c_dir
-            if checkbounds(Bool, disc, nidx) && mask[nidx]
-                j_val = mapped_disc[nidx]
-                G_all[dir_idx, i_val, j_val] += 1.0
-                G_all[dir_idx, j_val, i_val] += 1.0
-            end
-        end
     end
 
     # Normalization and decomposition into flat matrices
@@ -201,7 +221,7 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
 
     # Exploit the symmetry of the GLCM. px and py are identical.
     px = vec(sum(glcm, dims=2))
-    py = px 
+    py = px
 
     gl = Float64.(gray_levels)
 
@@ -221,7 +241,7 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
 
     max_gray_level = maximum(gray_levels)
     min_gray_level = minimum(gray_levels)
-    
+
     p_xminusy = zeros(Float64, max_gray_level - min_gray_level + 1)
     p_xplusy = zeros(Float64, 2 * max_gray_level + 1)
 
@@ -249,27 +269,27 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
             cluster_tend += s2 * p_diag
             cluster_shade += s * s2 * p_diag
             cluster_prom += s2 * s2 * p_diag
-            
+
             if use_corr
                 correlation += xi_minus_μx * xi_minus_μx * p_diag * inv_corr_denom
             end
-            
+
             joint_energy += p_diag * p_diag
             joint_entropy -= p_diag * log2(p_diag + eps_val)
             sum_squares += xi_minus_μx * xi_minus_μx * p_diag
-            
+
             # d = 0, so the divisors collapse to 1.0
             idm += p_diag
             id += p_diag
             idmn += p_diag
             idn += p_diag
-            
+
             max_prob = max(max_prob, p_diag)
             p_xminusy[1] += p_diag
-            
+
             sum_val = gray_levels[i] + gray_levels[i]
             p_xplusy[sum_val] += p_diag
-            
+
             pxpy = px[i] * px[i]
             if pxpy > 0
                 HXY1 -= p_diag * log2(pxpy + eps_val)
@@ -282,46 +302,46 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
             if p > 0
                 yj = gl[j]
                 yj_minus_μx = yj - μx
-                
+
                 autocorr += 2.0 * (xi * yj * p)
-                
+
                 s = xi_minus_μx + yj_minus_μx
                 s2 = s * s
                 cluster_tend += 2.0 * (s2 * p)
                 cluster_shade += 2.0 * (s * s2 * p)
                 cluster_prom += 2.0 * (s2 * s2 * p)
-                
+
                 d = xi - yj
                 d2 = d * d
                 absd = abs(d)
                 contrast += 2.0 * (d2 * p)
-                
+
                 if use_corr
                     correlation += 2.0 * (xi_minus_μx * yj_minus_μx * p * inv_corr_denom)
                 end
-                
+
                 joint_energy += 2.0 * (p * p)
                 joint_entropy -= 2.0 * (p * log2(p + eps_val))
-                
+
                 sum_squares += (xi_minus_μx * xi_minus_μx + yj_minus_μx * yj_minus_μx) * p
-                
+
                 idm += 2.0 * (p / (1.0 + d2))
                 id += 2.0 * (p / (1.0 + absd))
                 idmn += 2.0 * (p / (1.0 + (absd / ng)^2))
-                idn  += 2.0 * (p / (1.0 + absd / ng))
-                
+                idn += 2.0 * (p / (1.0 + absd / ng))
+
                 inv_var += 2.0 * (p / d2)
                 max_prob = max(max_prob, p)
-                
+
                 diff_val = abs(gray_levels[i] - gray_levels[j])
-                p_xminusy[diff_val + 1] += 2.0 * p
-                
+                p_xminusy[diff_val+1] += 2.0 * p
+
                 sum_val = gray_levels[i] + gray_levels[j]
                 p_xplusy[sum_val] += 2.0 * p
-                
+
                 diff_avg += 2.0 * (absd * p)
                 diff_sq_avg += 2.0 * (d2 * p)
-                
+
                 pxpy = px[i] * px[j]
                 if pxpy > 0
                     HXY1 -= 2.0 * (p * log2(pxpy + eps_val))
@@ -393,7 +413,7 @@ end
 
 """
     get_glcm_features(img, mask, voxel_spacing; n_bins, bin_width, weighting_norm,
-                      get_raw_matrices, verbose)
+                      get_raw_matrices, verbose, glcm_matrices, gray_levels)
 
     Calculates GLCM matrices for a 2D or 3D image, extracts texture features from each matrix,
     and returns the mean values of all features across directions.
@@ -412,6 +432,12 @@ end
     - `weighting_norm`: The norm used for weighting the GLCM (optional), Weighting method ("infinity (Chebyshev)", "euclidean", "manhattan", "no_weighting", or nothing for no weighting)
     - `get_raw_matrices`: If true, returns one raw (unnormalized, unweighted) GLCM matrix per direction instead of the standard aggregated result.
     - `verbose`: If true, enables verbose output for debugging or detailed processing information.
+    - `glcm_matrices`: GLCM matrices computed on the GPU. 
+    - `gray_levels`: Gray levels comptued on the GPU.
+
+    # Notes:
+    `glcm_matrices`, `gray_levels`, are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLCM matrix on the CPU. 
+    If GLCM features are being extracted on the CPU, these values are computed inside this function
     
     # Returns:
     - `feats`: A dictionary containing the mean GLCM features across all directions.
@@ -430,23 +456,28 @@ end
     features = get_glcm_features(img, mask, spacing, weighting_norm="euclidean")
 """
 function get_glcm_features(img::AbstractArray{Float64},
-                            mask::BitArray,
-                            voxel_spacing::Vector{Float64};
-                            n_bins::Union{Int,Nothing}=nothing,
-                            bin_width::Union{Float64,Nothing}=nothing,
-                            weighting_norm::Union{String,Nothing}=nothing,
-                            features_std::Bool=false,
-                            get_raw_matrices::Bool=false,
-                            verbose::Bool=false)::Dict{String,Any}
+    mask::BitArray,
+    voxel_spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    weighting_norm::Union{String,Nothing}=nothing,
+    features_std::Bool=false,
+    get_raw_matrices::Bool=false,
+    verbose::Bool=false,
+    glcm_matrices::Union{Vector{Matrix{Float64}},Nothing}=nothing,
+    gray_levels::Union{Array{Int},Nothing}=nothing)::Dict{String,Any}
 
-    glcm_matrices, gray_levels, bin_width_used = calculate_glcm(img, mask, voxel_spacing;
-        n_bins=n_bins,
-        bin_width=bin_width,
-        weighting_norm=weighting_norm,
-        verbose=verbose)
+    # if glcm_matrices is nothing, the call to the function wasn't made from the GPU extension. If it's not nothing, the GLCM has already been calculated on the GPU
+    if glcm_matrices === nothing
+        glcm_matrices, gray_levels, bin_width_used = calculate_glcm(img, mask, voxel_spacing;
+            n_bins=n_bins,
+            bin_width=bin_width,
+            weighting_norm=weighting_norm,
+            verbose=verbose)
+    end
 
     if isempty(glcm_matrices)
-        return Dict{String, Any}() 
+        return Dict{String,Any}()
     end
 
     if get_raw_matrices
@@ -457,16 +488,16 @@ function get_glcm_features(img::AbstractArray{Float64},
             println("=================================")
         end
 
-        return Dict{String, Any}("raw_glcm_matrices" => glcm_matrices)
+        return Dict{String,Any}("raw_glcm_matrices" => glcm_matrices)
     end
 
     n_matrices = length(glcm_matrices)
     inv_n = 1.0 / Float64(n_matrices)
-    
-    final_features = Dict{String, Any}()
-    sums_sq = Dict{String, Float64}()
-    mins    = Dict{String, Float64}()
-    maxs    = Dict{String, Float64}()
+
+    final_features = Dict{String,Any}()
+    sums_sq = Dict{String,Float64}()
+    mins = Dict{String,Float64}()
+    maxs = Dict{String,Float64}()
 
     f1 = extract_glcm_features(glcm_matrices[1], gray_levels)
     for (name, val) in f1
@@ -484,8 +515,14 @@ function get_glcm_features(img::AbstractArray{Float64},
             final_features[name] += val
             if features_std
                 sums_sq[name] += val^2
-                if val < mins[name]; mins[name] = val; end
-                if val > maxs[name]; maxs[name] = val; end
+                if val < mins[name]
+
+                    mins[name] = val
+                end
+                if val > maxs[name]
+
+                    maxs[name] = val
+                end
             end
         end
     end
@@ -504,5 +541,5 @@ function get_glcm_features(img::AbstractArray{Float64},
 
     verbose && println("Completed! Extracted $(length(final_features)) features.")
 
-    return final_features 
+    return final_features
 end

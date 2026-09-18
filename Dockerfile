@@ -2,7 +2,11 @@
 FROM julia:1.10-bookworm
 LABEL org.opencontainers.image.source=https://github.com/pzaffino/Radiomics.jl
 LABEL org.opencontainers.image.description="Radiomics.jl Docker Image"
-LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>, Ciro Benito Raggio <[ciro.raggio@kit.edu]>, Mohammadreza Javadi Namin <[mohammadreza.javadi@mail.polimi.it]>, Nastaran Ghaffari Elkhechi <[nastaran.ghaffari@mail.polimi.it]>, Jakub Mitura <[jakub.mitura14@gmail.com]>"
+LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>, Ciro Benito Raggio <[ciro.raggio@kit.edu]>, Mohammadreza Javadi Namin <[mohammadreza.javadi@mail.polimi.it]>, Nastaran Ghaffari Elkhechi <[nastaran.ghaffari@mail.polimi.it]>, Jakub Mitura <[jakub.mitura14@gmail.com], Marco Tullio Giannotti <marcotullio.giannotti@studenti.unicz.it>">
+
+# Build parameter: defaults to false (CPU-only)
+ARG USE_CUDA=false
+ENV USE_CUDA=${USE_CUDA}
 
 ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y \
@@ -11,18 +15,33 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Julia packages
+# Conditional dependency installation
 RUN julia -e 'using Pkg; \
     Pkg.add(url="https://github.com/pzaffino/Radiomics.jl"); \
-    Pkg.add(["NIfTI", "ArgParse", "CSV", "DataFrames", "PrecompileTools"]); \
+    pkgs = ["NIfTI", "ArgParse", "CSV", "DataFrames", "PrecompileTools"]; \
+    if get(ENV, "USE_CUDA", "false") == "true"; \
+        push!(pkgs, "CUDA"); \
+        Pkg.add(pkgs); \
+        using CUDA; \
+        CUDA.set_runtime_version!(v"12.2.0"; local_toolkit=false); \
+    else; \
+        Pkg.add(pkgs); \
+    end; \
     Pkg.precompile()'
 
 # Set working directory and generate the embedded Julia script
 WORKDIR /app
 
+# Script generation with conditional CUDA import
 RUN printf 'using Radiomics, NIfTI, ArgParse, CSV, DataFrames\n\
+if get(ENV, "USE_CUDA", "false") == "true"\n\
+    try\n\
+        using CUDA\n\
+    catch e\n\
+        @warn "CUDA non disponibile, esecuzione su CPU"\n\
+    end\n\
+end\n\
 \n\
-# Function to parse command line arguments\n\
 function parse_args_custom()\n\
     s = ArgParseSettings()\n\
     @add_arg_table! s begin\n\
@@ -93,12 +112,12 @@ CSV.write(args["output"], df)\n\
 println("Extraction complete. Results saved to: ", args["output"])\n\
 ' > /app/extract.jl
 
-# Add PackageCompiler and create the sysimage
+# Explicit installation of PackageCompiler and sysimage creation
 RUN julia -e 'using Pkg; Pkg.add("PackageCompiler")'
-RUN julia -e 'using PackageCompiler; \
-    create_sysimage([:Radiomics, :NIfTI, :ArgParse, :CSV, :DataFrames]; \
-    sysimage_path="/app/radiomics.so", \
-    cpu_target="generic")'
+RUN julia -e 'using Pkg, PackageCompiler; \
+    pkgs = [:Radiomics, :NIfTI, :ArgParse, :CSV, :DataFrames]; \
+    ENV["USE_CUDA"] == "true" && push!(pkgs, :CUDA); \
+    create_sysimage(pkgs; sysimage_path="/app/radiomics.so", cpu_target="generic")'
 
 # Use the sysimage at each run
 ENTRYPOINT ["julia", "--sysimage", "/app/radiomics.so", "/app/extract.jl"]

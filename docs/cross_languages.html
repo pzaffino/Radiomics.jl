@@ -840,6 +840,44 @@ spacing = ct_sitk.GetSpacing()
 radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing)</code></pre>
                     </div>
 
+
+
+                    <h2>Feature Extraction with Juliacall with GPU</h2>
+                    <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
+<span class="julia-keyword">import</span> numpy <span class="julia-keyword">as</span> np
+
+<span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
+jl.seval(<span class="julia-string">"using Radiomics"</span>)
+
+<span class="julia-comment"># If CUDA is not installed on your system, run this once before first use.
+# Radiomics.jl will detect and load it automatically on subsequent runs.</span>
+jl.seval(<span class="julia-string">"Pkg.add("CUDA")"</span>)
+
+<span class="julia-comment"># Load medical images</span>
+ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
+mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
+
+<span class="julia-comment"># Convert to numpy arrays</span>
+ct = sitk.GetArrayFromImage(ct_sitk)
+mask = sitk.GetArrayFromImage(mask_sitk)
+
+<span class="julia-comment"># Extract spacing information</span>
+spacing = ct_sitk.GetSpacing()
+
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing, use_gpu = <span class="julia-string">True</span>)</code></pre>
+                    </div>
+
+
+
                     <h2>Specific cases</h2>
                     <p>If you want to extract only one subset of features, you can use:</p>
                     <div class="code-container">
@@ -1300,6 +1338,20 @@ features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing
                         <pre><code>docker pull ghcr.io/pzaffino/radiomics.jl:latest</code></pre>
                     </div>
 
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Installing Image of
+                        Radiomics.jl compliant with CUDA</h4>
+                    <p>Install the image of Radiomics.jl compliant with CUDA in your Docker development environment:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+
+                        <pre><code>docker pull ghcr.io/pzaffino/radiomics.jl:latest-gpu</code></pre>
+                    </div>
+
                     <h2>Feature Extraction with Docker</h2>
                     <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
                     <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Basic usage</h4>
@@ -1345,6 +1397,34 @@ features &lt;- radiomics$extract_radiomic_features(ct_clean, mask_clean, spacing
                             <span class="code-dot"></span>
                         </div>
                         <pre><code>docker run -it <span class="julia-keyword">-e</span> JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz <span class="julia-keyword">--keep_largest_only</span> false</code></pre>
+                    </div>
+
+                    <h2>Feature Extraction with Docker using GPU</h2>
+                    <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Basic usage</h4>
+                    <p>To run feature extraction with GPU acceleration, execute the container using the <span
+                            class="julia-keyword">--gpus</span> all flag. Mount your local directory to /data inside the
+                        container and pass the input CT image and mask paths as positional arguments:</p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run --rm --gpus all -v /path/to/data:/data ghcr.io/pzaffino/radiomics.jl:latest-gpu /data/image.nii /data/mask.nii -o /data/features.csv</code></pre>
+                    </div>
+
+                    <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Execute in a specific GPU</h4>
+                    <p>To target a specific GPU (e.g., GPU 0), pass <span class="julia-keyword">"device=0"</span> to the
+                        <span class="julia-keyword">--gpus</span> flag:
+                    </p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>docker run --rm --gpus '"device=0"' -v /path/to/data:/data ghcr.io/pzaffino/radiomics.jl:latest-gpu /data/image.nii /data/mask.nii -o /data/features.csv</code></pre>
                     </div>
 
                 </div>

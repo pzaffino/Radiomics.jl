@@ -33,12 +33,12 @@ using StatsBase
         features = get_glszm_features(img, mask, spacing)
     """
 function get_glszm_features(img::AbstractArray{Float64},
-                             mask::BitArray,
-                             voxel_spacing::Vector{Float64};
-                             n_bins::Union{Int,Nothing}=nothing,
-                             bin_width::Union{Float64,Nothing}=nothing,
-                             get_raw_matrices::Bool=false,
-                             verbose::Bool=false)::Dict{String,Any}
+    mask::BitArray,
+    voxel_spacing::Vector{Float64};
+    n_bins::Union{Int,Nothing}=nothing,
+    bin_width::Union{Float64,Nothing}=nothing,
+    get_raw_matrices::Bool=false,
+    verbose::Bool=false)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("GLSZM calculation with $(n_bins) bins...")
@@ -49,7 +49,7 @@ function get_glszm_features(img::AbstractArray{Float64},
         end
     end
 
-    glszm_features = Dict{String, Any}()
+    glszm_features = Dict{String,Any}()
 
     # 1. Discretize the image
     discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
@@ -113,61 +113,61 @@ end
     - A tuple containing the GLSZM matrix and the gray levels present in the ROI.
     """
 function calculate_glszm_matrix(discretized_img::Array{Int},
-                                 mask::BitArray,
-                                 verbose::Bool)::Tuple{Matrix{Int}, Vector{Int}}
+    mask::BitArray,
+    verbose::Bool)::Tuple{Matrix{Int},Vector{Int}}
 
     verbose && println("Calculating GLSZM matrix...")
 
-    sz     = size(discretized_img)
+    sz = size(discretized_img)
     n_dims = ndims(discretized_img)
 
-    masked_img  = discretized_img[mask]
+    masked_img = discretized_img[mask]
     gray_levels = sort(unique(masked_img))
-    num_gl      = length(gray_levels)
+    num_gl = length(gray_levels)
 
     # Lookup array invece di Dict
     min_gl = minimum(gray_levels)
     max_gl = maximum(gray_levels)
     gl_map = zeros(Int, max_gl - min_gl + 1)
     @inbounds for (i, gl) in enumerate(gray_levels)
-        gl_map[gl - min_gl + 1] = i
+        gl_map[gl-min_gl+1] = i
     end
 
-    visited       = falses(sz)
+    visited = falses(sz)
     max_mask_size = count(mask)
-    bfs_queue     = Vector{Int}(undef, max_mask_size)
+    bfs_queue = Vector{Int}(undef, max_mask_size)
 
     # Offsets CartesianIndex per i vicini (come GLCM)
     offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
-               if !all(iszero, o)]
+                                            if !all(iszero, o)]
 
-    cart_indices   = CartesianIndices(sz)
+    cart_indices = CartesianIndices(sz)
     linear_indices = LinearIndices(sz)
 
-    zone_counts = Dict{Tuple{Int,Int}, Int}()
+    zone_counts = Dict{Tuple{Int,Int},Int}()
 
     @inbounds for i in eachindex(discretized_img)
         if mask[i] && !visited[i]
-            gl     = discretized_img[i]
-            gl_idx = gl_map[gl - min_gl + 1]
+            gl = discretized_img[i]
+            gl_idx = gl_map[gl-min_gl+1]
 
             bfs_queue[1] = i
-            visited[i]   = true
+            visited[i] = true
             head = 1
             tail = 1
 
             while head <= tail
-                curr_idx      = bfs_queue[head]
-                curr_cart     = cart_indices[curr_idx]
-                head         += 1
+                curr_idx = bfs_queue[head]
+                curr_cart = cart_indices[curr_idx]
+                head += 1
 
                 for o in offsets
                     nb_cart = curr_cart + o
                     checkbounds(Bool, discretized_img, nb_cart) || continue
                     nb = linear_indices[nb_cart]
                     if mask[nb] && !visited[nb] && discretized_img[nb] == gl
-                        visited[nb]  = true
-                        tail        += 1
+                        visited[nb] = true
+                        tail += 1
                         bfs_queue[tail] = nb
                     end
                 end
@@ -203,12 +203,12 @@ end
     - A tuple containing the number of voxels, number of zones, sum over gray levels, sum over sizes, gray level vector, and size vector.
     """
 function calculate_glszm_coefficients(P_glszm::Matrix{Int},
-                                      gray_levels::Vector{Int})::Tuple{Float64,
-                                                                     Float64,
-                                                                     Matrix{Int},
-                                                                     Matrix{Int},
-                                                                     Vector{Float64},
-                                                                     Vector{Float64}}
+    gray_levels::Vector{Int})::Tuple{Float64,
+    Float64,
+    Matrix{Int},
+    Matrix{Int},
+    Vector{Float64},
+    Vector{Float64}}
     ps = sum(P_glszm, dims=1)
     pg = sum(P_glszm, dims=2)
     ivector = Float64.(gray_levels)
