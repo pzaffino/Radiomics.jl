@@ -70,6 +70,16 @@ spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing)
 ```
+# Using Radiomics.jl with CUDA
+To use Radiomics.jl with GPU acceleration, you need to install CUDA.
+```julia
+import Pkg
+Pkg.add("CUDA")
+```
+Once the library is installed, radiomics features can be extracted as reported in the following example:
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing, use_gpu = true)
+```
 # Multi threading
 Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
 
@@ -157,6 +167,7 @@ Run the container with multi-threading enabled.
 ```bash
 docker run -it -e JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false
 ```
+
 # Discalaimer
 This software is for research purposes only.
 It is NOT intended for clinical use, diagnosis, or treatment.
