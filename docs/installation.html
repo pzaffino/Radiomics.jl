@@ -799,7 +799,7 @@
             <span class="code-dot"></span>
             <span class="code-dot"></span>
           </div>
-          <pre><code><span class="keyword">import</span> <span class="module">Pkg</span>
+          <pre><code><span class="keyword">using</span> <span class="module">Pkg</span>
 <span class="module">Pkg</span><span class="operator">.</span><span class="function">add</span>(<span class="string">"Radiomics"</span>)</code></pre>
         </div>
 
@@ -823,6 +823,44 @@
             <span class="code-dot"></span>
           </div>
           <pre><code><span class="pkg-prompt">pkg></span> add Radiomics</code></pre>
+        </div>
+      </div>
+
+      <div class="section">
+        <h2>CUDA Installation </h2>
+        <p>To take advantage of GPU acceleration, you can install CUDA.jl. Simply
+          run the following commands in your Julia REPL:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="keyword">using</span> <span class="module">Pkg</span>
+<span class="module">Pkg</span><span class="operator">.</span><span class="function">add</span>(<span class="string">"CUDA"</span>)</code></pre>
+        </div>
+
+        <p>Alternatively, you can use the Julia package mode by pressing <code>]</code> in the REPL:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="prompt">julia></span> ]</code></pre>
+        </div>
+
+        <p>Then, execute the following command to add CUDA.jl to your environment:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="pkg-prompt">pkg></span> add CUDA</code></pre>
         </div>
       </div>
 
