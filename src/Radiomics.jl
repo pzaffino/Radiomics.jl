@@ -16,6 +16,8 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
+include("wavelet_filters/haar_filters.jl")
+
 const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
 
 """
