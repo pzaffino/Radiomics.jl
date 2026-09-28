@@ -3,7 +3,7 @@ using Base.Threads
 module Radiomics
 
 include("utils/utils.jl")
-include("utils/utils_pet.jl")
+include("utils/utils_dicom.jl")
 include("glcm_features.jl")
 include("first_order_features.jl")
 include("shape_2D_features.jl")
@@ -679,78 +679,56 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
 end
 
 """
-    function normalize_pet_and_extract_features(dcms, mask)
- 
-    Converts raw PET DICOM slices to SUVbw-normalized volume and extracts radiomic features.
- 
-    # Arguments:
-    - `dcms`: Vector{DICOMData} – the slice DICOM ordered by SliceLocation
-    - `mask`: The mask defining the region of interest (Array) with same shape of `img_input`.
+    dicom_extract_features(path_dicom::String, path_mask::String)
 
-    # Returns:
-    -  features Dict{String, Any} with the radiomic features normalized in SUVbw.
+    Reads a PET DICOM series and a NIfTI mask, and extracts first-order radiomic
+    features with `Radiomics.jl` using the raw pixel values (no SUV normalization).
+
+    # Arguments
+    - `path_dicom::String`: Directory containing the DICOM series, either multi-file (one slice per file) or multiframe (a single file with multiple frames).
+    - `path_mask::String`: Path to the NIfTI file (`.nii` / `.nii.gz`) with the ROI mask. After loading, it must have the same dimensions as the PET volume.
+
+    # Returns
+    The output of `Radiomics.extract_radiomic_features`, with the `:first_order` features computed on the ROI (only the largest connected component is kept, `keep_largest_only=true`).
+
 """
-function normalize_pet_and_extract_features(path_dicom::String, path_mask::String)
-    
+function dicom_extract_features(path_dicom::String, path_mask::String)
+
     dcms = dcmdir_parse(path_dicom)
     mask = niread(path_mask)
-    
-    sort!(dcms, by = d -> begin
-        v = haskey(d, (0x0020, 0x1041)) ? d[(0x0020, 0x1041)] : 0.0
-        Float64(v isa AbstractArray ? first(v) : v)
-    end)
+    mask_arr = permutedims(mask.raw, (2, 1, 3))
+
+    sort!(dcms, by=slice_pos)
 
     d0 = dcms[1]
-    pixel_spacing = d0[(0x0028, 0x0030)]  # PixelSpacing [row, col]
-    slice_thickness = scalar_tag(d0, (0x0018, 0x0050))  # SliceThickness
+    pixel_spacing, slice_thickness = get_pixel_measures(d0)
+    pixel_spacing === nothing && error("PixelSpacing not found")
+    slice_thickness === nothing && error("SliceThickness not found")
+    spacing = [pixel_spacing[1], pixel_spacing[2], slice_thickness]
 
-    spacing = [Float64(pixel_spacing[1]), Float64(pixel_spacing[2]), Float64(slice_thickness)]
+    # Volume dai soli pixel data
+    n_frames_raw = haskey(d0, (0x0028, 0x0008)) ? d0[(0x0028, 0x0008)] : nothing
+    n_frames = n_frames_raw === nothing ? 1 : Int(n_frames_raw isa AbstractArray ? first(n_frames_raw) : n_frames_raw)
+    is_multiframe = length(dcms) == 1 && n_frames > 1
 
-    units    = sanitize(get_tag(d0, (0x0054, 0x1001)))
-    suv_type = sanitize(get_tag(d0, (0x0054, 0x1006)))
-    sex      = sanitize(get_tag(d0, (0x0010, 0x0040)))
-    manuf    = sanitize(get_tag(d0, (0x0008, 0x0070)))
-
-    W_kg_raw = scalar_tag(d0, (0x0010, 0x1030))
-    W_kg     = W_kg_raw !== nothing && W_kg_raw > 0 ? Float64(W_kg_raw) : 0.0
-    W_kg     = W_kg >= 1000.0 ? W_kg / 1000.0 : W_kg
-
-    H_m_raw = scalar_tag(d0, (0x0010, 0x1020))
-    H_m     = H_m_raw === nothing ? 0.0 : H_m_raw
-
-    # dose e half-life from first slice (stable for the whole series)
-    r_seq_0  = get_tag(d0, (0x0054, 0x0016))
-    rp_item_0 = r_seq_0 !== nothing ? r_seq_0[1] : d0
-    D_adm      = get_dose(rp_item_0)
-    T_half_raw = scalar_tag(rp_item_0, (0x0018, 0x1075))
-    T_half     = T_half_raw === nothing ? 0.0 : T_half_raw
-
-    rows = Int(d0[(0x0028, 0x0010)])
-    cols = Int(d0[(0x0028, 0x0011)])
-    suv_vol = Array{Float32}(undef, rows, cols, length(dcms))
-
-    for (i, d) in enumerate(dcms)
-        # t_adm read for each slice, as recommended by the manual
-        r_seq_i   = get_tag(d, (0x0054, 0x0016))
-        rp_item_i = r_seq_i !== nothing ? r_seq_i[1] : d
-        t_acq_i   = parse_time(get_tag(d, (0x0008, 0x0032)))
-        t_adm_i   = get_tadm(rp_item_i, t_acq_i)
-
-        res, _ = compute_slice_suv(d, units, suv_type, sex,
-                                    W_kg, H_m, D_adm, T_half,
-                                    t_adm_i, manuf)
-        suv_vol[:, :, i] = res !== nothing ? res : zeros(Float32, rows, cols)
+    if is_multiframe
+        rows = Int(d0[(0x0028, 0x0010)])
+        cols = Int(d0[(0x0028, 0x0011)])
+        pixel_slices = extract_multiframe_pixel_slices(d0, rows, cols, n_frames)
+        vol = Float32.(cat(pixel_slices...; dims=3))
+    else
+        vol = Float32.(cat((d[(0x7fe0, 0x0010)] for d in dcms)...; dims=3))
     end
 
-    features = Radiomics.extract_radiomic_features(
-            suv_vol, mask.raw, spacing;
-            features        = [:first_order],
-            keep_largest_only = true,
-            sample_rate     = 1.0,
-            verbose = true
-        )
+    @assert size(mask_arr) == size(vol) "PET and Mask have different size"
 
-    return features
+    return Radiomics.extract_radiomic_features(
+        vol, mask_arr, spacing;
+        features=[:first_order],
+        keep_largest_only=true,
+        sample_rate=1.0,
+        verbose=true
+    )
 end
 
 """
