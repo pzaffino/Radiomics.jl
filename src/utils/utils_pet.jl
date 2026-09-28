@@ -37,6 +37,19 @@ function get_tag(dcm, tag)
     return v
 end
 
+function slice_pos(d)
+    if haskey(d, (0x0020, 0x0032)) && haskey(d, (0x0020, 0x0037))
+        ipp = Float64.(collect(d[(0x0020, 0x0032)]))
+        iop = Float64.(collect(d[(0x0020, 0x0037)]))
+        n1 = iop[2]*iop[6] - iop[3]*iop[5]
+        n2 = iop[3]*iop[4] - iop[1]*iop[6]
+        n3 = iop[1]*iop[5] - iop[2]*iop[4]
+        return ipp[1]*n1 + ipp[2]*n2 + ipp[3]*n3
+    end
+    v = haskey(d, (0x0020, 0x1041)) ? d[(0x0020, 0x1041)] : 0.0
+    return Float64(v isa AbstractArray ? first(v) : v)
+end
+
 function get_pixel_measures(d)
     ps_top = get_tag(d, (0x0028, 0x0030))
     if ps_top !== nothing
@@ -318,7 +331,9 @@ function get_tadm(item, t_acq_dt::Union{DateTime,Nothing})
     dt_raw = get_tag(item, (0x0018, 0x1078))
     if dt_raw !== nothing
         v = parse_datetime(dt_raw)
-        v !== nothing && return v, true
+        if v !== nothing && (t_acq_dt === nothing || v <= t_acq_dt)
+            return v, true
+        end
 
         raw = sanitize(dt_raw)
         if length(raw) >= 14

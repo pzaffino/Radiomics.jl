@@ -698,10 +698,10 @@ function normalize_pet_and_extract_features(path_dicom::String, path_mask::Strin
     dcms = dcmdir_parse(path_dicom)
     mask = niread(path_mask)
 
-    sort!(dcms, by=d -> begin
-        v = haskey(d, (0x0020, 0x1041)) ? d[(0x0020, 0x1041)] : 0.0
-        Float64(v isa AbstractArray ? first(v) : v)
-    end)
+    mask_arr = permutedims(mask.raw, (2, 1, 3))
+    roi_slices = [k for k in axes(mask_arr, 3) if any(!iszero, @view mask_arr[:, :, k])]
+
+    sort!(dcms, by=slice_pos)
 
     d0 = dcms[1]
     pixel_spacing, slice_thickness = get_pixel_measures(d0)
@@ -740,7 +740,8 @@ function normalize_pet_and_extract_features(path_dicom::String, path_mask::Strin
     n_frames = n_frames_raw === nothing ? 1 : Int(n_frames_raw isa AbstractArray ? first(n_frames_raw) : n_frames_raw)
     is_multiframe = length(dcms) == 1 && n_frames > 1
 
-    suv_vol = Array{Float32}(undef, rows, cols, is_multiframe ? n_frames : length(dcms))
+    suv_vol = zeros(Float32, rows, cols, is_multiframe ? n_frames : length(dcms))
+    @assert size(mask_arr) == size(suv_vol) "PET and Mask have different size"
 
     if is_multiframe
         pixel_slices = extract_multiframe_pixel_slices(d0, rows, cols, n_frames)
@@ -763,7 +764,8 @@ function normalize_pet_and_extract_features(path_dicom::String, path_mask::Strin
             suv_vol[:, :, i] = res
         end
     else
-        for (i, d) in enumerate(dcms)
+        for i in roi_slices
+            d = dcms[i]
             r_seq_i = get_tag(d, (0x0054, 0x0016))
             rp_item_i = r_seq_i !== nothing ? r_seq_i[1] : d
 
@@ -781,7 +783,7 @@ function normalize_pet_and_extract_features(path_dicom::String, path_mask::Strin
     end
 
     features = Radiomics.extract_radiomic_features(
-        suv_vol, mask.raw, spacing;
+        suv_vol, mask_arr, spacing;
         features=[:first_order],
         keep_largest_only=true,
         sample_rate=1.0,
