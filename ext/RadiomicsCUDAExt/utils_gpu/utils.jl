@@ -58,6 +58,8 @@ function init_gpu(img_host::AbstractArray{Float64},
     verbose::Bool)::Tuple{CuArray{Float64},CuArray{Bool},CuArray{Int},Bool}
     compatible, errors = can_use_cuda()
     if compatible
+
+        flush(stdout)
         @info "current hardware is CUDA compatible. Please note that the first execution may take longer while CUDA kernels are initialized. For faster subsequent runs, keep this Julia process running and don't close it"
 
         img_device = CuArray(img_host)
@@ -297,7 +299,7 @@ function unique_gpu(img::CuArray{T}, max_gl::Int)::CuArray{T} where {T}
     num_values = CUDA.zeros(Int, 1)
 
     # Mark which gray levels exist
-    @cuda threads=CUDA_THREADS blocks=cld(img_length, CUDA_THREADS) mark_existing_values!(img, values, num_values, img_length,)
+    @cuda threads = CUDA_THREADS blocks = cld(img_length, CUDA_THREADS) mark_existing_values!(img, values, num_values, img_length,)
 
     num = Array(num_values)[1]
 
@@ -306,7 +308,7 @@ function unique_gpu(img::CuArray{T}, max_gl::Int)::CuArray{T} where {T}
     # Reuse counter for compacting the unique values
     CUDA.fill!(num_values, 0)
 
-    @cuda threads=CUDA_THREADS blocks=cld(max_gl, CUDA_THREADS) assign_uniques_full!(values, uniques, num_values, max_gl,)
+    @cuda threads = CUDA_THREADS blocks = cld(max_gl, CUDA_THREADS) assign_uniques_full!(values, uniques, num_values, max_gl,)
 
     return uniques
 end

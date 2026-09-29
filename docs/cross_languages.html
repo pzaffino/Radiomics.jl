@@ -840,6 +840,44 @@ spacing = ct_sitk.GetSpacing()
 radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing)</code></pre>
                     </div>
 
+
+
+                    <h2>Feature Extraction with Juliacall with GPU</h2>
+                    <p>Once the environment is set up, you can extract radiomic features as shown below:</p>
+
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code><span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
+<span class="julia-keyword">import</span> numpy <span class="julia-keyword">as</span> np
+
+<span class="julia-keyword">from</span> juliacall <span class="julia-keyword">import</span> Main <span class="julia-keyword">as</span> jl
+jl.seval(<span class="julia-string">"using Radiomics"</span>)
+
+<span class="julia-comment"># If CUDA is not installed on your system, run this once before first use.
+# Radiomics.jl will detect and load it automatically on subsequent runs.</span>
+jl.seval(<span class="julia-string">"Pkg.add("CUDA")"</span>)
+
+<span class="julia-comment"># Load medical images</span>
+ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
+mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
+
+<span class="julia-comment"># Convert to numpy arrays</span>
+ct = sitk.GetArrayFromImage(ct_sitk)
+mask = sitk.GetArrayFromImage(mask_sitk)
+
+<span class="julia-comment"># Extract spacing information</span>
+spacing = ct_sitk.GetSpacing()
+
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = jl.<span class="julia-string">Radiomics.extract_radiomic_features</span>(ct, mask, spacing, use_gpu = <span class="julia-string">True</span>)</code></pre>
+                    </div>
+
+
+
                     <h2>Specific cases</h2>
                     <p>If you want to extract only one subset of features, you can use:</p>
                     <div class="code-container">

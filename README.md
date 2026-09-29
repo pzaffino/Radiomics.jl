@@ -41,6 +41,7 @@ Right now, the implemented features are:
 
 ## **Why choose Radiomics.jl for your project**
 - **Full IBSI Compliance**: Every feature is calculated according to IBSI 1 - Phase 1 standards—our unit tests are strictly validated against IBSI sample images (go ahead, take a look!).
+- **GPU acceleration**: Harness native NVIDIA GPU acceleration powered by CUDA.jl for feature extraction, with seamless, automatic CPU fallback if no GPU is available.
 - **User-Friendly API:** Simplify your workflow by extracting features from multiple labels with a single call. Handling 2D slices or multiple planes/slices "in one shot" has never been easier.
 - **First-class 2D support:** 2D analysis is treated with the same priority as 3D; computing features for a 2D matrix is just as seamless as the 3D case.
 - **Deep Insights:** While other radiomics libraries focus only on final scalar values, Radiomics.jl also lets you easily get the raw matrices used under the hood for texture feature calculations.
@@ -69,6 +70,20 @@ mask = niread("sample_data/Lungs.nii.gz")
 spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
 radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing)
+```
+# Using Radiomics.jl with CUDA
+To use Radiomics.jl with GPU acceleration, you need to install CUDA.
+```julia
+import Pkg
+Pkg.add("CUDA")
+```
+Once the library is installed, radiomics features can be extracted as reported in the following example:
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing, use_gpu = true)
+```
+To enable CUDA streams for the concurrent extraction of feature families, you need to set the flag as shown in the following example:
+```julia
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing, use_gpu = true, cuda_streams =true)
 ```
 # Multi threading
 Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
@@ -157,6 +172,7 @@ Run the container with multi-threading enabled.
 ```bash
 docker run -it -e JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false
 ```
+
 # Discalaimer
 This software is for research purposes only.
 It is NOT intended for clinical use, diagnosis, or treatment.
