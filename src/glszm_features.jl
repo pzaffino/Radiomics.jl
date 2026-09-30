@@ -18,6 +18,8 @@ using StatsBase
     - `bin_width`: The width of each bin (optional).
     - `get_raw_matrices`: If true, returns the raw GLSZM matrix.
     - `verbose`: If true, prints progress messages.
+    - `P_glszm`: GLSZM calculated on the GPU
+    - `gray_levels`: Gray levels calculated on the GPU
 
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
@@ -31,6 +33,10 @@ using StatsBase
         
         # Default (32 bins)
         features = get_glszm_features(img, mask, spacing)
+
+    # Notes:
+    `P_glszm`, `gray_levels` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLSZM on the CPU. 
+    If GLSZM features are being extracted on the CPU, these are computed inside this function
     """
 function get_glszm_features(img::AbstractArray{Float64},
     mask::BitArray,
@@ -38,7 +44,9 @@ function get_glszm_features(img::AbstractArray{Float64},
     n_bins::Union{Int,Nothing}=nothing,
     bin_width::Union{Float64,Nothing}=nothing,
     get_raw_matrices::Bool=false,
-    verbose::Bool=false)::Dict{String,Any}
+    verbose::Bool=false,
+    P_glszm::Union{Matrix{Int},Nothing}=nothing,
+    gray_levels::Union{Vector{Int},Nothing}=nothing)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("GLSZM calculation with $(n_bins) bins...")
@@ -51,12 +59,13 @@ function get_glszm_features(img::AbstractArray{Float64},
 
     glszm_features = Dict{String,Any}()
 
-    # 1. Discretize the image
-    discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
+    if P_glszm === nothing
+        # 1. Discretize the image
+        discretized_img, n_bins_actual, gray_levels, bin_width_used = discretize_image(img, mask; n_bins=n_bins, bin_width=bin_width)
 
-    # 2. Calculate the GLSZM matrix
-    P_glszm, gray_levels = calculate_glszm_matrix(discretized_img, mask, verbose)
-
+        # 2. Calculate the GLSZM matrix
+        P_glszm, gray_levels = calculate_glszm_matrix(discretized_img, mask, verbose)
+    end
     if get_raw_matrices
         if verbose
             println("=================================")
@@ -108,83 +117,93 @@ end
     - `discretized_img`: The discretized input image.
     - `mask`: The mask defining the region of interest.
     - `verbose`: If true, prints progress messages.
+    - `P_glszm`: GLSZM calculated on the GPU
+    - `gray_levels`: Gray levels calculated on the GPU
 
     # Returns
     - A tuple containing the GLSZM matrix and the gray levels present in the ROI.
+
+    # Notes:
+    `P_glszm`, `gray_levels` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLSZM on the CPU. 
+    If GLSZM features are being extracted on the CPU, these are computed inside this function
     """
 function calculate_glszm_matrix(discretized_img::Array{Int},
     mask::BitArray,
-    verbose::Bool)::Tuple{Matrix{Int},Vector{Int}}
+    verbose::Bool,
+    P_glszm::Union{Matrix{Int},Nothing}=nothing,
+    gray_levels::Union{Vector{Int},Nothing}=nothing)::Tuple{Matrix{Int},Vector{Int}}
 
-    verbose && println("Calculating GLSZM matrix...")
+    if P_glszm === nothing
+        verbose && println("Calculating GLSZM matrix...")
 
-    sz = size(discretized_img)
-    n_dims = ndims(discretized_img)
+        sz = size(discretized_img)
+        n_dims = ndims(discretized_img)
 
-    masked_img = discretized_img[mask]
-    gray_levels = sort(unique(masked_img))
-    num_gl = length(gray_levels)
+        masked_img = discretized_img[mask]
+        gray_levels = sort(unique(masked_img))
+        num_gl = length(gray_levels)
 
-    # Lookup array invece di Dict
-    min_gl = minimum(gray_levels)
-    max_gl = maximum(gray_levels)
-    gl_map = zeros(Int, max_gl - min_gl + 1)
-    @inbounds for (i, gl) in enumerate(gray_levels)
-        gl_map[gl-min_gl+1] = i
-    end
+        # Lookup array invece di Dict
+        min_gl = minimum(gray_levels)
+        max_gl = maximum(gray_levels)
+        gl_map = zeros(Int, max_gl - min_gl + 1)
+        @inbounds for (i, gl) in enumerate(gray_levels)
+            gl_map[gl-min_gl+1] = i
+        end
 
-    visited = falses(sz)
-    max_mask_size = count(mask)
-    bfs_queue = Vector{Int}(undef, max_mask_size)
+        visited = falses(sz)
+        max_mask_size = count(mask)
+        bfs_queue = Vector{Int}(undef, max_mask_size)
 
-    # Offsets CartesianIndex per i vicini (come GLCM)
-    offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
-                                            if !all(iszero, o)]
+        # Offsets CartesianIndex per i vicini (come GLCM)
+        offsets = [CartesianIndex(Tuple(o)) for o in Iterators.product((-1:1 for _ in 1:n_dims)...)
+                                                if !all(iszero, o)]
 
-    cart_indices = CartesianIndices(sz)
-    linear_indices = LinearIndices(sz)
+        cart_indices = CartesianIndices(sz)
+        linear_indices = LinearIndices(sz)
 
-    zone_counts = Dict{Tuple{Int,Int},Int}()
+        zone_counts = Dict{Tuple{Int,Int},Int}()
 
-    @inbounds for i in eachindex(discretized_img)
-        if mask[i] && !visited[i]
-            gl = discretized_img[i]
-            gl_idx = gl_map[gl-min_gl+1]
+        @inbounds for i in eachindex(discretized_img)
+            if mask[i] && !visited[i]
+                gl = discretized_img[i]
+                gl_idx = gl_map[gl-min_gl+1]
 
-            bfs_queue[1] = i
-            visited[i] = true
-            head = 1
-            tail = 1
+                bfs_queue[1] = i
+                visited[i] = true
+                head = 1
+                tail = 1
 
-            while head <= tail
-                curr_idx = bfs_queue[head]
-                curr_cart = cart_indices[curr_idx]
-                head += 1
+                while head <= tail
+                    curr_idx = bfs_queue[head]
+                    curr_cart = cart_indices[curr_idx]
+                    head += 1
 
-                for o in offsets
-                    nb_cart = curr_cart + o
-                    checkbounds(Bool, discretized_img, nb_cart) || continue
-                    nb = linear_indices[nb_cart]
-                    if mask[nb] && !visited[nb] && discretized_img[nb] == gl
-                        visited[nb] = true
-                        tail += 1
-                        bfs_queue[tail] = nb
+                    for o in offsets
+                        nb_cart = curr_cart + o
+                        checkbounds(Bool, discretized_img, nb_cart) || continue
+                        nb = linear_indices[nb_cart]
+                        if mask[nb] && !visited[nb] && discretized_img[nb] == gl
+                            visited[nb] = true
+                            tail += 1
+                            bfs_queue[tail] = nb
+                        end
                     end
                 end
+
+                zone_size = tail
+                key = (gl_idx, zone_size)
+                zone_counts[key] = get(zone_counts, key, 0) + 1
             end
-
-            zone_size = tail
-            key = (gl_idx, zone_size)
-            zone_counts[key] = get(zone_counts, key, 0) + 1
         end
-    end
 
-    isempty(zone_counts) && return zeros(Int, num_gl, 1), gray_levels
+        isempty(zone_counts) && return zeros(Int, num_gl, 1), gray_levels
 
-    max_zone_size = maximum(j for ((_, j), _) in zone_counts)
-    P_glszm = zeros(Int, num_gl, max_zone_size)
-    for ((gl_idx, zone_size), cnt) in zone_counts
-        P_glszm[gl_idx, zone_size] += cnt
+        max_zone_size = maximum(j for ((_, j), _) in zone_counts)
+        P_glszm = zeros(Int, num_gl, max_zone_size)
+        for ((gl_idx, zone_size), cnt) in zone_counts
+            P_glszm[gl_idx, zone_size] += cnt
+        end
     end
 
     return P_glszm, gray_levels
