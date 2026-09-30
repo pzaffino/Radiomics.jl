@@ -44,7 +44,7 @@ function get_pixel_measures(d)
     # Sequences are vectors of datasets: return the first item, or nothing
     first_item(seq) = (seq isa AbstractVector && !isempty(seq)) ? seq[1] : nothing
 
-    pixel_spacing   = getval(d, (0x0028, 0x0030))   # PixelSpacing
+    pixel_spacing = getval(d, (0x0028, 0x0030))   # PixelSpacing
     slice_thickness = getval(d, (0x0018, 0x0050))   # SliceThickness
 
     # Fallback: PixelMeasuresSequence in the functional groups
@@ -104,4 +104,41 @@ function extract_multiframe_pixel_slices(d, rows::Int, cols::Int, n_frames::Int)
     end
 
     return [Float32.(arr[:, :, i]) for i in 1:n_frames]
+end
+
+# Reads a scalar value (or the first element) from a tag, with a default value.
+function _scalar(ds, tag, default)
+    (ds isa AbstractDict || hasmethod(haskey, Tuple{typeof(ds),typeof(tag)})) || return default
+    haskey(ds, tag) || return default
+    v = ds[tag]
+    v = v isa AbstractArray ? first(v) : v
+    v isa AbstractString ? parse(Float64, v) : Float64(v)
+end
+
+"""
+    get_rescale(d; frame=nothing)
+
+    Returns `(slope, intercept)`. Looks at top-level tags first; for multiframe files
+    falls back on PixelValueTransformationSequence (0028,9145) in the per-frame
+    or shared functional groups.
+"""
+function get_rescale(d; frame=nothing)
+    if haskey(d, (0x0028, 0x1053)) || haskey(d, (0x0028, 0x1052))
+        return _scalar(d, (0x0028, 0x1053), 1.0), _scalar(d, (0x0028, 0x1052), 0.0)
+    end
+    first_item(seq) = (seq isa AbstractVector && !isempty(seq)) ? seq[1] : nothing
+    groups = Any[]
+    if frame !== nothing && haskey(d, (0x5200, 0x9230))
+        pf = d[(0x5200, 0x9230)]
+        frame <= length(pf) && push!(groups, pf[frame])
+    end
+    haskey(d, (0x5200, 0x9229)) && push!(groups, first_item(d[(0x5200, 0x9229)]))
+    for g in groups
+        g === nothing && continue
+        haskey(g, (0x0028, 0x9145)) || continue
+        pvt = first_item(g[(0x0028, 0x9145)])
+        pvt === nothing && continue
+        return _scalar(pvt, (0x0028, 0x9153), 1.0), _scalar(pvt, (0x0028, 0x9152), 0.0)
+    end
+    return 1.0, 0.0
 end

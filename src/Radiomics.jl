@@ -69,13 +69,13 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     keep_largest_only::Bool=true,
     sample_rate=0.03,
     get_raw_matrices::Bool=false,
-    slices_2d =nothing,
+    slices_2d=nothing,
     verbose::Bool=false)
 
     # Convert parameters to correct types
     bin_width = isnothing(bin_width) ? nothing : Float64(bin_width)
     sample_rate = Float64(sample_rate)
-    
+
     # Convert features (supports String, Vector{String}, Symbol, Vector{Symbol})
     if features isa String
         features = lowercase(features) == "all" ? Symbol[] : [Symbol(lowercase(features))]
@@ -85,7 +85,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         # Handle case where features might be a mix or other types
         features = Symbol[Symbol(lowercase(string(f))) for f in features]
     end
-    
+
     # Convert labels (supports Int, Vector{Int})
     if labels isa AbstractVector
         labels = Int[Int(l) for l in labels]
@@ -94,21 +94,21 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     elseif isnothing(labels) # No label given, default is 1
         labels = Int(1)
     end
-    
+
     # Convert spacing (supports any numeric vector/list)
     voxel_spacing_input = Float64[Float64(s) for s in voxel_spacing_input]
-    
+
     if length(voxel_spacing_input) > 3
         throw(ArgumentError("voxel_spacing_input is too long! It should have 2 or 3 elements."))
     elseif length(voxel_spacing_input) < 2
         throw(ArgumentError("voxel_spacing_input is too short! It should have 2 or 3 elements."))
     end
-    
+
     # Convert n_bins if provided
     if !isnothing(n_bins)
         n_bins = Int(n_bins)
     end
-    
+
     # Convert weighting_norm if provided
     if !isnothing(weighting_norm)
         weighting_norm = String(weighting_norm)
@@ -118,18 +118,18 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
     # Management slices_2d
     if !isnothing(slices_2d)
-        results_2d = Dict{Tuple{Int,Int}, Any}()
+        results_2d = Dict{Tuple{Int,Int},Any}()
         dict_lock = ReentrantLock()
 
         Threads.@threads for i in eachindex(slices_2d)
             plan, slice_idx = slices_2d[i]
-            
+
             if verbose
-                lock(dict_lock) do 
+                lock(dict_lock) do
                     println("Extracting 2D slice: Plane=$plan, slice=$slice_idx")
                 end
             end
-            
+
             # Use @view to avoid unnecessary memory allocations
             img_slice = if plan == 1
                 @view img_input[slice_idx, :, :]
@@ -140,7 +140,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             else
                 error("Invalid plane: $plan. Must be 1, 2, or 3")
             end
-            
+
             mask_slice = if plan == 1
                 @view mask_input[slice_idx, :, :]
             elseif plan == 2
@@ -150,16 +150,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             else
                 error("Invalid plane: $plan. Must be 1, 2, or 3")
             end
-            
+
             # 2D spacing calculation
             spacing_2d = if plan == 1
                 [voxel_spacing_input[2], voxel_spacing_input[3], voxel_spacing_input[1]]  # y, z, (x)
             elseif plan == 2
                 [voxel_spacing_input[1], voxel_spacing_input[3], voxel_spacing_input[2]]  # x, z, (y)
-            elseif plan == 3 
+            elseif plan == 3
                 [voxel_spacing_input[1], voxel_spacing_input[2], voxel_spacing_input[3]]  # x, y, (z)
             end
-            
+
             # Call the main function passing the light views
             result = extract_radiomic_features(
                 img_slice, mask_slice, spacing_2d;
@@ -173,7 +173,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 get_raw_matrices=get_raw_matrices,
                 verbose=verbose
             )
-            
+
             # Thread-safe saving
             lock(dict_lock) do
                 results_2d[(plan, slice_idx)] = result
@@ -195,21 +195,21 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             println("Processing multiple labels: ", labels)
             println("Active threads: ", Threads.nthreads())
         end
-        
-        results = Dict{Int, Dict{String,Any}}()
+
+        results = Dict{Int,Dict{String,Any}}()
         skipped_labels = Int[]
-        
+
         # Create a lock to synchronize access to shared dictionaries
         results_lock = ReentrantLock()
-        
+
         # Parallelize label processing with log buffering
         tasks = map(labels) do label
             Threads.@spawn begin
                 # Buffer for logs of this label
                 log_buffer = String[]
-                
+
                 push!(log_buffer, "\n=== Processing LABEL $label ===")
-                
+
                 # Create binary mask for the current label
                 mask_to_use, voxel_count = extract_and_check_mask(mask_input, label)
                 # Check if label exists
@@ -219,7 +219,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     end
                     return nothing
                 end
-                
+
                 push!(log_buffer, "Label $label contains $voxel_count voxels")
                 if compute_all
                     push!(log_buffer, "Computing ALL features")
@@ -237,10 +237,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 if keep_largest_only
                     push!(log_buffer, "keep_largest_only = true (will be applied to selected label)")
                 end
-                
+
                 try
                     total_start_time = time()
-                    total_time_accumulated = 0.0 
+                    total_time_accumulated = 0.0
 
                     # Compute radiomic features passing the log_buffer
                     radiomic_features, time_acc = _compute_radiomics_impl(
@@ -256,7 +256,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         get_raw_matrices=get_raw_matrices,
                         log_buffer=log_buffer
                     )
-                    
+
                     total_time_accumulated += time_acc
                     total_time_real = time() - total_start_time
 
@@ -265,23 +265,23 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     push!(log_buffer, "Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
                     push!(log_buffer, "Real time (end-to-end): $(total_time_real) sec")
                     push!(log_buffer, "Overhead: $(total_time_real - total_time_accumulated) sec")
-                    
-                    diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real, 
-                                            weighting_norm, n_bins, keep_largest_only,
-                                            img_input, mask_to_use)
+
+                    diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real,
+                        weighting_norm, n_bins, keep_largest_only,
+                        img_input, mask_to_use)
                     merge!(radiomic_features, diagnosis_features)
-                    
+
                     # Print diagnosis features to buffer
                     print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
-                    
+
                     push!(log_buffer, "Total features extracted: $(length(radiomic_features))")
                     push!(log_buffer, "Features extraction completed for LABEL $label")
 
                     # Add label identifier
                     radiomic_features["label_id"] = label
-                    
+
                     return (label, radiomic_features, log_buffer)
-                    
+
                 catch e
                     error_msg = "Error processing label $label: $e"
                     push!(log_buffer, error_msg)
@@ -293,27 +293,27 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 end
             end
         end
-        
+
         # Collect results from tasks and print in order
         for task in tasks
             result = fetch(task)
             if !isnothing(result)
                 label, features_dict, logs = result
-                
+
                 # Print logs in order
                 if verbose
                     for line in logs
                         println(line)
                     end
                 end
-                
+
                 # Save results if processing was successful
                 if !isnothing(features_dict)
                     results[label] = features_dict
                 end
             end
         end
-        
+
         if verbose
             println("\n======================")
             println("Multi-label processing completed")
@@ -324,7 +324,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             end
             println("======================")
         end
-        
+
         return results
     end
 
@@ -335,18 +335,18 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
             println("Extracting LABEL $labels")
         end
     end
-        
+
     mask_to_use, voxel_count = extract_and_check_mask(mask_input, label)
     if voxel_count == 0
         error("Label $label not found in mask (no voxels with this value)")
     end
-        
+
     if verbose
         println("Label $label contains $voxel_count voxels")
     end
-        
+
     total_start_time = time()
-    total_time_accumulated = 0.0 
+    total_time_accumulated = 0.0
 
     if verbose
         println("Active threads: ", Threads.nthreads())
@@ -386,7 +386,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         features=features,
         get_raw_matrices=get_raw_matrices
     )
-    
+
     total_time_accumulated += time_acc
     total_time_real = time() - total_start_time
 
@@ -395,9 +395,9 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         println("Measured time of single function'sum (sum of @timed): $(total_time_accumulated) sec")
         println("Real time (end-to-end): $(total_time_real) sec")
         println("Overhead: $(total_time_real - total_time_accumulated) sec")
-        diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real, 
-                                                    weighting_norm, n_bins, keep_largest_only,
-                                                    img_input, mask_to_use)
+        diagnosis_features = get_diagnosis_features(sample_rate, bin_width, voxel_spacing_input, total_time_real,
+            weighting_norm, n_bins, keep_largest_only,
+            img_input, mask_to_use)
         merge!(radiomic_features, diagnosis_features)
         print_features_diagnosis("Diagnosis Features", diagnosis_features)
         println("---------------------")
@@ -450,10 +450,10 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     features=Symbol[],
     get_raw_matrices::Bool=false,
     log_buffer=nothing)
-    
+
     radiomic_features = Dict{String,Any}()
     total_time_accumulated = 0.0
-    
+
     # Helper function to print or buffer log messages
     function log_println(msg::String)
         if isnothing(log_buffer)
@@ -462,7 +462,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             push!(log_buffer, msg)
         end
     end
-    
+
     # Sanity check
     input_sanity_check(img, mask, verbose)
 
@@ -475,7 +475,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     img, mask, voxel_spacing = prepare_inputs(img, mask, voxel_spacing)
 
     # GLCM features
-    if compute_all || :glcm in features 
+    if compute_all || :glcm in features
         t_glcm_features = Threads.@spawn @timed get_glcm_features(
             img, mask, voxel_spacing;
             n_bins=n_bins,
@@ -485,13 +485,13 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             verbose=verbose
         )
     end
-        
+
     # First order features
     if compute_all || :first_order in features
         t_first_order_features = Threads.@spawn @timed get_first_order_features(
-            img, mask, voxel_spacing; 
-            n_bins=n_bins, 
-            bin_width=bin_width, 
+            img, mask, voxel_spacing;
+            n_bins=n_bins,
+            bin_width=bin_width,
             verbose=verbose
         )
     end
@@ -544,11 +544,11 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
     # Control dimension of the mask 
     if ndims(mask) == 3
         # 3D shape features
-        if compute_all || :shape3d in features 
+        if compute_all || :shape3d in features
             t_shape3d_features = Threads.@spawn @timed get_shape3d_features(
-                mask, voxel_spacing; 
-                verbose=verbose, 
-                sample_rate=sample_rate, 
+                mask, voxel_spacing;
+                verbose=verbose,
+                sample_rate=sample_rate,
                 keep_largest_only=keep_largest_only
             )
         end
@@ -559,7 +559,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
         if compute_all || :shape2d in features
             t_shape2d_features = Threads.@spawn @timed get_shape2d_features(
                 mask, voxel_spacing;
-                verbose = verbose,
+                verbose=verbose,
                 keep_largest_only=keep_largest_only
             )
         end
@@ -590,7 +590,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             end
         end
     end
-        
+
     # GLSZM features
     if compute_all || :glszm in features
         results_glszm = fetch(t_glszm_features)
@@ -674,7 +674,7 @@ function _compute_radiomics_impl(img, mask, voxel_spacing, voxel_count::Int;
             end
         end
     end
-    
+
     return (radiomic_features, total_time_accumulated)
 end
 
@@ -715,9 +715,17 @@ function dicom_extract_features(path_dicom::String, path_mask::String)
         rows = Int(d0[(0x0028, 0x0010)])
         cols = Int(d0[(0x0028, 0x0011)])
         pixel_slices = extract_multiframe_pixel_slices(d0, rows, cols, n_frames)
-        vol = Float32.(cat(pixel_slices...; dims=3))
+        rescaled = map(enumerate(pixel_slices)) do (i, s)
+            slope, icpt = get_rescale(d0; frame=i)
+            s .* Float32(slope) .+ Float32(icpt)
+        end
+        vol = cat(rescaled...; dims=3)
     else
-        vol = Float32.(cat((d[(0x7fe0, 0x0010)] for d in dcms)...; dims=3))
+        rescaled = map(dcms) do d
+            slope, icpt = get_rescale(d)
+            Float32.(d[(0x7fe0, 0x0010)]) .* Float32(slope) .+ Float32(icpt)
+        end
+        vol = cat(rescaled...; dims=3)
     end
 
     @assert size(mask_arr) == size(vol) "PET and Mask have different size"
@@ -756,8 +764,8 @@ Base.@ccallable function c_extract_radiomic_features(
         # Call the main function
         c_features_dict = extract_radiomic_features(
             img, mask, spacing;
-            bin_width = binWidth,
-            verbose = false
+            bin_width=binWidth,
+            verbose=false
         )
 
         # Save the features in the global buffer
@@ -765,7 +773,7 @@ Base.@ccallable function c_extract_radiomic_features(
         return pointer(LAST_JSON_RESULT[])
 
     catch e
-        @error "Error during feature extraction step" exception=(e, catch_backtrace())
+        @error "Error during feature extraction step" exception = (e, catch_backtrace())
 
         err_msg = "{\"error\": \"$e\"}\0"
         LAST_JSON_RESULT[] = err_msg
