@@ -52,8 +52,25 @@ function get_glrlm_features(img::AbstractArray{Float64},
         verbose,
         P_glrlm,
         gpu_data.texture_data.gray_levels_cpu,
-        max_run
+        max_run,
+        gpu_data.texture_data.num_gl
     )
+
+    dim = ndims(gpu_data.texture_data.discretized_image)
+    if dim == 2
+        angles = [
+            (1, 0), (0, 1), (1, 1), (1, -1),
+            (-1, 0), (0, -1), (-1, -1), (-1, 1)
+        ]
+    else
+        angles = [
+            (1, 0, 0), (-1, 0, 0), (0, 1, 0), (0, -1, 0), (0, 0, 1), (0, 0, -1),
+            (1, 1, 0), (-1, -1, 0), (1, -1, 0), (-1, 1, 0), (1, 0, 1), (-1, 0, -1),
+            (1, 0, -1), (-1, 0, 1), (0, 1, 1), (0, -1, -1), (0, 1, -1), (0, -1, 1),
+            (1, 1, 1), (-1, -1, -1), (1, 1, -1), (-1, -1, 1), (1, -1, 1), (-1, 1, -1),
+            (1, -1, -1), (-1, 1, 1)
+        ]
+    end
 
     return Radiomics.get_glrlm_features(
         img,
@@ -66,7 +83,9 @@ function get_glrlm_features(img::AbstractArray{Float64},
         features_std=features_std,
         verbose=verbose,
         P_glrlm=P_glrlm,
-        gray_levels=gpu_data.texture_data.gray_levels_cpu
+        gray_levels=gpu_data.texture_data.gray_levels_cpu,
+        num_gl=gpu_data.texture_data.num_gl,
+        angles=angles
     )
 
 end

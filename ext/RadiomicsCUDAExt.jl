@@ -174,45 +174,175 @@ function get_coefficients_gpu(mask_array::BitArray{2}, spacing::Vector{Float64})
 end
 
 @setup_workload begin
-    if CUDA.functional()
-        img_small = Float64.(reshape(1:1000, 10, 10, 10))
-        mask_small = zeros(Float64, 10, 10, 10)
-        mask_small[3:7, 3:7, 3:7] .= 1.0
+    # Small synthetic data for precompilation warmup
+    img_small = Float64.(reshape(1:1000, 10, 10, 10))
+    mask_small = zeros(Float64, 10, 10, 10)
+    mask_small[3:7, 3:7, 3:7] .= 1.0
 
-        img_small_gpu = reshape(Float64.(1:1000), 10, 10, 10)
-        mask_small_gpu = zeros(Float64, 10, 10, 10)
-        mask_small_gpu[1:6, 1:6, 1:6] .= 1.0
-        mask_cpu = BitArray(mask_small_gpu .!= 0.0)
+    # Small 2D synthetic data for precompilation warmup
+    img_small_2d = Float64.(reshape(1:100, 10, 10))
+    mask_small_2d = zeros(Float64, 10, 10)
+    mask_small_2d[3:7, 3:7] .= 1.0
 
-        img = CuArray(img_small_gpu)
-        mask = CuArray(mask_cpu)
-        mask_indices = CuArray(findall(vec(mask_cpu)))
+    # 2D mask multi-label
+    img_small_2d_multi = Float64.(reshape(1:100, 10, 10))
+    mask_small_2d_multi = zeros(Float64, 10, 10)
+    mask_small_2d_multi[3:7, 3:7] .= 1.0
+    mask_small_2d_multi[6:8, 6:8] .= 2.0
 
-        gpu_data = GPUData(img, mask, mask_indices, nothing)
+    # Multi-label mask
+    mask_multi = zeros(Float64, 10, 10, 10)
+    mask_multi[2:4, 2:4, 2:4] .= 1.0
+    mask_multi[6:8, 6:8, 6:8] .= 2.0
 
-        Point3D = NTuple{3,Float64}
-        Triangle3D = NTuple{3,Point3D}
+    spacing = [1.0, 1.0, 1.0]
 
-        p1 = (0.0, 0.0, 0.0)
-        p2 = (1.0, 0.0, 0.1)
-        p3 = (1.0, 1.0, 0.2)
-        p4 = (0.0, 1.0, 0.3)
+    @compile_workload begin
+        # 2D
+        Radiomics.extract_radiomic_features(
+            img_small_2d, mask_small_2d, spacing;
+            keep_largest_only=true,
+            use_gpu=true,
+            verbose=false
+        )
 
-        triangles = CuArray(Triangle3D[(p1, p2, p3), (p1, p3, p4)])
+        # 2D mask multi-label
+        Radiomics.extract_radiomic_features(
+            img_small_2d_multi, mask_small_2d_multi, spacing;
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
 
-        spacing = [1.0, 1.0, 1.0]
+        #2D label
+        Radiomics.extract_radiomic_features(
+            img_small_2d_multi, mask_small_2d_multi, spacing;
+            keep_largest_only=false,
+            labels=[1, 2],
+            use_gpu=true,
+            verbose=false
+        )
 
-        @compile_workload begin
-            texture_data = discretize_image_gpu(img_small, mask_cpu, gpu_data)
-            gpu_data.texture_data = texture_data
+        # --- Default bin_width ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
 
-            compute_glcm_gpu(gpu_data.texture_data.discretized_image, gpu_data)
-            compute_gldm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl, 1)
-            compute_glrlm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.min_gl)
-            compute_ngtdm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.mask_indices, gpu_data.texture_data.gray_levels, gpu_data.texture_data.gray_levels_cpu, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.max_gl, gpu_data.texture_data.min_gl)
-            compute_glszm_gpu(gpu_data.texture_data.discretized_image, gpu_data.mask, gpu_data.texture_data.gl_lut, gpu_data.texture_data.num_gl, gpu_data.texture_data.min_gl)
-            calculate_diam2d(triangles, false)
+        # --- n_bins ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            n_bins=32,
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- bin_width explicit ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            bin_width=25.0,
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- Weighting norms ---
+        for wn in ["euclidean", "infinity", "manhattan", "no_weighting"]
+            Radiomics.extract_radiomic_features(
+                img_small, mask_small, spacing;
+                weighting_norm=wn,
+                keep_largest_only=false,
+                use_gpu=true,
+                verbose=false
+            )
         end
+
+        # --- Selective features ---
+        for feat in [
+            [:glcm],
+            [:first_order],
+            [:shape3d],
+            [:glszm],
+            [:ngtdm],
+            [:glrlm],
+            [:gldm],
+            [:glcm, :first_order],
+            [:glcm, :glszm, :glrlm, :gldm, :ngtdm],
+        ]
+            Radiomics.extract_radiomic_features(
+                img_small, mask_small, spacing;
+                features=feat,
+                keep_largest_only=false,
+                use_gpu=true,
+                verbose=false
+            )
+        end
+
+        # --- keep_largest_only = true ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            keep_largest_only=true,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- features_std = true ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            features=[:glrlm],
+            features_std=true,
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- Multi-label ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_multi, spacing;
+            labels=[1, 2],
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- Single explicit label ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            labels=1,
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- get_raw_matrices ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            get_raw_matrices=true,
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- 2D slice extraction ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            slices_2d=[(1, 5)],
+            keep_largest_only=true,
+            use_gpu=true,
+            verbose=false
+        )
+
+        # --- Multiple slices ---
+        Radiomics.extract_radiomic_features(
+            img_small, mask_small, spacing;
+            slices_2d=[(1, 5), (2, 5), (3, 5)],
+            keep_largest_only=false,
+            use_gpu=true,
+            verbose=false
+        )
     end
 end
 
