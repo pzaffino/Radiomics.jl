@@ -6,7 +6,7 @@ using StatsBase
     Calculates and returns a dictionary of GLRLM (Gray Level Run Length Matrix) features.
 
     # Notes
-    `P_glrlm`, `gray_levels` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLRLM matrix on the CPU. 
+    `P_glrlm`, `gray_levels`, `num_gl, `angles` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the GLRLM matrix on the CPU. 
     If GLRLM features are being extracted on the CPU, these values are computed inside this function
 """
 function get_glrlm_features(img::AbstractArray{Float64},
@@ -19,7 +19,9 @@ function get_glrlm_features(img::AbstractArray{Float64},
     features_std::Bool=false,
     verbose::Bool=false,
     P_glrlm::Union{Array{Float64},Nothing}=nothing,
-    gray_levels::Union{Array{Int},Nothing}=nothing)::Dict{String,Any}
+    gray_levels::Union{Array{Int},Nothing}=nothing,
+    num_gl::Union{Int,Nothing}=nothing,
+    angles::Union{Vector{<:Tuple},Nothing}=nothing)::Dict{String,Any}
 
     if verbose
         if !isnothing(n_bins)
@@ -97,7 +99,8 @@ function calculate_glrlm_matrix(discretized_img::Array{Int},
     verbose::Bool,
     P_glrlm::Union{Array{Float64},Nothing}=nothing,
     gray_levels::Union{Array{Int},Nothing}=nothing,
-    actual_max_run::Union{Int,Nothing}=nothing)::Tuple{Array{Float64,3},Vector{Angle}}
+    actual_max_run::Union{Int,Nothing}=nothing,
+    num_gl::Union{Int,Nothing}=nothing)::Tuple{Array{Float64,3},Vector{Angle}}
 
     dim = ndims(discretized_img)
     if dim == 2
