@@ -228,7 +228,7 @@ mktempdir() do tmpdir
 
     end
 
-    @info "Executing tests for 3D Features on the CPU..."
+    @info "Executing tests for 2D Features on the CPU..."
 
     @testset "Radiomics 2D test" begin
 
