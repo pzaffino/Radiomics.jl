@@ -19,14 +19,13 @@ function maximum_2d_diameters_from_vertices_gpu(verts::CuArray{Point3D})::NTuple
     n = length(verts)
     n < 2 && return (0.0, 0.0, 0.0)
 
-    d_slice = CUDA.zeros(Float64, 1)
-    d_row = CUDA.zeros(Float64, 1)
-    d_column = CUDA.zeros(Float64, 1)
+    d_slice = CUDA.zeros(Float64, n)
+    d_row = CUDA.zeros(Float64, n)
+    d_column = CUDA.zeros(Float64, n)
 
     blocks_x = cld(n, CUDA_BLOCK_WIDTH_2D)
-    blocks_y = cld(n, CUDA_BLOCK_HEIGHT_2D)
-    @cuda threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D) blocks = (blocks_x, blocks_y) diam2d_kernel!(verts, d_slice, d_row, d_column, n)
-    return sqrt(Array(d_slice)[1]), sqrt(Array(d_row)[1]), sqrt(Array(d_column)[1])
+    @cuda threads = CUDA_THREADS blocks = (blocks_x) diam2d_kernel!(verts, d_slice, d_row, d_column, n)
+    return sqrt(CUDA.maximum(d_slice)), sqrt(CUDA.maximum(d_row)), sqrt(CUDA.maximum(d_column))
 end
 
 """
@@ -111,38 +110,47 @@ end
     Returns `nothing`. Distance values are updated atomically on the GPU.
 """
 function diam2d_kernel!(verts::CuDeviceArray{Point3D},
-    d_slice::CuDeviceArray{Float64,1},
-    d_row::CuDeviceArray{Float64,1},
-    d_column::CuDeviceArray{Float64,1},
+    d_slice::CuDeviceArray{Float64},
+    d_row::CuDeviceArray{Float64},
+    d_column::CuDeviceArray{Float64},
     num_verts)
 
     i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
-    j = threadIdx().y + (blockIdx().y - 1) * blockDim().y
 
-    if i > num_verts || j > num_verts || j <= i
+    if i > num_verts
         return nothing
     end
 
-    a = verts[i]
-    if j >= (i + 1) && j <= num_verts
-        b = verts[j]
-        dx = a[1] - b[1]
-        dy = a[2] - b[2]
-        dz = a[3] - b[3]
-        dist2 = dx * dx + dy * dy + dz * dz
+    local_slice = 0.0
+    local_row = 0.0
+    local_column = 0.0
 
+    a = verts[i]
+    for j in (i+1):num_verts
+        b = verts[j]
         if a[3] == b[3]
-            CUDA.@atomic d_slice[1] = max(d_slice[1], dist2)
+            dx = a[1] - b[1]
+            dy = a[2] - b[2]
+            local_slice = max(local_slice, dx * dx + dy * dy)
         end
 
         if a[2] == b[2]
-            CUDA.@atomic d_row[1] = max(d_row[1], dist2)
+            dx = a[1] - b[1]
+            dz = a[3] - b[3]
+            local_row = max(local_row, dx * dx + dz * dz)
         end
 
         if a[1] == b[1]
-            CUDA.@atomic d_column[1] = max(d_column[1], dist2)
+            dy = a[2] - b[2]
+            dz = a[3] - b[3]
+            local_column = max(local_column, dy * dy + dz * dz)
         end
     end
+
+    # avoids global memory access inside the for loop
+    d_slice[i] = local_slice
+    d_row[i] = local_row
+    d_column[i] = local_column
 
     return nothing
 end
