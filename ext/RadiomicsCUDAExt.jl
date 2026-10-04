@@ -230,22 +230,11 @@ end
                 )
             end
 
-            # 2D mask multi-label
-            _warm() do
-                Radiomics.extract_radiomic_features(
-                    img_small_2d_multi, mask_small_2d_multi, spacing;
-                    keep_largest_only=false,
-                    use_gpu=true,
-                    verbose=false
-                )
-            end
-
             # 2D label
             _warm() do
                 Radiomics.extract_radiomic_features(
                     img_small_2d_multi, mask_small_2d_multi, spacing;
                     keep_largest_only=false,
-                    labels=[1, 2],
                     use_gpu=true,
                     verbose=false
                 )
@@ -335,17 +324,6 @@ end
                     img_small, mask_small, spacing;
                     features=[:glrlm],
                     features_std=true,
-                    keep_largest_only=false,
-                    use_gpu=true,
-                    verbose=false
-                )
-            end
-
-            # --- Multi-label ---
-            _warm() do
-                Radiomics.extract_radiomic_features(
-                    img_small, mask_multi, spacing;
-                    labels=[1, 2],
                     keep_largest_only=false,
                     use_gpu=true,
                     verbose=false
