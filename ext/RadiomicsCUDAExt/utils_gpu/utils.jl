@@ -7,6 +7,8 @@ CUDA_BLOCK_HEIGHT_3D = 8
 CUDA_BLOCK_WIDTH_3D = 8
 CUDA_BLOCK_DEPTH_3D = 4
 
+const _CUDA_INFO_SHOWN = Ref(false)
+
 mutable struct TextureData
     discretized_image::CuArray{Int}
     gray_levels::CuArray{Int}
@@ -55,12 +57,15 @@ end
 """
 function init_gpu(img_host::AbstractArray{Float64},
     mask_host::AbstractArray,
-    verbose::Bool)::Tuple{CuArray{Float64},CuArray{Bool},CuArray{Int},Bool}
+    verbose::Bool)::Tuple{Union{CuArray{Float64},Nothing},
+    Union{CuArray{Bool},Nothing},
+    Union{CuArray{Int},Nothing},
+    Bool}
     compatible, errors = can_use_cuda()
     if compatible
 
         flush(stdout)
-        @info "current hardware is CUDA compatible. Please note that the first execution may take longer while CUDA kernels are initialized. For faster subsequent runs, keep this Julia process running and don't close it"
+        _cuda_info_once()
 
         img_device = CuArray(img_host)
         mask_device = CuArray(mask_host)
@@ -232,7 +237,7 @@ function discretize_image_gpu(img_cpu::AbstractArray{Float64},
 
 
     if length(gpu_data.mask_indices) == 0
-        return zeros(Int, size(img)), 0, Int[], 0.0f0
+        return zeros(Int, size(img_cpu)), 0, Int[], 0.0f0
     end
 
     if isnothing(vmin) || isnothing(vmax)
@@ -349,4 +354,19 @@ function create_lut(gray_levels::Array{Int}, max_gl::Int, min_gl::Int)
     end
 
     return lut
+end
+
+"""
+    _cuda_info_once()
+
+    Displays an informational message once to indicate that the hardware 
+    is CUDA compatible. Warns the user that the first execution may 
+    take longer while CUDA kernels are initialized.
+"""
+function _cuda_info_once()
+    if !_CUDA_INFO_SHOWN[] && ccall(:jl_generating_output, Cint, ()) == 0
+        _CUDA_INFO_SHOWN[] = true
+        @info "Current hardware is CUDA compatible. Please note that the first execution may take longer while CUDA kernels are initialized. For faster subsequent runs, keep this Julia process running and don't close it"
+    end
+    return nothing
 end

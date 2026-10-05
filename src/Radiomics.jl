@@ -29,7 +29,6 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
                               get_raw_matrices::Bool=false,
                               slices_2d=nothing,
                               use_gpu::Bool=false,
-                              cuda_streams::Bool=false,
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -54,7 +53,6 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
-    - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -72,7 +70,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     features_std::Bool=false,
     slices_2d=nothing,
     use_gpu::Bool=false,
-    cuda_streams::Bool=false,
     verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
 
     # Cast all inputs to correct types
@@ -90,7 +87,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         keep_largest_only,
         get_raw_matrices,
         use_gpu,
-        cuda_streams,
         verbose
     )
 
@@ -106,8 +102,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         end
         CUDA_EXT[] = ext
     end
-
-    (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
 
     compute_all = isempty(p.features) || :all in p.features
 
@@ -164,7 +158,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                 keep_largest_only=p.keep_largest_only,
                 get_raw_matrices=p.get_raw_matrices,
                 use_gpu=p.use_gpu,
-                cuda_streams=p.cuda_streams,
                 verbose=p.verbose
             )
 
@@ -245,7 +238,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                         features=p.features,
                         get_raw_matrices=p.get_raw_matrices,
                         use_gpu=p.use_gpu,
-                        cuda_streams=p.cuda_streams,
                         log_buffer=log_buffer
                     )
 
@@ -364,7 +356,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         compute_all=compute_all,
         features=p.features,
         use_gpu=p.use_gpu,
-        cuda_streams=p.cuda_streams,
         get_raw_matrices=p.get_raw_matrices
     )
 
@@ -431,7 +422,6 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
     use_gpu::Bool=false,
-    cuda_streams::Bool=false,
     log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any},Float64}
 
     radiomic_features = Dict{String,Any}()
@@ -474,21 +464,20 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
-    # GLSZM features
-    if compute_all || :glszm in features
-        t_glszm_features = Threads.@spawn begin
-            result = @timed get_glszm_features(
-                img, mask, voxel_spacing;
-                n_bins=n_bins,
-                bin_width=bin_width,
-                get_raw_matrices=get_raw_matrices,
-                verbose=verbose
-            )
-            (result.value, result.time)
-        end
-    end
-
     if !use_gpu
+        # GLSZM features
+        if compute_all || :glszm in features
+            t_glszm_features = Threads.@spawn begin
+                result = @timed get_glszm_features(
+                    img, mask, voxel_spacing;
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    get_raw_matrices=get_raw_matrices,
+                    verbose=verbose
+                )
+                (result.value, result.time)
+            end
+        end
         # GLCM features
         if compute_all || :glcm in features
             t_glcm_features = Threads.@spawn begin
@@ -560,7 +549,6 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
                 compute_all=compute_all,
                 features_std=features_std,
                 get_raw_matrices=get_raw_matrices,
-                cuda_streams=cuda_streams,
                 verbose=verbose
             )
         end
@@ -612,6 +600,10 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
+    if use_gpu
+        t_glcm_features, t_glszm_features, t_gldm_features, t_glrlm_features, t_ngtdm_features = fetch(t_gpu_features)
+    end
+
     # GLSZM features
     if !isnothing(t_glszm_features)
         glszm_dict, glszm_time = fetch(t_glszm_features)::Tuple{Dict{String,Any},Float64}
@@ -623,10 +615,6 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
                 print_features("GLSZM Features", glszm_dict; log_buffer=log_buffer)
             end
         end
-    end
-
-    if use_gpu
-        t_glcm_features, t_gldm_features, t_glrlm_features, t_ngtdm_features = fetch(t_gpu_features)
     end
 
     # GLCM features

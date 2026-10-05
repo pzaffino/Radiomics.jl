@@ -410,10 +410,9 @@ function _cast_inputs(
     keep_largest_only,
     get_raw_matrices,
     use_gpu,
-    cuda_streams,
     verbose
 )::NamedTuple{
-    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :cuda_streams, :verbose),
+    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :verbose),
     Tuple{
         Union{Array{Float64,2},Array{Float64,3}},
         Union{Array{Int,2},Array{Int,3}},
@@ -425,7 +424,6 @@ function _cast_inputs(
         Union{Nothing,String},
         Bool,
         Union{Nothing,Vector{Tuple{Int,Int}}},
-        Bool,
         Bool,
         Bool,
         Bool,
@@ -526,7 +524,6 @@ function _cast_inputs(
         keep_largest_only=Bool(keep_largest_only),
         get_raw_matrices=Bool(get_raw_matrices),
         use_gpu=Bool(use_gpu),
-        cuda_streams=Bool(cuda_streams),
         verbose=Bool(verbose)
     )
 end
