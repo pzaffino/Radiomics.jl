@@ -237,7 +237,7 @@ function discretize_image_gpu(img_cpu::AbstractArray{Float64},
 
 
     if length(gpu_data.mask_indices) == 0
-        return zeros(Int, size(img)), 0, Int[], 0.0f0
+        return zeros(Int, size(img_cpu)), 0, Int[], 0.0f0
     end
 
     if isnothing(vmin) || isnothing(vmax)
