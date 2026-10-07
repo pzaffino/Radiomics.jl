@@ -174,6 +174,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
 
         end
 
+        if length(wavelet_results) == 1
+            return only(values(wavelet_results))
+        end
+
         return wavelet_results
 
     end

@@ -365,9 +365,12 @@ mktempdir() do tmpdir
         mask = niread(mask_path)
         spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-        wavelet_subbands = Radiomics.haar_wavelet_filter(ct.raw; level=1, start_level=0)
+        wf_lll = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["LLL"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
 
-        wf_lll = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-LLL"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
         # ---- wavelet-LLL ----
         # First Order
         @test ibsi_test(wf_lll["firstorder_entropy"], 2.356264907791711, 0)
@@ -470,7 +473,12 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_lll["ngtdm_Contrast"], 0.1779765139879916, 0)
         @test ibsi_test(wf_lll["ngtdm_Strength"], 1.0505172329814763, 0)
 
-        wf_llh = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-LLH"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
+        wf_llh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["LLH"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
+
         # ---- wavelet-LLH ----
         # First Order
         @test ibsi_test(wf_llh["firstorder_entropy"], 2.254094013481317, 0)
@@ -572,8 +580,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_llh["ngtdm_Complexity"], 10.633215068137563, 0)
         @test ibsi_test(wf_llh["ngtdm_Contrast"], 0.08927808851305384, 0)
         @test ibsi_test(wf_llh["ngtdm_Strength"], 0.9137227195890167, 0)
+        
+        wf_lhl = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["LHL"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
 
-        wf_lhl = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-LHL"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
         # ---- wavelet-LHL ----
         # First Order
         @test ibsi_test(wf_lhl["firstorder_entropy"], 2.1302530592782256, 0)
@@ -676,7 +689,12 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_lhl["ngtdm_Contrast"], 0.06879173502162637, 0)
         @test ibsi_test(wf_lhl["ngtdm_Strength"], 0.865043921554901, 0)
 
-        wf_lhh = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-LHH"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
+        wf_lhh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["LHH"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
+
         # ---- wavelet-LHH ----
         # First Order
         @test ibsi_test(wf_lhh["firstorder_entropy"], 2.049473531467886, 0)
@@ -778,8 +796,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_lhh["ngtdm_Complexity"], 10.22401487118745, 0)
         @test ibsi_test(wf_lhh["ngtdm_Contrast"], 0.06912853271576713, 0)
         @test ibsi_test(wf_lhh["ngtdm_Strength"], 0.868674004414709, 0)
+        
+        wf_hll = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["HLL"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
 
-        wf_hll = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-HLL"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
         # ---- wavelet-HLL ----
         # First Order
         @test ibsi_test(wf_hll["firstorder_entropy"], 2.295199734201716, 0)
@@ -882,7 +905,12 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_hll["ngtdm_Contrast"], 0.11467458927705637, 0)
         @test ibsi_test(wf_hll["ngtdm_Strength"], 0.7680909595760993, 0)
 
-        wf_hlh = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-HLH"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
+        wf_hlh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["HLH"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
+
         # ---- wavelet-HLH ----
         # First Order
         @test ibsi_test(wf_hlh["firstorder_entropy"], 2.038569571367763, 0)
@@ -985,7 +1013,12 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_hlh["ngtdm_Contrast"], 0.06489366627710418, 0)
         @test ibsi_test(wf_hlh["ngtdm_Strength"], 0.8255486523966619, 0)
 
-        wf_hhl = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-HHL"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
+        wf_hhl = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["HHL"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
+
         # ---- wavelet-HHL ----
         # First Order
         @test ibsi_test(wf_hhl["firstorder_entropy"], 2.306917213474811, 0)
@@ -1088,7 +1121,12 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_hhl["ngtdm_Contrast"], 0.11608521234463035, 0)
         @test ibsi_test(wf_hhl["ngtdm_Strength"], 0.7231213489076003, 0)
 
-        wf_hhh = Radiomics.extract_radiomic_features(wavelet_subbands["wavelet-HHH"], mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
+        wf_hhh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+            wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
+            wavelet_subbands=["HHH"],
+            verbose=false, n_bins=6, keep_largest_only=false
+        )
+
         # ---- wavelet-HHH ----
         # First Order
         @test ibsi_test(wf_hhh["firstorder_entropy"], 1.7108507454700832, 0)
@@ -1190,7 +1228,7 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_hhh["ngtdm_Complexity"], 9.02369609088654, 0)
         @test ibsi_test(wf_hhh["ngtdm_Contrast"], 0.0437596827364933, 0)
         @test ibsi_test(wf_hhh["ngtdm_Strength"], 0.8660243027958056, 0)
-
+        
     end
 
     # Test on GPU
