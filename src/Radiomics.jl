@@ -17,6 +17,7 @@ include("gldm_features.jl")
 include("diagnostic_features.jl")
 
 include("wavelet_filters/haar_filters.jl")
+include("wavelet_filters/filters_register.jl")
 
 const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
 
@@ -57,6 +58,11 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
     - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
+    - `wavelet_type::Union{Nothing, String, Vector{String}}`: The type of wavelet to use (e.g., `"haar"`, `"db1"`). Defaults to `nothing`.
+    - `wavelet_level::Int`: The decomposition level for the wavelet transform. Defaults to `1`.
+    - `wavelet_start_level::Int`: The starting level for the decomposition. Defaults to `0`.
+    - `wavelet_subbands::Union{String, Vector{String}}`: The subbands to extract or analyze (e.g., `"all"` or specific subbands). Defaults to `"all"`.
+    - `prefix::String`: An optional prefix to add to the generated variable or column names. Defaults to `""`.
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -75,7 +81,12 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     slices_2d=nothing,
     use_gpu::Bool=false,
     cuda_streams::Bool=false,
-    verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
+    wavelet_type::Union{Nothing,String,Vector{String}}=nothing,
+    wavelet_level::Int=1,
+    wavelet_start_level::Int=0,
+    wavelet_subbands::Union{String,Vector{String}}="all",
+    prefix::String="",
+    verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any},Dict{String,Dict{String,Any}}}
 
     # Cast all inputs to correct types
     p = _cast_inputs(
@@ -93,6 +104,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
         get_raw_matrices,
         use_gpu,
         cuda_streams,
+        wavelet_type,
+        wavelet_level,
+        wavelet_start_level,
+        wavelet_subbands,
         verbose
     )
 
@@ -112,6 +127,56 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     (!use_gpu && cuda_streams) && @warn "Ambiguous initialization: ignoring cuda_streams because use_gpu is set to false. CUDA streams are only available when running on the GPU. Defaulting to the CPU"
 
     compute_all = isempty(p.features) || :all in p.features
+
+    # Managment of wavelets
+    if !isnothing(p.wavelet_type)
+        wavelet_features = if compute_all
+            [:first_order, :glcm, :glszm, :ngtdm, :glrlm, :gldm]
+        else
+            filter(f -> f ∉ (:shape2d, :shape3d), p.features)
+        end
+
+        if !compute_all && isempty(wavelet_features)
+            error("With wavelet_type, shape features cannot be calculated on the subbands: choose at least one intensity/texture feature.")
+        end
+
+        wavelet_results = Dict{String,Any}()
+
+        for wtype in p.wavelet_type
+            filter_fn = get_wavelet_filter(wtype)
+            subbands = filter_fn(p.img; level=p.wavelet_level, start_level=p.wavelet_start_level, subbands=p.wavelet_subbands)
+
+            for (subband_name, subband_img) in subbands
+                full_key = "$(wtype)_$(subband_name)"
+
+                if verbose
+                    println("\n=== Wavelet subband: $full_key ===")
+                end
+
+                wavelet_results[full_key] = extract_radiomic_features(
+                    subband_img, mask_input, voxel_spacing_input;
+                    features=wavelet_features,
+                    labels=labels,
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    keep_largest_only=keep_largest_only,
+                    get_raw_matrices=get_raw_matrices,
+                    features_std=features_std,
+                    slices_2d=slices_2d,
+                    use_gpu=use_gpu,
+                    cuda_streams=cuda_streams,
+                    wavelet_type=nothing,
+                    prefix=full_key,
+                    verbose=verbose
+                )
+            end
+
+        end
+
+        return wavelet_results
+
+    end
 
     # Management slices_2d
     if !isnothing(p.slices_2d)
@@ -259,14 +324,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
                     push!(log_buffer, "Real time (end-to-end): $(total_time_real) sec")
                     push!(log_buffer, "Overhead: $(total_time_real - total_time_accumulated) sec")
 
-                    diagnosis_features = get_diagnosis_features(
-                        p.bin_width, p.spacing, total_time_real,
-                        p.weighting_norm, p.n_bins, p.keep_largest_only,
-                        p.img, p.features_std, img_to_use, p.mask, mask_to_use
-                    )
-                    merge!(radiomic_features, diagnosis_features)
+                    if p.verbose
+                        diagnosis_features = get_diagnosis_features(
+                            p.bin_width, p.spacing, total_time_real,
+                            p.weighting_norm, p.n_bins, p.keep_largest_only,
+                            p.img, p.features_std, img_to_use, p.mask, mask_to_use
+                        )
+                        merge!(radiomic_features, diagnosis_features)
 
-                    print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
+                        print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
+                    end
 
                     push!(log_buffer, "Total features extracted: $(length(radiomic_features))")
                     push!(log_buffer, "Features extraction completed for LABEL $label")
