@@ -473,6 +473,12 @@ end
 function get_tref(d, λ, manufacturer, t_adm::Union{DateTime,Nothing}=nothing)
     dc = sanitize(get_tag(d, (0x0054, 0x1102)))
 
+    # Enhanced PET non decay-corrected
+    if uppercase(sanitize(get_tag(d, (0x0018, 0x9758)))) == "NO"
+        frdt = parse_datetime(get_tag(d, (0x0018, 0x9151)))   # per-frame via FrameView
+        return frdt === nothing ? (:error, nothing) : (:none, frdt)
+    end
+
     s_date = parse_date(get_tag(d, (0x0008, 0x0021)))  # SeriesDate
     acq_date = parse_date(get_tag(d, (0x0008, 0x0022)))  # AcquisitionDate
     t_s_tod = parse_time(get_tag(d, (0x0008, 0x0031))) # SeriesTime
