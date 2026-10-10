@@ -20,7 +20,7 @@ include("diagnostic_features.jl")
 const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
 
 """
-    extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
+    extract_radiomic_features(img_input, mask_input, voxel_spacing_input=nothing;
                               features=Symbol[],
                               labels=nothing,
                               n_bins=nothing,
@@ -39,7 +39,7 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - `img_input`: The input image (Array), either 2D or 3D. If a 3D image is passed and the "slices_2d"
                             parameter is defined, it computes the features on 2D images according to the specified plan/slice pairs.
     - `mask_input`: The mask defining the region of interest (Array) with same shape of `img_input`.
-    - `voxel_spacing_input`: The spacing of the voxels in the image (Array).
+    - `voxel_spacing_input`: The spacing of the voxels in the image (Array or nothing if the image is read from a path).
     - `features`: Array of symbols specifying which features to compute. 
                  Options: :first_order, :glcm, :shape2d, :shape3d, :glszm, :ngtdm, :glrlm, :gldm.
     - `labels`: Single label (Int), multiple labels (Vector{Int}), or nothing for default (label 1).
@@ -60,7 +60,7 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - Single label or nothing: Dict{String,Any} with feature names as keys
     - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
 """
-function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
+function extract_radiomic_features(img_input, mask_input, voxel_spacing_input = nothing;
     features=Symbol[],
     labels=nothing,
     n_bins=nothing,
@@ -72,6 +72,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input;
     slices_2d=nothing,
     use_gpu::Bool=false,
     verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
+
+    img_input, mask_input, voxel_spacing_input = _resolve_inputs(img_input, mask_input, voxel_spacing_input)
 
     # Cast all inputs to correct types
     p = _cast_inputs(

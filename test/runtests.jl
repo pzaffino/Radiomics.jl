@@ -100,11 +100,7 @@ mktempdir() do tmpdir
 
     @testset "Radiomics 3D test" begin
 
-        ct = niread(phantom_path)
-        mask = niread(mask_path)
-        spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
-
-        radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false)
+        radiomic_features = Radiomics.extract_radiomic_features(phantom_path, mask_path; verbose=false, n_bins=6, keep_largest_only=false)
 
         # ---- First Order ---- (19 features)
         @test ibsi_test(radiomic_features["firstorder_entropy"], 1.27, 0)
@@ -232,11 +228,7 @@ mktempdir() do tmpdir
 
     @testset "Radiomics 2D test" begin
 
-        ct = niread(phantom_path)
-        mask = niread(mask_path)
-        spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
-
-        radiomic_2D_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=false, n_bins=6, keep_largest_only=false, slices_2d=[(3, 3)])
+        radiomic_2D_features = Radiomics.extract_radiomic_features(phantom_path, mask_path; verbose=false, n_bins=6, keep_largest_only=false, slices_2d=[(3, 3)])
 
         # ---- First Order ---- (19 features)
         @test ibsi_test(radiomic_2D_features["firstorder_entropy"], 0.8343470230852528, 0)
@@ -367,11 +359,8 @@ mktempdir() do tmpdir
         @info "Executing tests for 3D Features on the GPU..."
 
         @testset "Radiomics 3D test GPU" begin
-            ct = niread(phantom_path)
-            mask = niread(mask_path)
-            spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-            radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=false, use_gpu=true, n_bins=6, keep_largest_only=false)
+            radiomic_features = Radiomics.extract_radiomic_features(phantom_path, mask_path; verbose=false, use_gpu=true, n_bins=6, keep_largest_only=false)
 
             # ---- First Order ---- (19 features)
             @test ibsi_test(radiomic_features["firstorder_entropy"], 1.27, 0)
@@ -501,11 +490,8 @@ mktempdir() do tmpdir
         @info "Executing tests for 2D Features on the GPU..."
 
         @testset "Radiomics 2D test GPU" begin
-            ct = niread(phantom_path)
-            mask = niread(mask_path)
-            spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-            radiomic_2D_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing; verbose=false, n_bins=6, use_gpu=true, keep_largest_only=false, slices_2d=[(3, 3)])
+            radiomic_2D_features = Radiomics.extract_radiomic_features(phantom_path, mask_path; verbose=false, n_bins=6, use_gpu=true, keep_largest_only=false, slices_2d=[(3, 3)])
 
             # ---- First Order ---- (19 features)
             @test ibsi_test(radiomic_2D_features["firstorder_entropy"], 0.8343470230852528, 0)
