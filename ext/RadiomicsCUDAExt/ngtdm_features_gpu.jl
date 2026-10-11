@@ -142,11 +142,16 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
 
     P_ngtdm = CUDA.zeros(Float64, num_gl, 3)
 
-    shmem_size = num_gl * sizeof(Int) + num_gl * sizeof(Float64)
-
-    @cuda threads = CUDA_THREADS blocks = cld(n_int, CUDA_THREADS) shmem = shmem_size ngtdm_neighborhood_count_interior!(discretized_img, mask, interior_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_int, num_offsets)
-    @cuda threads = CUDA_THREADS blocks = cld(n_bord, CUDA_THREADS) shmem = shmem_size ngtdm_neighborhood_count_border!(discretized_img, mask, border_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_bord, num_offsets)
-
+    bytes = num_gl * sizeof(Int) + num_gl * sizeof(Float64)
+    max_block_memory = CUDA.attribute(CUDA.device(), CUDA.DEVICE_ATTRIBUTE_MAX_SHARED_MEMORY_PER_BLOCK)
+    use_shmem = bytes < max_block_memory
+    if use_shmem
+        @cuda threads = CUDA_THREADS blocks = cld(n_int, CUDA_THREADS) shmem = bytes ngtdm_neighborhood_count_interior!(discretized_img, mask, interior_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_int, num_offsets)
+        @cuda threads = CUDA_THREADS blocks = cld(n_bord, CUDA_THREADS) shmem = bytes ngtdm_neighborhood_count_border!(discretized_img, mask, border_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_bord, num_offsets)
+    else
+        @cuda threads = CUDA_THREADS blocks = cld(n_int, CUDA_THREADS) g_ngtdm_neighborhood_count_interior!(discretized_img, mask, interior_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_int, num_offsets)
+        @cuda threads = CUDA_THREADS blocks = cld(n_bord, CUDA_THREADS) g_ngtdm_neighborhood_count_border!(discretized_img, mask, border_mask, gl_lut, offsets_x, offsets_y, offsets_z, P_ngtdm, Nx, Ny, Nz, min_gl, num_gl, n_bord, num_offsets)
+    end
     P_ngtdm = Array(P_ngtdm)
     P_ngtdm[:, 3] = gray_levels_cpu
     return P_ngtdm
@@ -264,6 +269,58 @@ function ngtdm_neighborhood_count_interior!(
     return nothing
 end
 
+function g_ngtdm_neighborhood_count_interior!(
+    discretized_img::CuDeviceArray{Int},
+    mask::CuDeviceArray{Bool},
+    interior_mask::CuDeviceArray{Int},
+    gl_map::CuDeviceArray{Int},
+    offsets_x::CuDeviceArray{Int},
+    offsets_y::CuDeviceArray{Int},
+    offsets_z::CuDeviceArray{Int},
+    P_ngtdm::CuDeviceArray{Float64},
+    Nx::Int,
+    Ny::Int,
+    Nz::Int,
+    min_gl::Int,
+    num_gl::Int,
+    num_interior::Int,
+    num_offsets::Int,)
+
+    i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if i <= num_interior
+
+        idx = interior_mask[i]
+        x, y, z = decode_xyz(idx, Nx, Ny, Nz)
+
+        gl = discretized_img[idx]
+        gl_idx = gl_map[gl-min_gl+1]
+
+        neighborhood_sum = 0
+        neighborhood_count = 0
+
+        for o in 1:num_offsets
+            nx = x + offsets_x[o]
+            ny = y + offsets_y[o]
+            nz = z + offsets_z[o]
+            nidx = encode_xyz(nx, ny, nz, Nx, Ny)
+
+            if mask[nidx]
+                neighborhood_sum += discretized_img[nidx]
+                neighborhood_count += 1
+            end
+        end
+
+        if neighborhood_count > 0
+            neighborhood_avg = neighborhood_sum / neighborhood_count
+            CUDA.@atomic P_ngtdm[gl_idx, 1] += 1.0
+            CUDA.@atomic P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
+        end
+    end
+
+    return nothing
+end
+
 """
     ngtdm_neighborhood_count_border!(
         discretized_img::CuDeviceArray{Int},
@@ -361,5 +418,45 @@ function ngtdm_neighborhood_count_border!(
         end
         g += blockDim().x
     end
+    return nothing
+end
+
+function g_ngtdm_neighborhood_count_border!(
+    discretized_img::CuDeviceArray{Int}, mask::CuDeviceArray{Bool}, border_mask::CuDeviceArray{Int}, gl_map::CuDeviceArray{Int}, offsets_x::CuDeviceArray{Int}, offsets_y::CuDeviceArray{Int}, offsets_z::CuDeviceArray{Int}, P_ngtdm::CuDeviceArray{Float64}, Nx::Int, Ny::Int, Nz::Int, min_gl::Int, num_gl::Int, num_border::Int, num_offsets::Int,)
+
+    i = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+
+    if i <= num_border
+        idx = border_mask[i]
+
+        x, y, z = decode_xyz(idx, Nx, Ny, Nz)
+
+        gl = discretized_img[idx]
+        gl_idx = gl_map[gl-min_gl+1]
+
+        neighborhood_sum = 0
+        neighborhood_count = 0
+
+        for o in 1:num_offsets
+            nx = x + offsets_x[o]
+            ny = y + offsets_y[o]
+            nz = z + offsets_z[o]
+
+            if (1 <= nx <= Nx) && (1 <= ny <= Ny) && (1 <= nz <= Nz)
+                nidx = encode_xyz(nx, ny, nz, Nx, Ny)
+                if mask[nidx]
+                    neighborhood_sum += discretized_img[nidx]
+                    neighborhood_count += 1
+                end
+            end
+        end
+
+        if neighborhood_count > 0
+            neighborhood_avg = neighborhood_sum / neighborhood_count
+            CUDA.@atomic P_ngtdm[gl_idx, 1] += 1.0
+            CUDA.@atomic P_ngtdm[gl_idx, 2] += abs(gl - neighborhood_avg)
+        end
+    end
+
     return nothing
 end
