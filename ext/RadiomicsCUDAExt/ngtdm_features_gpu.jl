@@ -50,6 +50,20 @@ function get_ngtdm_features(img::AbstractArray{Float64},
         gpu_data.texture_data.gray_levels_cpu,
     )
 
+    Nvp, p_i, s_i, ivector, Ngp = Radiomics.calculate_ngtdm_coefficients(P_ngtdm, gpu_data.texture_data.gray_levels_cpu)
+
+    p_i_gpu = CuArray(p_i)
+    s_i_gpu = CuArray(s_i)
+    ivector_gpu = CuArray(ivector)
+
+    complexity = complexity_gpu(p_i_gpu, s_i_gpu, ivector_gpu, Nvp)
+    contrast = contrast_gpu(p_i_gpu, s_i_gpu, ivector_gpu, Ngp, Nvp)
+    strength = strength_gpu(p_i_gpu, s_i_gpu, ivector_gpu)
+    busyness = busyness_gpu(p_i_gpu, s_i_gpu, ivector_gpu)
+    coarseness = Radiomics.coarseness(p_i, s_i)
+
+    coeffs = (coarseness, contrast, busyness, complexity, strength)
+
     return Radiomics.get_ngtdm_features(
         img,
         mask,
@@ -59,7 +73,8 @@ function get_ngtdm_features(img::AbstractArray{Float64},
         get_raw_matrices=get_raw_matrices,
         verbose=verbose,
         P_ngtdm=P_ngtdm,
-        gray_levels=gpu_data.texture_data.gray_levels_cpu
+        gray_levels=gpu_data.texture_data.gray_levels_cpu,
+        coeffs=coeffs
     )
 
 end
@@ -155,6 +170,187 @@ function compute_ngtdm_gpu(discretized_img::CuArray{Int},
     P_ngtdm = Array(P_ngtdm)
     P_ngtdm[:, 3] = gray_levels_cpu
     return P_ngtdm
+end
+
+function contrast_gpu(
+    p_i::CuArray{Float64},
+    s_i::CuArray{Float64},
+    i::CuArray{Float64},
+    Ngp::Int,
+    Nvp::Float64
+)::Float64
+
+    Ngp <= 1 && return 0.0
+
+    n = length(p_i)
+    contributions = CuArray{Float64}(undef, n, n)
+
+    threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D)
+    blocks = (cld(n, threads[1]), cld(n, threads[2]))
+
+    @cuda threads=threads blocks=blocks contrast_kernel!(p_i, i, contributions, n)
+
+    val = CUDA.sum(contributions)
+    sum_s = CUDA.sum(s_i)
+
+    return val * sum_s / Nvp / (Ngp * (Ngp - 1))
+end
+
+
+function contrast_kernel!(
+    p_i::CuDeviceArray{Float64},
+    i::CuDeviceArray{Float64},
+    contributions::CuDeviceArray{Float64},
+    n::Int
+)
+    a = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+    b = threadIdx().y + (blockIdx().y - 1) * blockDim().y
+
+    if a > n || b > n
+        return nothing
+    end
+
+    contributions[a, b] = p_i[a] * p_i[b] * (i[a] - i[b])^2
+
+    return nothing
+end
+
+function complexity_gpu(
+    p_i::CuArray{Float64},
+    s_i::CuArray{Float64},
+    intensity::CuArray{Float64},
+    Nvp::Float64
+)::Float64
+
+    n = length(p_i)
+
+    threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D)
+    blocks = (cld(n, threads[1]), cld(n, threads[2]))
+    contributions = CuArray{Float64}(undef, n, n)
+    @cuda threads=threads blocks=blocks complexity_kernel!(p_i, s_i, intensity, contributions, n)
+
+    return CUDA.sum(contributions) / Nvp
+end
+
+function busyness_gpu(
+    p_i::CuArray{Float64},
+    s_i::CuArray{Float64},
+    i::CuArray{Float64}
+)::Float64
+
+    n = length(p_i)
+
+    num = CUDA.sum(p_i .* s_i)
+
+    contributions = CUDA.zeros(Float64, n, n)
+
+    threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D)
+    blocks = (cld(n, threads[1]), cld(n, threads[2]))
+
+    @cuda threads=threads blocks=blocks busyness_kernel!(p_i, i, contributions, n)
+    den = CUDA.sum(contributions)
+
+    return den == 0.0 ? 0.0 : num / den
+end
+
+
+function busyness_kernel!(
+    p_i::CuDeviceArray{Float64},
+    i::CuDeviceArray{Float64},
+    contributions::CuDeviceArray{Float64},
+    n::Int
+)
+    a = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+    b = threadIdx().y + (blockIdx().y - 1) * blockDim().y
+
+    if a > n || b > n
+        return nothing
+    end
+
+    if p_i[a] == 0.0 || p_i[b] == 0.0
+        contributions[a, b] = 0.0
+        return nothing
+    end
+
+    contributions[a, b] = abs(i[a] * p_i[a] - i[b] * p_i[b])
+
+    return nothing
+end
+
+
+function complexity_kernel!(
+    p_i::CuDeviceArray{Float64},
+    s_i::CuDeviceArray{Float64},
+    intensity::CuDeviceArray{Float64},
+    contributions::CuDeviceArray{Float64},
+    n::Int
+)
+    a = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+    b = threadIdx().y + (blockIdx().y - 1) * blockDim().y
+
+    if a > n || b > n
+        return
+    end
+
+    pa = p_i[a]
+    pb = p_i[b]
+
+    if pa == 0.0 || pb == 0.0
+        return
+    end
+
+    denom = pa + pb
+
+    contribution = abs(intensity[a] - intensity[b]) *
+        (pa * s_i[a] + pb * s_i[b]) / denom
+
+    contributions[a, b] = contribution
+
+    return
+end
+
+function strength_gpu(
+    p_i::CuArray{Float64},
+    s_i::CuArray{Float64},
+    i::CuArray{Float64})::Float64
+
+    sum_s_i = CUDA.sum(s_i)
+    sum_s_i == 0.0 && return 0.0
+
+    n = length(p_i)
+    contributions = CUDA.zeros(Float64, n, n)
+
+    threads = (CUDA_BLOCK_WIDTH_2D, CUDA_BLOCK_HEIGHT_2D)
+    blocks = (cld(n, threads[1]), cld(n, threads[2]))
+
+    @cuda threads=threads blocks=blocks strength_kernel!(p_i, i, contributions, n)
+
+    val = CUDA.sum(contributions)
+
+    return val / sum_s_i
+end
+
+
+function strength_kernel!(
+    p_i::CuDeviceArray{Float64},
+    i::CuDeviceArray{Float64},
+    contributions::CuDeviceArray{Float64},
+    n::Int)
+    a = threadIdx().x + (blockIdx().x - 1) * blockDim().x
+    b = threadIdx().y + (blockIdx().y - 1) * blockDim().y
+
+    if a > n || b > n
+        return nothing
+    end
+
+    if p_i[a] == 0.0 || p_i[b] == 0.0
+        contributions[a, b] = 0.0
+        return nothing
+    end
+
+    contributions[a, b] = (p_i[a] + p_i[b]) * (i[a] - i[b])^2
+
+    return nothing
 end
 
 """
