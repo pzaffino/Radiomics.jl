@@ -4,8 +4,7 @@ using NIfTI
 
 using LinearAlgebra: Diagonal, cross, dot
 
-_dcm_num(x) = Float64(x isa AbstractArray ? first(x) : x)
-_dcm_vec(x) = Float64.(collect(x))
+include("utils_dicom.jl")
 
 """
     MedImage{T,N}
@@ -119,37 +118,50 @@ function _read_dicom(path)
     isempty(dcms) && error("No DICOM images found in $path")
     length(unique(d[(0x0020, 0x000e)] for d in dcms)) == 1 ||
         error("Folder contains more than one DICOM series: $path")
-    Int(_dcm_num(get(dcms[1], (0x0028, 0x0008), 1))) == 1 ||
-        error("Multiframe DICOM not supported: $path")
 
-    # slice ordering: projection of ImagePositionPatient on the slice normal
-    iop  = _dcm_vec(dcms[1][(0x0020, 0x0037)])
-    rdir, cdir = iop[1:3], iop[4:6]
-    ndir = cross(rdir, cdir)
-    pos(d) = _dcm_vec(d[(0x0020, 0x0032)])
-    sort!(dcms; by = d -> dot(pos(d), ndir))
+    d1 = dcms[1]
+    ps, st = get_pixel_measures(d1)
+    ps === nothing && error("PixelSpacing not found in $path")
+    rows = Int(_scalar(d1, (0x0028, 0x0010), 0))
+    cols = Int(_scalar(d1, (0x0028, 0x0011), 0))
+    nf   = Int(_scalar(d1, (0x0028, 0x0008), 1))
 
-    slope(d) = haskey(d, (0x0028, 0x1053)) ? _dcm_num(d[(0x0028, 0x1053)]) : 1.0
-    inter(d) = haskey(d, (0x0028, 0x1052)) ? _dcm_num(d[(0x0028, 0x1052)]) : 0.0
-    function slice(d)
-        rows, cols = Int(_dcm_num(d[(0x0028, 0x0010)])), Int(_dcm_num(d[(0x0028, 0x0011)]))
-        px = d[(0x7fe0, 0x0010)]
-        size(px) == (rows, cols) || (px = permutedims(px))
-        size(px) == (rows, cols) || error("Unexpected pixel data size in $path")
-        return Float32.(px) .* Float32(slope(d)) .+ Float32(inter(d))
-    end
-    vol = cat((slice(d) for d in dcms)...; dims = 3)     # (rows, cols, slices)
-    data = permutedims(vol, (2, 1, 3))                   # (cols, rows, slices) as NIfTI
+    length(dcms) > 1 && nf > 1 &&
+        error("Multiple multiframe DICOM files not supported: $path")
 
-    ps = _dcm_vec(dcms[1][(0x0028, 0x0030)])             # [row spacing, column spacing]
-    if length(dcms) > 1
-        z = [dot(pos(d), ndir) for d in dcms]
-        dz = abs(sum(diff(z)) / (length(z) - 1))
-        maximum(abs.(abs.(diff(z)) .- dz)) <= 0.01 * dz ||
-            @warn "Non-uniform slice spacing in $path" dz
+    if length(dcms) == 1 && nf > 1
+        # multiframe: frames assumed already ordered along z
+        frames = extract_multiframe_pixel_slices(d1, rows, cols, nf)
+        slices = map(enumerate(frames)) do (i, f)
+            slope, inter = get_rescale(d1; frame=i)
+            f .* Float32(slope) .+ Float32(inter)
+        end
+        st === nothing && @warn "SliceThickness not found, z spacing = 1.0" path
+        dz = something(st, 1.0)
+        origin = zeros(3)
     else
-        dz = _dcm_num(get(dcms[1], (0x0018, 0x0050), 1.0))
+        sort!(dcms; by = slice_pos)
+        slices = map(dcms) do d
+            px = d[(0x7fe0, 0x0010)]
+            size(px) == (rows, cols) || (px = permutedims(px))
+            size(px) == (rows, cols) || error("Unexpected pixel data size in $path")
+            slope, inter = get_rescale(d)
+            Float32.(px) .* Float32(slope) .+ Float32(inter)
+        end
+        has_pos = haskey(dcms[1], (0x0020, 0x0032)) && haskey(dcms[1], (0x0020, 0x0037))
+        if has_pos && length(dcms) > 1
+            z = slice_pos.(dcms)
+            dz = abs(sum(diff(z)) / (length(z) - 1))
+            maximum(abs.(abs.(diff(z)) .- dz)) <= 0.01 * dz ||
+                @warn "Non-uniform slice spacing in $path" dz
+        else
+            dz = something(st, 1.0)
+        end
+        # dcms[1] is now the first slice in space (after sort!)
+        origin = has_pos ? Float64.(collect(dcms[1][(0x0020, 0x0032)])) : zeros(3)
     end
 
-    return MedImage(data, [ps[2], ps[1], dz], pos(dcms[1]), hcat(rdir, cdir, ndir))
+    vol  = cat(slices...; dims = 3)          # (rows, cols, slices)
+    data = permutedims(vol, (2, 1, 3))       # (cols, rows, slices), come il NIfTI
+    return MedImage(data, [ps[2], ps[1], dz], origin, Matrix(Diagonal(ones(3))))
 end
