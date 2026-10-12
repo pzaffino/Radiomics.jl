@@ -2,6 +2,7 @@ using DICOM
 using NRRD
 using NIfTI
 
+using FileIO
 using LinearAlgebra: Diagonal, cross, dot
 
 include("DICOM/utils_dicom.jl")
@@ -46,8 +47,11 @@ function read_image(path::AbstractString)
         return _read_dicom(path)
     elseif endswith(p, ".nii") || endswith(p, ".nii.gz")
         return _read_nifti(path)
+    elseif endswith(p, ".nrrd") || endswith(p, ".nhdr")
+        return _read_nrrd(path)
+    else
+        error("Not supported format: $path")
     end
-    error("Not supported format: $path")
 end
 
 """
@@ -164,4 +168,44 @@ function _read_dicom(path)
     vol  = cat(slices...; dims = 3)          # (rows, cols, slices)
     data = permutedims(vol, (2, 1, 3))       # (cols, rows, slices), come il NIfTI
     return MedImage(data, [ps[2], ps[1], dz], origin, Matrix(Diagonal(ones(3))))
+end
+
+"""
+    _read_nrrd(path)
+    
+    Reads an NRRD image from the given path.
+    
+    # Parameters:
+    - `path`: Path to the NRRD image.
+    
+    # Returns:
+    - `MedImage`: The NRRD image.
+"""
+function _read_nrrd(path)
+    img  = FileIO.load(path)
+    data = Array(img.data)
+    N    = ndims(data)
+    sp   = [Float64(step(img.axes[i].val))  for i in 1:N]
+    org  = [Float64(first(img.axes[i].val)) for i in 1:N]
+    all(>(0), sp) || error("Non-positive spacing in $path: $sp")
+
+    hdr = open(path) do io
+        lines = String[]
+        for l in eachline(io)
+            isempty(l) && break
+            push!(lines, l)
+        end
+        lines
+    end
+    for l in hdr
+        startswith(l, "space directions:") || continue
+        vs = [parse.(Float64, split(m.captures[1], ',')) for m in eachmatch(r"\(([^)]*)\)", l)]
+        length(vs) == N || continue
+        M   = reduce(hcat, vs)
+        off = maximum(abs(M[i, j]) for i in 1:N, j in 1:N if i != j)
+        off <= 1e-6 ||
+            @warn "NRRD with non-diagonal space directions (oblique): direction ignored" path
+    end
+
+    return MedImage(data, sp, org, Matrix(Diagonal(ones(N))))
 end
