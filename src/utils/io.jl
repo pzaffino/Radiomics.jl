@@ -4,7 +4,7 @@ using NIfTI
 
 using LinearAlgebra: Diagonal, cross, dot
 
-include("utils_dicom.jl")
+include("DICOM/utils_dicom.jl")
 
 """
     MedImage{T,N}
