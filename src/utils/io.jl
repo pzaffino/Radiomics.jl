@@ -3,7 +3,7 @@ using NRRD
 using NIfTI
 
 using FileIO
-using LinearAlgebra: Diagonal, cross, dot
+using LinearAlgebra: Diagonal
 
 include("DICOM/utils_dicom.jl")
 
@@ -11,10 +11,6 @@ include("DICOM/utils_dicom.jl")
     MedImage{T,N}
     
     A medical image with the given type T and number of dimensions N.
-    
-    # Parameters:
-    - `T`: Type of the image data.
-    - `N`: Number of dimensions of the image data.
     
     # Fields:
     - `data`: The image data.
@@ -32,14 +28,15 @@ end
 """
     read_image(path)
     
-    Reads an image from the given path. The image can be in NIfTI (.nii, .nii.gz) or DICOM format.
-    If the path is a directory, it is assumed to be a DICOM series.
-    
-    # Parameters:
-    - `path`: Path to the image.
-    
+    Reads an image from the given path. The image can be in NIfTI (.nii, .nii.gz),
+    NRRD (.nrrd, .nhdr) or DICOM format. If the path is a directory, it is assumed
+    to be a DICOM series.
+
+    # Arguments:
+    - `path`: The path to the image.
+
     # Returns:
-    - `MedImage`: The image.
+    - `MedImage`: The medical image.
 """
 function read_image(path::AbstractString)
     p = lowercase(path)
@@ -55,33 +52,45 @@ function read_image(path::AbstractString)
 end
 
 """
-    _resolve_inputs(img, mask, spacing)
-    
-    Resolves the inputs to the given function.
-    
-    # Parameters:
-    - `img`: The input image.
-    - `mask`: The input mask.
+    _resolve_inputs(img, mask, spacing, suv_ibsi_normalization)
+
+    This function is used to resolve the inputs to the given function.
+    It takes the image, the mask, the spacing and a boolean to indicate whether to normalize the SUV.
+
+    # Arguments:
+    - `img`: The image data or path to the image.
+    - `mask`: The mask data or path to the mask.
     - `spacing`: The spacing of the voxels.
-    
+    - `suv_ibsi_normalization`: Whether to normalize the SUV.
+
     # Returns:
-    - `Tuple{Array{T,N},Array{T,N},Vector{Float64}}`: The resolved inputs.
+    - `img`: The image data.
+    - `mask`: The mask data.
+    - `spacing`: The spacing of the voxels.
 """
-function _resolve_inputs(img, mask, spacing)
-    img_is_path  = img  isa AbstractString
+function _resolve_inputs(img, mask, spacing, suv_ibsi_normalization::Bool=false)
+    img_is_path = img isa AbstractString
     mask_is_path = mask isa AbstractString
 
     img_is_path == mask_is_path ||
         error("Image and mask must be both paths or both arrays")
 
     if img_is_path
-        i = read_image(img)
         m = read_image(mask)
+        if suv_ibsi_normalization
+            ndims(m.data) == 3 || error("suv_ibsi_normalization=true requires a 3D mask")
+            roi_slices = [k for k in axes(m.data, 3) if any(!iszero, @view m.data[:, :, k])]
+            i = _read_dicom_suv(img, roi_slices)
+        else
+            i = read_image(img)
+        end
         all(isapprox.(i.spacing, m.spacing; atol=1e-3)) ||
             error("Different Spacing: image $(i.spacing), mask $(m.spacing)")
         return i.data, m.data, isnothing(spacing) ? i.spacing : spacing
     end
 
+    suv_ibsi_normalization &&
+        error("suv_ibsi_normalization=true is only supported with DICOM paths, not with arrays")
     isnothing(spacing) && error("With arrays, spacing is required")
     return img, mask, spacing
 end
@@ -90,12 +99,12 @@ end
     _read_nifti(path)
     
     Reads a NIfTI image from the given path.
-    
-    # Parameters:
-    - `path`: Path to the NIfTI image.
-    
+
+    # Arguments:
+    - `path`: The path to the image.
+
     # Returns:
-    - `MedImage`: The NIfTI image.
+    - `MedImage`: The medical image.
 """
 function _read_nifti(path)
     vol = NIfTI.niread(path)
@@ -108,30 +117,21 @@ end
 """
     _read_dicom(path)
     
-    Reads a DICOM image from the given path. 
-    
-    # Parameters:
-    - `path`: Path to the DICOM image.
-    
+    Reads a DICOM image (series or single file) with rescale slope/intercept applied.
+
+    # Arguments:
+    - `path`: The path to the image.
+
     # Returns:
-    - `MedImage`: The DICOM image.
+    - `MedImage`: The medical image.
 """
 function _read_dicom(path)
-    dcms = isdir(path) ? DICOM.dcmdir_parse(path) : [DICOM.dcm_parse(path)]
-    filter!(d -> haskey(d, (0x7fe0, 0x0010)), dcms)
-    isempty(dcms) && error("No DICOM images found in $path")
-    length(unique(d[(0x0020, 0x000e)] for d in dcms)) == 1 ||
-        error("Folder contains more than one DICOM series: $path")
-
+    dcms, nf = _load_dicom_series(path)
     d1 = dcms[1]
     ps, st = get_pixel_measures(d1)
     ps === nothing && error("PixelSpacing not found in $path")
     rows = Int(_scalar(d1, (0x0028, 0x0010), 0))
     cols = Int(_scalar(d1, (0x0028, 0x0011), 0))
-    nf   = Int(_scalar(d1, (0x0028, 0x0008), 1))
-
-    length(dcms) > 1 && nf > 1 &&
-        error("Multiple multiframe DICOM files not supported: $path")
 
     if length(dcms) == 1 && nf > 1
         # multiframe: frames assumed already ordered along z
@@ -144,7 +144,6 @@ function _read_dicom(path)
         dz = something(st, 1.0)
         origin = zeros(3)
     else
-        sort!(dcms; by = slice_pos)
         slices = map(dcms) do d
             px = d[(0x7fe0, 0x0010)]
             size(px) == (rows, cols) || (px = permutedims(px))
@@ -161,11 +160,10 @@ function _read_dicom(path)
         else
             dz = something(st, 1.0)
         end
-        # dcms[1] is now the first slice in space (after sort!)
         origin = has_pos ? Float64.(collect(dcms[1][(0x0020, 0x0032)])) : zeros(3)
     end
 
-    vol  = cat(slices...; dims = 3)          # (rows, cols, slices)
+    vol = cat(slices...; dims=3)          # (rows, cols, slices)
     data = permutedims(vol, (2, 1, 3))       # (cols, rows, slices), come il NIfTI
     return MedImage(data, [ps[2], ps[1], dz], origin, Matrix(Diagonal(ones(3))))
 end
@@ -182,11 +180,11 @@ end
     - `MedImage`: The NRRD image.
 """
 function _read_nrrd(path)
-    img  = FileIO.load(path)
+    img = FileIO.load(path)
     data = Array(img.data)
-    N    = ndims(data)
-    sp   = [Float64(step(img.axes[i].val))  for i in 1:N]
-    org  = [Float64(first(img.axes[i].val)) for i in 1:N]
+    N = ndims(data)
+    sp = [Float64(step(img.axes[i].val)) for i in 1:N]
+    org = [Float64(first(img.axes[i].val)) for i in 1:N]
     all(>(0), sp) || error("Non-positive spacing in $path: $sp")
 
     hdr = open(path) do io
@@ -201,7 +199,7 @@ function _read_nrrd(path)
         startswith(l, "space directions:") || continue
         vs = [parse.(Float64, split(m.captures[1], ',')) for m in eachmatch(r"\(([^)]*)\)", l)]
         length(vs) == N || continue
-        M   = reduce(hcat, vs)
+        M = reduce(hcat, vs)
         off = maximum(abs(M[i, j]) for i in 1:N, j in 1:N if i != j)
         off <= 1e-6 ||
             @warn "NRRD with non-diagonal space directions (oblique): direction ignored" path

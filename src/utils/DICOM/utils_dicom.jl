@@ -1,112 +1,125 @@
 
-"""
-    slice_pos(d)
+using Dates
 
-    Position of a slice along the normal of the image plane, used to sort a DICOM series.
-    The normal is the cross product of the row and column direction cosines
-    (`ImageOrientationPatient`); the position is the projection of
-    `ImagePositionPatient` onto it. Falls back to `InstanceNumber` if the tags are missing.
-"""
-function slice_pos(d)
-    if haskey(d, (0x0020, 0x0032)) && haskey(d, (0x0020, 0x0037))
-        ipp = Float64.(collect(d[(0x0020, 0x0032)]))   # ImagePositionPatient
-        iop = Float64.(collect(d[(0x0020, 0x0037)]))   # ImageOrientationPatient
-        if length(ipp) == 3 && length(iop) == 6
-            # normal = row direction × column direction
-            nx = iop[2] * iop[6] - iop[3] * iop[5]
-            ny = iop[3] * iop[4] - iop[1] * iop[6]
-            nz = iop[1] * iop[5] - iop[2] * iop[4]
-            # project the slice origin onto the normal
-            return nx * ipp[1] + ny * ipp[2] + nz * ipp[3]
-        end
-    end
-    # Fallback: InstanceNumber
-    if haskey(d, (0x0020, 0x0013))
-        return Float64(d[(0x0020, 0x0013)])
-    end
-    # No usable tag: ordering will be arbitrary
-    return 0.0
-end
+include("normalize_IBSI_SUV.jl")
 
 """
-    get_pixel_measures(d)
+    _read_dicom_suv(path, roi_slices)
 
-    Returns `(pixel_spacing, slice_thickness)` from a DICOM dataset.
-    Looks first at the top-level tags (`PixelSpacing`, `SliceThickness`) and then,
-    for enhanced/multiframe files, inside `PixelMeasuresSequence` (0028,9110),
-    which is nested in `SharedFunctionalGroupsSequence` (5200,9229) or in the
-    first item of `PerFrameFunctionalGroupsSequence` (5200,9230).
-    Returns `nothing` for any value that cannot be found.
+    Reads a PET DICOM series and returns it normalized to SUVbw (IBSI).
+    The SUV is computed only on the slices in `roi_slices` (all frames for multiframe).
+
+    # Arguments:
+    - `path`: The path to the image.
+    - `roi_slices`: The slices to normalize.
+
+    # Returns:
+    - `MedImage`: The medical image.
 """
-function get_pixel_measures(d)
-    # Safe tag lookup: returns nothing if the tag is missing
-    getval(ds, tag) = haskey(ds, tag) ? ds[tag] : nothing
-    # Sequences are vectors of datasets: return the first item, or nothing
-    first_item(seq) = (seq isa AbstractVector && !isempty(seq)) ? seq[1] : nothing
+function _read_dicom_suv(path, roi_slices)
+    (isdir(path) || endswith(lowercase(path), ".dcm")) ||
+        error("suv_ibsi_normalization=true requires a DICOM PET series: $path")
+    isempty(roi_slices) && error("Mask is empty")
 
-    pixel_spacing = getval(d, (0x0028, 0x0030))   # PixelSpacing
-    slice_thickness = getval(d, (0x0018, 0x0050))   # SliceThickness
+    base = _read_dicom(path)                       # geometry and spacing
+    dcms, nf = _load_dicom_series(path)
+    d0 = dcms[1]
 
-    # Fallback: PixelMeasuresSequence in the functional groups
-    if pixel_spacing === nothing || slice_thickness === nothing
-        for group_tag in ((0x5200, 0x9229), (0x5200, 0x9230))
-            group = first_item(getval(d, group_tag))
-            group === nothing && continue
-            pms = first_item(getval(group, (0x0028, 0x9110)))
-            pms === nothing && continue
-            if pixel_spacing === nothing
-                pixel_spacing = getval(pms, (0x0028, 0x0030))
-            end
-            if slice_thickness === nothing
-                slice_thickness = getval(pms, (0x0018, 0x0050))
-            end
-            (pixel_spacing !== nothing && slice_thickness !== nothing) && break
-        end
+    sanitize(get_tag(d0, (0x0008, 0x0060))) == "PT" ||
+        error("suv_ibsi_normalization=true requires a PET series (Modality PT): $path")
+
+    units = sanitize(get_tag(d0, (0x0054, 0x1001)))
+    isempty(units) && (units = get_units_from_rwv(d0))
+    suv_type = sanitize(get_tag(d0, (0x0054, 0x1006)))
+    sex = sanitize(get_tag(d0, (0x0010, 0x0040)))
+    manuf = sanitize(get_tag(d0, (0x0008, 0x0070)))
+
+    W_raw = scalar_tag(d0, (0x0010, 0x1030))
+    (W_raw === nothing || W_raw <= 0) && error("Patient's Weight assente o non positivo")
+    W_kg = W_raw >= 1000.0 ? W_raw / 1000.0 : W_raw
+    H_m = something(scalar_tag(d0, (0x0010, 0x1020)), 0.0)
+
+    r_seq_0 = get_tag(d0, (0x0054, 0x0016))
+    rp_item_0 = r_seq_0 !== nothing ? r_seq_0[1] : d0
+    D_adm = get_dose(rp_item_0)
+    T_half = something(scalar_tag(rp_item_0, (0x0018, 0x1075)), 0.0)
+
+    rows = Int(d0[(0x0028, 0x0010)])
+    cols = Int(d0[(0x0028, 0x0011)])
+    is_multiframe = length(dcms) == 1 && nf > 1
+    nz = is_multiframe ? nf : length(dcms)
+    maximum(roi_slices) <= nz || error("Mask and PET have different number of slices")
+
+    function suv_of(d)
+        r_seq = get_tag(d, (0x0054, 0x0016))
+        rp_item = r_seq !== nothing ? r_seq[1] : d
+        acq_date = parse_date(get_tag(d, (0x0008, 0x0022)))
+        t_acq_tod = parse_time(get_tag(d, (0x0008, 0x0032)))
+        t_acq_dt = combine_date_time(acq_date !== nothing ? acq_date : Date(2000, 1, 1), t_acq_tod)
+        t_adm, t_adm_q = get_tadm(rp_item, t_acq_dt)
+        return compute_slice_suv(d, units, suv_type, sex, W_kg, H_m, D_adm, T_half,
+            t_adm, t_adm_q, manuf)
     end
 
-    # Normalize types: PixelSpacing as Vector{Float64}, SliceThickness as Float64
-    if pixel_spacing !== nothing
-        pixel_spacing = Float64.(collect(pixel_spacing))
-    end
-    if slice_thickness !== nothing
-        slice_thickness = Float64(slice_thickness isa AbstractArray ? first(slice_thickness) : slice_thickness)
-    end
-
-    return pixel_spacing, slice_thickness
-end
-
-"""
-    extract_multiframe_pixel_slices(d, rows, cols, n_frames)
-
-Returns a `Vector{Matrix{Float32}}` with one `rows × cols` matrix per frame,
-read from the PixelData (7FE0,0010) of a multiframe DICOM dataset.
-Handles PixelData returned either as a 3D array or as a flat vector.
-"""
-function extract_multiframe_pixel_slices(d, rows::Int, cols::Int, n_frames::Int)
-    haskey(d, (0x7fe0, 0x0010)) || error("PixelData not found")
-    px = d[(0x7fe0, 0x0010)]
-
-    if px isa AbstractArray && ndims(px) == 3
-        size(px, 3) == n_frames ||
-            error("PixelData has $(size(px, 3)) frames, expected $n_frames")
-        if size(px, 1) == rows && size(px, 2) == cols
-            arr = px
-        elseif size(px, 1) == cols && size(px, 2) == rows
-            arr = permutedims(px, (2, 1, 3))   # (cols, rows, n) -> (rows, cols, n)
-        else
-            error("PixelData size $(size(px)) does not match rows=$rows, cols=$cols")
+    suv_vol = zeros(Float32, rows, cols, nz)
+    if is_multiframe
+        pix = extract_multiframe_pixel_slices(d0, rows, cols, nf)
+        for i in 1:nf
+            res, reason = suv_of(FrameView(d0, i, pix[i]))
+            res === nothing && error("SUV normalization failed on frame $i: $reason (units=$units, suv_type=$suv_type)")
+            suv_vol[:, :, i] = res
         end
     else
-        # Flat vector: DICOM stores pixels row-major (columns vary fastest)
-        length(px) == rows * cols * n_frames ||
-            error("PixelData length $(length(px)) != rows*cols*n_frames")
-        arr = permutedims(reshape(vec(px), cols, rows, n_frames), (2, 1, 3))
+        for i in roi_slices
+            res, reason = suv_of(dcms[i])
+            res === nothing && error("SUV normalization failed on slice $i: $reason (units=$units, suv_type=$suv_type)")
+            suv_vol[:, :, i] = res
+        end
     end
 
-    return [Float32.(arr[:, :, i]) for i in 1:n_frames]
+    data = permutedims(suv_vol, (2, 1, 3))         # (cols, rows, slices), come _read_dicom
+    return MedImage(data, base.spacing, base.origin, base.direction)
 end
 
-# Reads a scalar value (or the first element) from a tag, with a default value.
+"""
+    _load_dicom_series(path)
+
+    Loads a DICOM series (folder or single file), checks it is a single series
+    and sorts the slices by position. Returns `(dcms, n_frames)`.
+
+    # Arguments:
+    - `path`: The path to the image.
+
+    # Returns:
+    - `dcms`: The list of DICOM images.
+    - `n_frames`: The number of frames.
+"""
+function _load_dicom_series(path)
+    dcms = isdir(path) ? DICOM.dcmdir_parse(path) : [DICOM.dcm_parse(path)]
+    filter!(d -> haskey(d, (0x7fe0, 0x0010)), dcms)
+    isempty(dcms) && error("No DICOM images found in $path")
+    length(unique(d[(0x0020, 0x000e)] for d in dcms)) == 1 ||
+        error("Folder contains more than one DICOM series: $path")
+    nf = Int(_scalar(dcms[1], (0x0028, 0x0008), 1))
+    length(dcms) > 1 && nf > 1 &&
+        error("Multiple multiframe DICOM files not supported: $path")
+    sort!(dcms; by=slice_pos)
+    return dcms, nf
+end
+
+"""
+    _scalar(ds, tag, default)
+    
+    Reads a scalar value (or the first element) from a tag, with a default value.
+    
+    # Arguments:
+    - `ds`: The DICOM dataset.
+    - `tag`: The tag to read.
+    - `default`: The default value.
+    
+    # Returns:
+    - `_scalar`: The scalar value.
+"""
 function _scalar(ds, tag, default)
     (ds isa AbstractDict || hasmethod(haskey, Tuple{typeof(ds),typeof(tag)})) || return default
     haskey(ds, tag) || return default

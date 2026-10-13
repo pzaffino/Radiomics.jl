@@ -30,6 +30,7 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
                               get_raw_matrices::Bool=false,
                               slices_2d=nothing,
                               use_gpu::Bool=false,
+                              suv_ibsi_normalization::Bool=false,
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -54,13 +55,14 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
                             a vector of tuples (plan, slice_idx) where plan is the plane number (1, 2, or 3) and slice_idx is the slice index. 
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
+    - `suv_ibsi_normalization`: If true, normalizes the image using the IBSI SUV normalization method.
     - `verbose`: If true, prints progress messages.
         
     # Returns:
     - Single label or nothing: Dict{String,Any} with feature names as keys
     - Multiple labels: Dict{Int,Dict{String,Any}} where outer keys are label values
 """
-function extract_radiomic_features(img_input, mask_input, voxel_spacing_input = nothing;
+function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=nothing;
     features=Symbol[],
     labels=nothing,
     n_bins=nothing,
@@ -71,9 +73,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input = 
     features_std::Bool=false,
     slices_2d=nothing,
     use_gpu::Bool=false,
+    suv_ibsi_normalization::Bool=false,
     verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
 
-    img_input, mask_input, voxel_spacing_input = _resolve_inputs(img_input, mask_input, voxel_spacing_input)
+    img_input, mask_input, voxel_spacing_input = _resolve_inputs(img_input, mask_input, voxel_spacing_input, suv_ibsi_normalization)
 
     # Cast all inputs to correct types
     p = _cast_inputs(
