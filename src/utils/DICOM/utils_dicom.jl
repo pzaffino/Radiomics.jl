@@ -35,7 +35,7 @@ function _read_dicom_suv(path, roi_slices)
     manuf = sanitize(get_tag(d0, (0x0008, 0x0070)))
 
     W_raw = scalar_tag(d0, (0x0010, 0x1030))
-    (W_raw === nothing || W_raw <= 0) && error("Patient's Weight assente o non positivo")
+    (W_raw === nothing || W_raw <= 0) && error("Patient's Weight absent or not positive")
     W_kg = W_raw >= 1000.0 ? W_raw / 1000.0 : W_raw
     H_m = something(scalar_tag(d0, (0x0010, 0x1020)), 0.0)
 
