@@ -84,6 +84,25 @@ const DRO_REF = "db3be81847f40a8484921a069ec99a39d0855aba"
 # Tolerance for SUV nominal value comparison
 const SUV_NOMINAL_RTOL = 0.02
 
+# Error messages for DRO datasets
+const DRO_ERROR_MSG = Dict(
+    "DRO_error_2_0" => "Patient's Weight absent or not positive",
+    "DRO_error_2_1" => "Patient's Weight absent or not positive",
+    "DRO_error_2_2" => "error-invalid-sex",
+    "DRO_error_2_3" => "error-invalid-sex",
+    "DRO_error_2_4" => "error-no-height",
+    "DRO_error_2_5" => "error-no-height",
+    "DRO_error_2_6" => "error-CNTS-no-factor",
+    "DRO_error_2_7" => "error-unit-PROPCNTS",
+    "DRO_error_3_0" => "error-no-dose",
+    "DRO_error_3_1" => "error-no-dose",
+    "DRO_error_3_2" => "error-tref",
+    "DRO_error_4_0" => "error-no-tadm",
+    "DRO_error_4_1" => "error-tadm-not-date-qualified",
+    "DRO_error_4_2" => "error-tadm-not-date-qualified",
+    "DRO_error_5_0" => "error-no-T½",
+)
+
 """
     download_dro_all(dest; ref=DRO_REF)
 
@@ -423,7 +442,7 @@ mktempdir() do tmpdir
         for n in names
             @testset "$n" begin
                 if startswith(n, "DRO_error")
-                    @test_throws ErrorException dro_features(n)
+                    @test_throws DRO_ERROR_MSG[n] dro_features(n)
                 else
                     radiomic_features = dro_features(n)
 
