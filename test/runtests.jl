@@ -3,23 +3,25 @@ using NIfTI
 using Radiomics
 using Downloads
 using CUDA
+using JSON3
 
+# --------------- IBSI Validation Test Suite ---------------
 """
-IBSI Validation Test Suite
+    IBSI Validation Test Suite
 
-This module contains automated tests to validate the `extract_radiomic_features` 
-function against the Image Biomarker Standardisation Initiative (IBSI) guidelines. 
-It extracts features from a standardized digital phantom and asserts that the 
-computed values strictly match the official IBSI reference values, ensuring the 
-mathematical correctness and compliance of the extraction pipeline.
+    This module contains automated tests to validate the `extract_radiomic_features` 
+    function against the Image Biomarker Standardisation Initiative (IBSI) guidelines. 
+    It extracts features from a standardized digital phantom and asserts that the 
+    computed values strictly match the official IBSI reference values, ensuring the 
+    mathematical correctness and compliance of the extraction pipeline.
 
-Reference Data:
-The benchmark values used for validation in this suite are derived from the 
-official IBSI Phase 1 standard. 
-The reference manuals and data sets can be accessed at:
-- Reference Data Sets Guide: https://ibsi.readthedocs.io/en/latest/05_Reference_data_sets.html
-- Official Website: https://theibsi.github.io/
-- Data Repository: https://github.com/theibsi/data_sets
+    Reference Data:
+    The benchmark values used for validation in this suite are derived from the 
+    official IBSI Phase 1 standard. 
+    The reference manuals and data sets can be accessed at:
+    - Reference Data Sets Guide: https://ibsi.readthedocs.io/en/latest/05_Reference_data_sets.html
+    - Official Website: https://theibsi.github.io/
+    - Data Repository: https://github.com/theibsi/data_sets
 """
 
 const PHANTOM_DIR = "https://raw.githubusercontent.com/theibsi/data_sets/master/ibsi_1_digital_phantom/nifti/image/phantom.nii.gz"
@@ -28,22 +30,22 @@ const MASK_DIR = "https://raw.githubusercontent.com/theibsi/data_sets/master/ibs
 """
     ibsi_test(actual::Real, reference::Real, tolerance::Real) -> Bool
 
-Validates a radiomic feature against the IBSI reference value.
+    Validates a radiomic feature against the IBSI reference value.
 
-Computes the absolute difference between `actual` and `reference`, rounded down
-to an adaptive number of decimal places based on the magnitude of `reference`:
-- If `reference` is large (e.g. 1000), the difference is rounded to fewer decimals.
-- If `reference` is small (e.g. 0.001), the difference is rounded to more decimals.
-- If `reference` is 0, the difference is rounded to 0 decimal places.
+    Computes the absolute difference between `actual` and `reference`, rounded down
+    to an adaptive number of decimal places based on the magnitude of `reference`:
+    - If `reference` is large (e.g. 1000), the difference is rounded to fewer decimals.
+    - If `reference` is small (e.g. 0.001), the difference is rounded to more decimals.
+    - If `reference` is 0, the difference is rounded to 0 decimal places.
 
-# Arguments
-- `actual::Real`: The computed radiomic feature value (your result).
-- `reference::Real`: The IBSI reference value.
-- `tolerance::Real`: The IBSI tolerance value.
+    # Arguments
+    - `actual::Real`: The computed radiomic feature value (your result).
+    - `reference::Real`: The IBSI reference value.
+    - `tolerance::Real`: The IBSI tolerance value.
 
-# Returns
-- `true` if the rounded difference is within `tolerance` (match).
-- `false` otherwise (no match).
+    # Returns
+    - `true` if the rounded difference is within `tolerance` (match).
+    - `false` otherwise (no match).
 """
 function ibsi_test(actual::Real, reference::Real, tolerance::Real)
     if reference == 0
@@ -56,6 +58,59 @@ function ibsi_test(actual::Real, reference::Real, tolerance::Real)
     return diff <= tolerance
 end
 
+# --------------- PET SUV Validation Test Suite --------------- 
+"""
+    PET SUV Validation Test Suite
+
+    This module contains resources and validation tests to verify the correct 
+    computation of standardized uptake values (SUVs) from DICOM PET images according to 
+    the project's SUV computation guidelines. It uses synthetic Digital Reference Objects 
+    (DROs) with known reference values to test the correctness of SUV calculation implementations 
+    and a validation dataset comprising real-world PET-DICOM series and corresponding regions 
+    of interest (ROIs) stored as NIfTI binary masks to assess consistency across different implementations.
+
+    Reference Data:
+
+    The reference materials and datasets used for SUV computation and validation are provided by the project and include:
+
+    - SUV Computation Manual: https://oncoray.github.io/suv_computation/suv.html
+    - Official Website: https://theibsi.github.io/
+    - Digital Reference Objects (DROs) Repository: https://github.com/oncoray/suv_computation/tree/main/DRO
+    
+"""
+# The hash of the reference DRO dataset.
+const DRO_REF = "db3be81847f40a8484921a069ec99a39d0855aba"
+
+"""
+    download_dro_all(dest; ref=DRO_REF)
+
+    Downloads the reference Digital Reference Objects (DROs) for SUV computation.
+
+    This function downloads the reference DRO dataset from the official repository
+    and saves it to the specified destination directory.
+
+    # Arguments
+    - `dest::AbstractString`: The destination directory where the DROs will be downloaded.
+    - `ref::AbstractString`: The hash of the reference DRO dataset (default: DRO_REF).
+
+    # Returns
+    - `true` if the download was successful.
+"""
+function download_dro_all(dest; ref=DRO_REF)
+    io = IOBuffer()
+    Downloads.download("https://api.github.com/repos/oncoray/suv_computation/git/trees/$ref?recursive=1", io)
+    tree = JSON3.read(String(take!(io)))
+    tree.truncated && error("GitHub tree truncated")
+    files = [t.path for t in tree.tree
+             if t.type == "blob" && startswith(t.path, "DRO/data/") && !occursin("/RS/", t.path)]
+    asyncmap(files; ntasks=8) do p
+        out = joinpath(dest, relpath(p, "DRO/data"))
+        mkpath(dirname(out))
+        Downloads.download("https://raw.githubusercontent.com/oncoray/suv_computation/$ref/$p", out)
+    end
+end
+
+# --------------- Managment of GPU --------------- 
 """
     gpu_present() -> Bool
 
@@ -81,17 +136,26 @@ end
 #Control of CUDA
 is_gpu_available = GPU_PRESENT && CUDA.functional()
 
+# --------------- Execution of IBSI tests --------------- 
 mktempdir() do tmpdir
     phantom_path = joinpath(tmpdir, "phantom.nii.gz")
     mask_path = joinpath(tmpdir, "mask.nii.gz")
-    @info "Downloading IBSI dataset..."
+    dro_dir = joinpath(tmpdir, "DRO")
+    @info "[STEP 1] Start Download"
 
-    @info "Downloading phantom..."
+    @info "[STEP 2] Downloading Phantom and mask..."
     Downloads.download(PHANTOM_DIR, phantom_path)
-    @info "Downloading mask..."
     Downloads.download(MASK_DIR, mask_path)
 
+    @info "[STEP 3] Downloading DROs datasets..."
+    download_dro_all(dro_dir)
+
     @info "Download complete."
+
+    # Managment of DROs downloaded DROs
+    names = sort(filter(n -> startswith(n, "DRO_") && isdir(joinpath(dro_dir, n)), readdir(dro_dir)))
+
+    dro_features(n) = Radiomics.extract_radiomic_features(joinpath(dro_dir, n, "PT"), joinpath(dro_dir, n, "mask", "DRO_mask.nii.gz"); suv_ibsi_normalization=true, features=[:first_order], verbose=false)
 
     # Test on CPU
     @info "Executing tests for CPU..."
@@ -348,6 +412,25 @@ mktempdir() do tmpdir
         @test ibsi_test(radiomic_2D_features["shape2d_sphericity"], 0.7663980345420807, 0.005)
         @test ibsi_test(radiomic_2D_features["shape2d_number_of_islands"], 1, 0)
 
+    end
+
+    @info "Executing tests for DRO dataset features..."
+
+    @testset "Radiomics DROs set" begin
+        for n in names
+            @testset "$n" begin
+                if startswith(n, "DRO_error")
+                    @test_throws ErrorException dro_features(n)
+                else
+                    radiomic_features = dro_features(n)
+
+                    # Nominal SUV values for each of ROIs: (SUVmin, SUVmediana, SUVmax)
+                    @test ibsi_test(radiomic_features["firstorder_minimum"], 0.2, 0.001)
+                    @test ibsi_test(radiomic_features["firstorder_median"], 1.0, 0)
+                    @test ibsi_test(radiomic_features["firstorder_maximum"], 4.0, 0)
+                end
+            end
+        end
     end
 
     # Test on GPU
