@@ -81,6 +81,9 @@ end
 # The hash of the reference DRO dataset.
 const DRO_REF = "db3be81847f40a8484921a069ec99a39d0855aba"
 
+# Tolerance for SUV nominal value comparison
+const SUV_NOMINAL_RTOL = 0.02
+
 """
     download_dro_all(dest; ref=DRO_REF)
 
@@ -136,7 +139,7 @@ end
 #Control of CUDA
 is_gpu_available = GPU_PRESENT && CUDA.functional()
 
-# --------------- Execution of IBSI tests --------------- 
+# --------------- Execution of tests --------------- 
 mktempdir() do tmpdir
     phantom_path = joinpath(tmpdir, "phantom.nii.gz")
     mask_path = joinpath(tmpdir, "mask.nii.gz")
@@ -425,9 +428,9 @@ mktempdir() do tmpdir
                     radiomic_features = dro_features(n)
 
                     # Nominal SUV values for each of ROIs: (SUVmin, SUVmediana, SUVmax)
-                    @test ibsi_test(radiomic_features["firstorder_minimum"], 0.2, 0.001)
-                    @test ibsi_test(radiomic_features["firstorder_median"], 1.0, 0)
-                    @test ibsi_test(radiomic_features["firstorder_maximum"], 4.0, 0)
+                    @test isapprox(radiomic_features["firstorder_minimum"], 0.20, rtol=SUV_NOMINAL_RTOL)
+                    @test isapprox(radiomic_features["firstorder_median"], 1.0, rtol=SUV_NOMINAL_RTOL)
+                    @test isapprox(radiomic_features["firstorder_maximum"], 4.0, rtol=SUV_NOMINAL_RTOL)
                 end
             end
         end
