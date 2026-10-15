@@ -746,19 +746,41 @@
             <span class="code-dot"></span>
             <span class="code-dot"></span>
           </div>
-          <pre><code><span class="julia-keyword">using</span> <span class="julia-type">NIfTI</span>
-<span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+          <pre><code><span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
 
-<span class="julia-comment"># Load medical image and segmentation mask</span>
-ct = <span class="julia-function">niread</span>(<span class="julia-string">"Path/to/CT.nii.gz"</span>)
-mask = <span class="julia-function">niread</span>(<span class="julia-string">"Path/to/Mask.nii.gz"</span>)
-
-<span class="julia-comment"># Extract voxel spacing from image header</span>
-spacing = [<span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">2</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">3</span>], <span class="julia-literal">ct.header.pixdim</span>[<span class="julia-literal">4</span>]]
+<span class="julia-comment"># Paths to the medical image and segmentation mask, with voxel spacing automatically read from the files</span>
+ct = <span class="julia-string">"Path/to/Volume"</span>
+mask = <span class="julia-string">"Path/to/Mask"</span>
 
 <span class="julia-comment"># Extract radiomic features</span>
-radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct.raw, mask.raw, spacing)</code></pre>
+radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(ct, mask)</code></pre>
         </div>
+
+
+        <p>Below is an example of how to extract features when you already have the image and the mask loaded in
+          memory as arrays:</p>
+
+        <div class="code-container">
+          <div class="code-header">
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+            <span class="code-dot"></span>
+          </div>
+          <pre><code><span class="julia-keyword">using</span> <span class="julia-type">Radiomics</span>
+
+<span class="julia-comment"># img and mask: arrays of the same size (2D or 3D)</span>
+<span class="julia-comment"># spacing: voxel spacing, in the same axis order of the arrays</span>
+spacing = [<span class="julia-literal">1.0</span>, <span class="julia-literal">1.0</span>, <span class="julia-literal">1.0</span>]
+
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia-function">extract_radiomic_features</span>(img, mask, spacing)</code></pre>
+        </div>
+
+
+
+
+
+
       </div>
       <p style="font-size: 12px; text-align: center;">
         Radiomics.jl is a research software package and is <strong style="color:#2563eb;">not a medical device</strong>.
