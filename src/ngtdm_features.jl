@@ -1,7 +1,7 @@
 using StatsBase
 
 """
-    get_ngtdm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false, P_ngtdm=nothing, gray_levels=nothing)
+    get_ngtdm_features(img, mask, voxel_spacing; n_bins=nothing, bin_width=nothing, verbose=false, P_ngtdm=nothing, gray_levels=nothing, coeffs=nothing)
 
     Calculates and returns a dictionary of NGTDM (Neighbouring Gray Tone Difference Matrix) features.
 
@@ -11,7 +11,7 @@ using StatsBase
     - If neither is specified, defaults to n_bins=32
 
     # Notes
-    `P_ngtdm`, `gray_levels` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the NGTDM matrix on the CPU. 
+    `P_ngtdm`, `gray_levels`,`coeffs` are passed only when they have been computed by the CUDA extension, in order to perform additional calculations on the NGTDM matrix on the CPU. 
     If NGTDM features are being extracted on the CPU, do not pass any of these as these values are computed inside this function
 
     # Arguments
@@ -22,6 +22,9 @@ using StatsBase
     - `bin_width`: The width of each bin (optional).
     - `get_raw_matrices`: If true, returns the raw NGTDM matrix.
     - `verbose`: If true, prints progress messages.
+    - `P_ngtdm`: Matrix calculated on the GPU. 
+    - `gray_levels`: Gray levels calculated on the GPU.
+    - `coeffs`: Tuple containing `complexity`, `contrast`, `strength`, `busyness`, `coarseness` values calculated on the GPU.
 
     # Returns
     - A dictionary where keys are the feature names and values are the calculated feature values.
@@ -44,7 +47,8 @@ function get_ngtdm_features(img::AbstractArray{Float64},
     get_raw_matrices::Bool=false,
     verbose::Bool=false,
     P_ngtdm::Union{Array{Float64},Nothing}=nothing,
-    gray_levels::Union{Array{Int},Nothing}=nothing)::Dict{String,Any}
+    gray_levels::Union{Array{Int},Nothing}=nothing,
+    coeffs::Union{Tuple{Float64,Float64,Float64,Float64,Float64},Nothing}=nothing)::Dict{String,Any}
     if verbose
         if !isnothing(n_bins)
             println("NGTDM calculation with $(n_bins) bins...")
@@ -76,14 +80,22 @@ function get_ngtdm_features(img::AbstractArray{Float64},
     end
 
     # 3. Calculate coefficients
-    Nvp, p_i, s_i, ivector, Ngp = calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
 
     # 4. Calculate features
-    ngtdm_features["ngtdm_Coarseness"] = coarseness(p_i, s_i)
-    ngtdm_features["ngtdm_Contrast"] = contrast(p_i, s_i, ivector, Ngp, Nvp)
-    ngtdm_features["ngtdm_Busyness"] = busyness(p_i, s_i, ivector)
-    ngtdm_features["ngtdm_Complexity"] = complexity(p_i, s_i, ivector, Nvp)
-    ngtdm_features["ngtdm_Strength"] = strength(p_i, s_i, ivector)
+    if coeffs === nothing
+        Nvp, p_i, s_i, ivector, Ngp = calculate_ngtdm_coefficients(P_ngtdm, gray_levels)
+        ngtdm_features["ngtdm_Coarseness"] = coarseness(p_i, s_i)
+        ngtdm_features["ngtdm_Contrast"] = contrast(p_i, s_i, ivector, Ngp, Nvp)
+        ngtdm_features["ngtdm_Busyness"] = busyness(p_i, s_i, ivector)
+        ngtdm_features["ngtdm_Complexity"] = complexity(p_i, s_i, ivector, Nvp)
+        ngtdm_features["ngtdm_Strength"] = strength(p_i, s_i, ivector)
+    else
+        ngtdm_features["ngtdm_Coarseness"] = coeffs[1]
+        ngtdm_features["ngtdm_Contrast"] = coeffs[2]
+        ngtdm_features["ngtdm_Busyness"] = coeffs[3]
+        ngtdm_features["ngtdm_Complexity"] = coeffs[4]
+        ngtdm_features["ngtdm_Strength"] = coeffs[5]
+    end
 
     if verbose
         println("completed, extract $(length(ngtdm_features)) features.")
