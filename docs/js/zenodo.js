@@ -2,7 +2,7 @@
     // === CONFIGURATION ===
     // Concept record ID of Radiomics.jl on Zenodo ("Cite all versions"):
     // it is the trailing number of the concept DOI (10.5281/zenodo.<CONCEPT_RECID>).
-    const CONCEPT_RECID = 'CONCEPT_RECID';
+    const CONCEPT_RECID = '23160114';
     // =====================
 
     const CONCEPT_DOI = `10.5281/zenodo.${CONCEPT_RECID}`;
