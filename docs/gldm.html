@@ -899,13 +899,12 @@
   </main>
 
   <script>
-    const dropdownBtn = document.querySelector('.dropdown-btn');
     const mobileMenuToggle = document.getElementById('mobileMenuToggle');
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('overlay');
 
-    dropdownBtn.addEventListener('click', () => {
-      dropdownBtn.parentElement.classList.toggle('active');
+    document.querySelectorAll('.dropdown-btn').forEach(btn => {
+      btn.addEventListener('click', () => btn.parentElement.classList.toggle('active'));
     });
 
     mobileMenuToggle.addEventListener('click', () => {
