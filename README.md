@@ -178,3 +178,8 @@ This software is for research purposes only.
 It is NOT intended for clinical use, diagnosis, or treatment.
 It has NOT been cleared or approved by the FDA (USA), CE (EU), or any other regulatory body.
 Use at your own risk.
+
+# How cite Radiomics.jl
+If you use Radiomics.jl in your research, please cite it as:
+[![DOI](https://zenodo.org/badge/DOI/10.5281/zenodo.23160114.svg)](https://doi.org/10.5281/zenodo.23160114)
+For detailed citation formats and BibTeX entries, see our [Citation Guide](https://pzaffino.github.io/Radiomics.jl/cite.html).
