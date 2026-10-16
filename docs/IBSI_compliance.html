@@ -7,7 +7,7 @@
     <link rel="icon"
         href="https://raw.githubusercontent.com/pzaffino/Radiomics.jl/refs/heads/main/Logo%20Radiomicsjl.png"
         type="image/png">
-    <title>Installation - Radiomics.jl</title>
+    <title>IBSI Compliance - Radiomics.jl</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
         rel="stylesheet">
     <style>
@@ -182,7 +182,8 @@
             border-left-color: var(--primary-light);
         }
 
-        .sidebar nav>a.active {
+        .sidebar nav>a.active,
+        .sidebar .dropdown-content a.active {
             background-color: rgba(37, 99, 235, 0.15);
             color: white;
             font-weight: 600;
@@ -776,7 +777,13 @@
         <nav>
             <a href="index.html">Home</a>
             <a href="installation.html">Getting Started</a>
-            <a href="IBSI_compliance.html" class="active">IBSI Compliance</a>
+            <div class="dropdown active">
+                <button class="dropdown-btn">IBSI Benchmark</button>
+                <div class="dropdown-content">
+                    <a href="IBSI_compliance.html" class="active">IBSI Compliance</a>
+                    <a href="IBSI_SUV_Normalization.html">IBSI SUV Normalization</a>
+                </div>
+            </div>
             <a href="example.html">Examples</a>
             <a href="cross_languages.html">Cross languages</a>
             <a href="news.html">News</a>

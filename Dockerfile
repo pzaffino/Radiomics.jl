@@ -2,7 +2,7 @@
 FROM julia:1.10-bookworm
 LABEL org.opencontainers.image.source=https://github.com/pzaffino/Radiomics.jl
 LABEL org.opencontainers.image.description="Radiomics.jl Docker Image"
-LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>, Ciro Benito Raggio <[ciro.raggio@kit.edu]>, Mohammadreza Javadi Namin <[mohammadreza.javadi@mail.polimi.it]>, Nastaran Ghaffari Elkhechi <[nastaran.ghaffari@mail.polimi.it]>, Jakub Mitura <[jakub.mitura14@gmail.com], Marco Tullio Giannotti <marcotullio.giannotti@studenti.unicz.it>">
+LABEL maintainer="Paolo Zaffino <[p.zaffino@unicz.it]>, Aldo Giuliani <[aldo.giuliani@studenti.unicz.it]>, Ciro Benito Raggio <[ciro.raggio@kit.edu]>, Mohammadreza Javadi Namin <[mohammadreza.javadi@mail.polimi.it]>, Nastaran Ghaffari Elkhechi <[nastaran.ghaffari@mail.polimi.it]>, Jakub Mitura <[jakub.mitura14@gmail.com], Marco Tullio Giannotti <marcotullio.giannotti@studenti.unicz.it>"
 
 # Build parameter: defaults to false (CPU-only)
 ARG USE_CUDA=false
@@ -18,7 +18,7 @@ RUN apt-get update && apt-get install -y \
 # Conditional dependency installation
 RUN julia -e 'using Pkg; \
     Pkg.add(url="https://github.com/pzaffino/Radiomics.jl"); \
-    pkgs = ["NIfTI", "ArgParse", "CSV", "DataFrames", "PrecompileTools"]; \
+    pkgs = ["ArgParse", "CSV", "DataFrames", "PrecompileTools"]; \
     if get(ENV, "USE_CUDA", "false") == "true"; \
         push!(pkgs, "CUDA"); \
         Pkg.add(pkgs); \
@@ -33,7 +33,7 @@ RUN julia -e 'using Pkg; \
 WORKDIR /app
 
 # Script generation with conditional CUDA import
-RUN printf 'using Radiomics, NIfTI, ArgParse, CSV, DataFrames\n\
+RUN printf 'using Radiomics, ArgParse, CSV, DataFrames\n\
 if get(ENV, "USE_CUDA", "false") == "true"\n\
     try\n\
         using CUDA\n\
@@ -46,10 +46,10 @@ function parse_args_custom()\n\
     s = ArgParseSettings()\n\
     @add_arg_table! s begin\n\
         "img"\n\
-            help = "Path to input NIfTI image"\n\
+            help = "Path to input image (NIfTI, NRRD or DICOM folder)"\n\
             required = true\n\
         "mask"\n\
-            help = "Path to NIfTI mask"\n\
+            help = "Path to mask (NIfTI, NRRD or DICOM folder)"\n\
             required = true\n\
         "--output", "-o"\n\
             help = "Path to output CSV file"\n\
@@ -75,6 +75,10 @@ function parse_args_custom()\n\
             help = "Return raw feature matrices"\n\
             arg_type = Bool\n\
             default = false\n\
+        "--suv_ibsi_normalization"\n\
+            help = "Normalize a PET DICOM series to SUV (the image must be a DICOM PET series)"\n\
+            arg_type = Bool\n\
+            default = false\n\
         "--verbose"\n\
             help = "Enable verbose output"\n\
             arg_type = Bool\n\
@@ -85,16 +89,9 @@ end\n\
 \n\
 args = parse_args_custom()\n\
 \n\
-# Load NIfTI image and mask\n\
-img  = niread(args["img"])\n\
-mask = niread(args["mask"])\n\
-\n\
-# Extract voxel spacing from image header\n\
-spacing = (img.header.pixdim[2], img.header.pixdim[3], img.header.pixdim[4])\n\
-\n\
-# Run radiomic feature extraction\n\
+# Run radiomic feature extraction (image and mask are read from the given paths)\n\
 features = Radiomics.extract_radiomic_features(\n\
-    img.raw, mask.raw, spacing;\n\
+    args["img"], args["mask"];\n\
     features=Symbol[],\n\
     labels=nothing,\n\
     n_bins=args["n_bins"],\n\
@@ -103,6 +100,7 @@ features = Radiomics.extract_radiomic_features(\n\
     keep_largest_only=args["keep_largest_only"],\n\
     get_raw_matrices=args["get_raw_matrices"],\n\
     slices_2d=nothing,\n\
+    suv_ibsi_normalization=args["suv_ibsi_normalization"],\n\
     verbose=args["verbose"]\n\
 );\n\
 \n\
@@ -115,7 +113,7 @@ println("Extraction complete. Results saved to: ", args["output"])\n\
 # Explicit installation of PackageCompiler and sysimage creation
 RUN julia -e 'using Pkg; Pkg.add("PackageCompiler")'
 RUN julia -e 'using Pkg, PackageCompiler; \
-    pkgs = [:Radiomics, :NIfTI, :ArgParse, :CSV, :DataFrames]; \
+    pkgs = [:Radiomics, :ArgParse, :CSV, :DataFrames]; \
     ENV["USE_CUDA"] == "true" && push!(pkgs, :CUDA); \
     create_sysimage(pkgs; sysimage_path="/app/radiomics.so", cpu_target="generic")'
 

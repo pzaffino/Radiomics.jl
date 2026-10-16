@@ -3,9 +3,11 @@ CUDA = "052768ef-5323-5732-b1bb-66c8b64840ba"
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 NIfTI = "a3a9e032-41b5-5fc4-967a-a6b7a19844d3"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+JSON3 = "0f8b85d8-7281-11e9-16c2-39a750bddbf1"
 
 [compat]
-CUDA = "6.1.0"
+CUDA = "6.4.2"
 NIfTI = "0.6"
 Test = "1.10.0"
 julia = "1.10"
+JSON3 = "1.14.3"
