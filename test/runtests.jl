@@ -453,20 +453,20 @@ mktempdir() do tmpdir
                 end
             end
         end
+
+    end 
+
     @info "Executing tests for wavelet on the CPU..."
 
     @testset "Haar Filters" begin
-        ct = niread(phantom_path)
-        mask = niread(mask_path)
-        spacing = [ct.header.pixdim[2], ct.header.pixdim[3], ct.header.pixdim[4]]
 
-        wf_lll = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-LLL ----
+        wf_lll = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["LLL"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-LLL ----
         # First Order
         @test ibsi_test(wf_lll["firstorder_entropy"], 2.356264907791711, 0)
         @test ibsi_test(wf_lll["firstorder_energy"], 3544.749999999998, 0)
@@ -568,13 +568,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_lll["ngtdm_Contrast"], 0.1779765139879916, 0)
         @test ibsi_test(wf_lll["ngtdm_Strength"], 1.0505172329814763, 0)
 
-        wf_llh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-LLH ----
+        wf_llh = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["LLH"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-LLH ----
         # First Order
         @test ibsi_test(wf_llh["firstorder_entropy"], 2.254094013481317, 0)
         @test ibsi_test(wf_llh["firstorder_energy"], 194.74999999999991, 0)
@@ -676,13 +676,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_llh["ngtdm_Contrast"], 0.08927808851305384, 0)
         @test ibsi_test(wf_llh["ngtdm_Strength"], 0.9137227195890167, 0)
         
-        wf_lhl = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-LHL ----
+        wf_lhl = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["LHL"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-LHL ----
         # First Order
         @test ibsi_test(wf_lhl["firstorder_entropy"], 2.1302530592782256, 0)
         @test ibsi_test(wf_lhl["firstorder_energy"], 152.24999999999994, 0)
@@ -784,13 +784,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_lhl["ngtdm_Contrast"], 0.06879173502162637, 0)
         @test ibsi_test(wf_lhl["ngtdm_Strength"], 0.865043921554901, 0)
 
-        wf_lhh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-LHH ----
+        wf_lhh = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["LHH"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-LHH ----
         # First Order
         @test ibsi_test(wf_lhh["firstorder_entropy"], 2.049473531467886, 0)
         @test ibsi_test(wf_lhh["firstorder_energy"], 129.24999999999994, 0)
@@ -892,13 +892,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_lhh["ngtdm_Contrast"], 0.06912853271576713, 0)
         @test ibsi_test(wf_lhh["ngtdm_Strength"], 0.868674004414709, 0)
         
-        wf_hll = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-HLL ----
+        wf_hll = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["HLL"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-HLL ----
         # First Order
         @test ibsi_test(wf_hll["firstorder_entropy"], 2.295199734201716, 0)
         @test ibsi_test(wf_hll["firstorder_energy"], 615.7499999999997, 0)
@@ -1000,13 +1000,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_hll["ngtdm_Contrast"], 0.11467458927705637, 0)
         @test ibsi_test(wf_hll["ngtdm_Strength"], 0.7680909595760993, 0)
 
-        wf_hlh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-HLH ----
+        wf_hlh = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["HLH"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-HLH ----
         # First Order
         @test ibsi_test(wf_hlh["firstorder_entropy"], 2.038569571367763, 0)
         @test ibsi_test(wf_hlh["firstorder_energy"], 98.74999999999996, 0)
@@ -1108,13 +1108,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_hlh["ngtdm_Contrast"], 0.06489366627710418, 0)
         @test ibsi_test(wf_hlh["ngtdm_Strength"], 0.8255486523966619, 0)
 
-        wf_hhl = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-HHL ----
+        wf_hhl = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["HHL"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-HHL ----
         # First Order
         @test ibsi_test(wf_hhl["firstorder_entropy"], 2.306917213474811, 0)
         @test ibsi_test(wf_hhl["firstorder_energy"], 140.24999999999991, 0)
@@ -1216,13 +1216,13 @@ mktempdir() do tmpdir
         @test ibsi_test(wf_hhl["ngtdm_Contrast"], 0.11608521234463035, 0)
         @test ibsi_test(wf_hhl["ngtdm_Strength"], 0.7231213489076003, 0)
 
-        wf_hhh = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing;
+        # ---- wavelet-HHH ----
+        wf_hhh = Radiomics.extract_radiomic_features(phantom_path, mask_path;
             wavelet_type="haar", wavelet_level=1, wavelet_start_level=0,
             wavelet_subbands=["HHH"],
             verbose=false, n_bins=6, keep_largest_only=false
         )
 
-        # ---- wavelet-HHH ----
         # First Order
         @test ibsi_test(wf_hhh["firstorder_entropy"], 1.7108507454700832, 0)
         @test ibsi_test(wf_hhh["firstorder_energy"], 120.24999999999994, 0)
