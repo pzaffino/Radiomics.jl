@@ -34,7 +34,8 @@ first character = dim 1 / X-axis, second = dim 2 / Y-axis, third = dim 3 / Z-axi
 function haar_wavelet_filter(img::AbstractArray{<:Real};
     level::Int=1,
     start_level::Int=0,
-    subbands::Union{String,Vector{String}}="all")::Dict{String,Array{Float64}}
+    subbands::Union{String,Vector{String}}="all",
+    kwargs...)::Dict{String,Array{Float64}}
     Nd = ndims(img)
     Nd ∈ (2, 3) || error("img must be 2D or 3D, got $(Nd)D")
     level >= 1 || error("level must be ≥ 1")

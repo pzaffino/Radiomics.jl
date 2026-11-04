@@ -1,8 +1,11 @@
 # Map of family_name => filter function.
 # Each filter must have the same signature as haar_wavelet_filter:
-#   (img::AbstractArray{<:Real}; level::Int, start_level::Int, subbands::Union{String,Vector{String}}) -> Dict{String,Array{Float64}}
+#   (img::AbstractArray{<:Real}; level::Int, start_level::Int, subbands::Union{String,Vector{String}}, spacing, kwargs...) -> Dict{String,Array{Float64}}
+# Filter specific parameters are forwarded from `wavelet_params` in extract_radiomic_features.
 const WAVELET_FILTERS = Dict{String,Function}(
     "haar" => haar_wavelet_filter,
+    "gabor" => gabor_wavelet_filter,
+    "log" => log_wavelet_filter,
     # "db2"   => db2_wavelet_filter,    # to be implemented
     # "sym4"  => sym4_wavelet_filter,   # to be implemented
     # "coif1" => coif1_wavelet_filter,  # to be implemented
