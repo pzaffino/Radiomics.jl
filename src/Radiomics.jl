@@ -18,6 +18,8 @@ include("gldm_features.jl")
 include("diagnostic_features.jl")
 
 include("wavelet_filters/haar_filters.jl")
+include("wavelet_filters/gabor_filter.jl")
+include("wavelet_filters/log_filter.jl")
 include("wavelet_filters/filters_register.jl")
 
 const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
@@ -60,10 +62,12 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
     - `suv_ibsi_normalization`: If true, normalizes the image using the IBSI SUV normalization method.
     - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
-    - `wavelet_type::Union{Nothing, String, Vector{String}}`: The type of wavelet to use (e.g., `"haar"`, `"db1"`). Defaults to `nothing`.
+    - `wavelet_type::Union{Nothing, String, Vector{String}}`: The filter to use (e.g., `"haar"`, `"gabor"`, `"log"`). Defaults to `nothing`.
     - `wavelet_level::Int`: The decomposition level for the wavelet transform. Defaults to `1`.
     - `wavelet_start_level::Int`: The starting level for the decomposition. Defaults to `0`.
     - `wavelet_subbands::Union{String, Vector{String}}`: The subbands to extract or analyze (e.g., `"all"` or specific subbands). Defaults to `"all"`.
+    - `wavelet_params::NamedTuple`: Extra keyword arguments forwarded to the selected filter(s) (voxel `spacing` is always passed).
+                Needed e.g. by `"gabor"`: `wavelet_params=(sigma=5.0, lambda=2.0, gamma=1.5, rotation_invariant=true, delta_theta=pi/8)`. Defaults to `(;)`.
     - `prefix::String`: An optional prefix to add to the generated variable or column names. Defaults to `""`.
     - `verbose`: If true, prints progress messages.
         
@@ -88,6 +92,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     wavelet_level::Int=1,
     wavelet_start_level::Int=0,
     wavelet_subbands::Union{String,Vector{String}}="all",
+    wavelet_params::NamedTuple=(;),
     prefix::String="",
     verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any},Dict{String,Dict{String,Any}}}
 
@@ -147,7 +152,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
 
         for wtype in p.wavelet_type
             filter_fn = get_wavelet_filter(wtype)
-            subbands = filter_fn(p.img; level=p.wavelet_level, start_level=p.wavelet_start_level, subbands=p.wavelet_subbands)
+            subbands = filter_fn(p.img; level=p.wavelet_level, start_level=p.wavelet_start_level, subbands=p.wavelet_subbands, spacing=p.spacing, wavelet_params...)
 
             for (subband_name, subband_img) in subbands
                 full_key = "$(wtype)_$(subband_name)"
