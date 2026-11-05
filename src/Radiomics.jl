@@ -112,7 +112,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     compute_all = isempty(p.features) || :all in p.features
 
     # Management slices_2d
-    if !isnothing(p.slices_2d)
+    if !isnothing(p.slices_2d) && ndims(p.img) == 3
         results_2d = Dict{Tuple{Int,Int},Any}()
         dict_lock = ReentrantLock()
 
@@ -164,6 +164,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                 keep_largest_only=p.keep_largest_only,
                 get_raw_matrices=p.get_raw_matrices,
                 use_gpu=p.use_gpu,
+                slices_2d=[(plan, slice_idx)],
                 verbose=p.verbose
             )
 
@@ -244,6 +245,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                         features=p.features,
                         get_raw_matrices=p.get_raw_matrices,
                         use_gpu=p.use_gpu,
+                        slices_2d=p.slices_2d,
                         log_buffer=log_buffer
                     )
 
@@ -362,7 +364,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         compute_all=compute_all,
         features=p.features,
         use_gpu=p.use_gpu,
-        get_raw_matrices=p.get_raw_matrices
+        get_raw_matrices=p.get_raw_matrices,
+        slices_2d=p.slices_2d
     )
 
     total_time_accumulated += time_acc
@@ -428,6 +431,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
     use_gpu::Bool=false,
+    slices_2d::Union{Nothing,Vector{Tuple{Int,Int}}}=nothing,
     log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any},Float64}
 
     radiomic_features = Dict{String,Any}()
@@ -560,14 +564,17 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
-    # Control dimension of the mask 
-    if ndims(mask) == 3
-        # 3D shape features
+    # 2D slice coming from slices_2d → 3D shape on a single-slice volume
+    is_slice = !isnothing(slices_2d) && ndims(mask) == 2
+
+    # 3D shape: 3D volumes, or slices from slices_2d (thickness = voxel_spacing[3])
+    if ndims(mask) == 3 || is_slice
         if compute_all || :shape3d in features
             t_shape3d_features = Threads.@spawn begin
+                mask3d = ndims(mask) == 2 ? reshape(mask, size(mask)..., 1) : mask
                 result = @timed Base.invokelatest(
                     get_shape3d_features,
-                    mask,
+                    mask3d,
                     voxel_spacing;
                     verbose=verbose,
                     keep_largest_only=keep_largest_only,
@@ -578,8 +585,8 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
-    # Launch parallel threads for 2D features
-    if ndims(mask) == 2
+    # 2D shape: pure 2D input only
+    if ndims(mask) == 2 && !is_slice
         if compute_all || :shape2d in features
             t_shape2d_features = Threads.@spawn begin
                 result = @timed Base.invokelatest(
@@ -676,28 +683,24 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     end
 
     # 3D shape features
-    if ndims(mask) == 3
-        if !isnothing(t_shape3d_features)
-            shape3d_dict, shape3d_time = fetch(t_shape3d_features)::Tuple{Dict{String,Any},Float64}
-            merge!(radiomic_features, shape3d_dict)
-            total_time_accumulated += shape3d_time
-            if verbose
-                log_println("3D shape: $(shape3d_time) sec")
-                print_features("3D Shape Features", shape3d_dict; log_buffer=log_buffer)
-            end
+    if !isnothing(t_shape3d_features)
+        shape3d_dict, shape3d_time = fetch(t_shape3d_features)::Tuple{Dict{String,Any},Float64}
+        merge!(radiomic_features, shape3d_dict)
+        total_time_accumulated += shape3d_time
+        if verbose
+            log_println("3D shape: $(shape3d_time) sec")
+            print_features("3D Shape Features", shape3d_dict; log_buffer=log_buffer)
         end
     end
 
     # 2D shape features
-    if ndims(mask) == 2
-        if !isnothing(t_shape2d_features)
-            shape2d_dict, shape2d_time = fetch(t_shape2d_features)::Tuple{Dict{String,Any},Float64}
-            merge!(radiomic_features, shape2d_dict)
-            total_time_accumulated += shape2d_time
-            if verbose
-                log_println("2D shape: $(shape2d_time) sec")
-                print_features("2D Shape Features", shape2d_dict; log_buffer=log_buffer)
-            end
+    if !isnothing(t_shape2d_features)
+        shape2d_dict, shape2d_time = fetch(t_shape2d_features)::Tuple{Dict{String,Any},Float64}
+        merge!(radiomic_features, shape2d_dict)
+        total_time_accumulated += shape2d_time
+        if verbose
+            log_println("2D shape: $(shape2d_time) sec")
+            print_features("2D Shape Features", shape2d_dict; log_buffer=log_buffer)
         end
     end
 

@@ -345,8 +345,8 @@ function principal_axes_features(coords::Vector{Point3D})::Tuple{Vector{Float64}
     l1, l2, l3 = max(0.0, ev[1]), max(0.0, ev[2]), max(0.0, ev[3])
 
     axes = [4*sqrt(l) for l in (l1, l2, l3)]
-    elong = (l3>0 && l2>0) ? sqrt(l2/l3) : NaN
-    flat = (l3>0 && l1>0) ? sqrt(l1/l3) : NaN
+    elong = l3 > 0 ? sqrt(l2 / l3) : NaN
+    flat = l3 > 0 ? sqrt(l1 / l3) : NaN
     return axes, Float64(elong), Float64(flat)
 end
 """

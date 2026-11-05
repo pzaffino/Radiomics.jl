@@ -59,9 +59,9 @@ function get_shape2d_features(mask_array::BitArray{2},
 
     shape_2d_features = Dict{String,Any}()
     if !use_gpu
-        perimeter, surface, diameter = get_coefficients(mask_array, spacing)
+        perimeter, surface, diameter = get_coefficients(processed_mask, spacing)
     else
-        perimeter, surface, diameter = CUDA_EXT[].get_coefficients_gpu(mask_array, spacing)
+        perimeter, surface, diameter = CUDA_EXT[].get_coefficients_gpu(processed_mask, spacing)
     end
 
     # Perimeter
@@ -74,7 +74,7 @@ function get_shape2d_features(mask_array::BitArray{2},
     shape_2d_features["shape2d_maximum_diameter"] = diameter
 
     # Pixel Surface
-    shape_2d_features["shape2d_pixel_surface"] = get_pixel_surface(mask_array, spacing)
+    shape_2d_features["shape2d_pixel_surface"] = get_pixel_surface(processed_mask, spacing)
 
     # Perimeter Surface Ratio
     shape_2d_features["shape2d_perimeter_surface_ratio"] = get_perimeter_surface_ratio(perimeter, surface)
@@ -82,7 +82,7 @@ function get_shape2d_features(mask_array::BitArray{2},
     # Sphericity
     shape_2d_features["shape2d_sphericity"] = get_sphericity(perimeter, surface)
 
-    ev = get_eigenvalues(mask_array, spacing)
+    ev = get_eigenvalues(processed_mask, spacing)
 
     # Major Axis Length
     shape_2d_features["shape2d_major_axis_length"] = get_major_axis_length(ev)

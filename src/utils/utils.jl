@@ -510,6 +510,14 @@ function _cast_inputs(
         Tuple{Int,Int}[(Int(s[1]), Int(s[2])) for s in slices_2d]
     end
 
+    # Shape family must match the input: shape3d → 3D volume or slices_2d; shape2d → pure 2D image only
+    if ndims(img) == 2 && isnothing(slices_2d_out) && :shape3d in features_out
+        throw(ArgumentError("`:shape3d` requires a 3D image or `slices_2d`. For a 2D image use `:shape2d`."))
+    end
+    if (ndims(img) == 3 || !isnothing(slices_2d_out)) && :shape2d in features_out
+        throw(ArgumentError("`:shape2d` is only available for 2D images. For 3D images or `slices_2d` use `:shape3d`."))
+    end
+
     return (
         img=img,
         mask=mask,
