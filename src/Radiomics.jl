@@ -129,28 +129,29 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                 @view p.img[slice_idx, :, :]
             elseif plan == 2
                 @view p.img[:, slice_idx, :]
-            elseif plan == 3
-                @view p.img[:, :, slice_idx]
             else
-                error("Invalid plane: $plan. Must be 1, 2, or 3")
+                @view p.img[:, :, slice_idx]
             end
 
             mask_slice = if plan == 1
                 @view p.mask[slice_idx, :, :]
             elseif plan == 2
                 @view p.mask[:, slice_idx, :]
-            elseif plan == 3
-                @view p.mask[:, :, slice_idx]
             else
-                error("Invalid plane: $plan. Must be 1, 2, or 3")
+                @view p.mask[:, :, slice_idx]
             end
 
             spacing_2d = if plan == 1
                 [p.spacing[2], p.spacing[3], p.spacing[1]]
             elseif plan == 2
                 [p.spacing[1], p.spacing[3], p.spacing[2]]
-            elseif plan == 3
+            else
                 [p.spacing[1], p.spacing[2], p.spacing[3]]
+            end
+
+            if p.labels isa Int && !any(==(p.labels), mask_slice)
+                @warn "Slice (plane=$plan, slice=$slice_idx) contains no voxels with label $(p.labels): skipped"
+                continue
             end
 
             result = extract_radiomic_features(
@@ -174,8 +175,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         end
 
         if length(p.slices_2d) == 1
-            key = first(keys(results_2d))
-            return results_2d[key]
+            return isempty(results_2d) ? Dict{String,Any}() : first(values(results_2d))
         else
             return results_2d
         end

@@ -518,6 +518,15 @@ function _cast_inputs(
         throw(ArgumentError("`:shape2d` is only available for 2D images. For 3D images or `slices_2d` use `:shape3d`."))
     end
 
+    # Validate slices_2d against the 3D volume (skipped in the recursive call, where img is 2D)
+    if !isnothing(slices_2d_out) && ndims(img) == 3
+        for (plan, idx) in slices_2d_out
+            plan in 1:3 || throw(ArgumentError("Invalid plane $plan in slices_2d: must be 1, 2 or 3"))
+            n = size(img, plan)
+            1 <= idx <= n || throw(ArgumentError("Slice $idx out of range for plane $plan in slices_2d (valid: 1:$n)"))
+        end
+    end
+
     return (
         img=img,
         mask=mask,
