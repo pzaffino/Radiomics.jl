@@ -463,6 +463,24 @@ mktempdir() do tmpdir
         end
     end
 
+    @info "Executing tests for a single-slice label in a 3D image..."
+
+    @testset "Radiomics single-slice label in 3D image" begin
+        spacing = [2.0, 3.0, 5.0]
+        img = Float32[100 + 10i + j + 3k for i in 1:20, j in 1:20, k in 1:10]
+        mask = zeros(UInt8, 20, 20, 10)
+        mask[6:10, 6:10, 5:6] .= 1   # two slices
+        mask[6:10, 6:10, 8] .= 2     # one slice
+        r = Radiomics.extract_radiomic_features(img, mask, spacing; features=[:first_order, :shape3d],
+                                                labels=[1, 2], keep_largest_only=false, verbose=false)
+        for l in (1, 2)
+            v = Float64.(img[mask .== l])
+            @test count(k -> startswith(String(k), "shape3d"), keys(r[l])) == 15
+            @test r[l]["firstorder_total_energy"] ≈ sum(v .^ 2) * prod(spacing)
+        end
+        @test r[2]["shape3d_flatness"] == 0
+    end
+
     # Test on GPU
     if is_gpu_available
 
@@ -729,6 +747,24 @@ mktempdir() do tmpdir
             @test ibsi_test(radiomic_2D_features["shape3d_surface_volume_ratio"], 1.6717967367184912, 0)
             @test ibsi_test(radiomic_2D_features["shape3d_voxel_volume"], 136.0, 0)
 
+        end
+
+        @info "Executing tests for a single-slice label in a 3D image on GPU..."
+
+        @testset "Radiomics single-slice label in 3D image on GPU" begin
+            spacing = [2.0, 3.0, 5.0]
+            img = Float32[100 + 10i + j + 3k for i in 1:20, j in 1:20, k in 1:10]
+            mask = zeros(UInt8, 20, 20, 10)
+            mask[6:10, 6:10, 5:6] .= 1   # two slices
+            mask[6:10, 6:10, 8] .= 2     # one slice
+            r = Radiomics.extract_radiomic_features(img, mask, spacing; features=[:first_order, :shape3d],
+                                                    labels=[1, 2], keep_largest_only=false, verbose=false, use_gpu =true)
+            for l in (1, 2)
+                v = Float64.(img[mask .== l])
+                @test count(k -> startswith(String(k), "shape3d"), keys(r[l])) == 15
+                @test r[l]["firstorder_total_energy"] ≈ sum(v .^ 2) * prod(spacing)
+            end
+            @test r[2]["shape3d_flatness"] == 0
         end
 
     end
