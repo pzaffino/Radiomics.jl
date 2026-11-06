@@ -260,17 +260,23 @@ function discretize_image_gpu(img_cpu::AbstractArray{Float64},
     min_gl = CuArray([typemax(Int64)])
 
     if !isnothing(n_bins)
-        bin_width_used = (vmax - vmin) / Float64(n_bins)
-        if bin_width_used ≈ 0.0
-            bin_width_used = 1.0
+        if vmax == vmin
+            # Constant ROI: central bin (n_bins ÷ 2 + 1), as pyradiomics and the CPU discretize_image.
+            # With inv_bin_width = 1 and vmin shifted by k, the kernel computes floor(k) + 1 = k + 1.
+            k = n_bins ÷ 2
+            bin_width_used = 1.0 / n_bins
+            inv_bin_width = 1.0
+            vmin_kernel = vmin - k
+        else
+            bin_width_used = (vmax - vmin) / Float64(n_bins)
+            inv_bin_width = 1.0 / bin_width_used
+            vmin_kernel = vmin
         end
-
-        inv_bin_width = 1.0 / bin_width_used
 
         blocks = cld(n_of_indices, CUDA_THREADS)
         @cuda threads = CUDA_THREADS blocks = blocks bin_nbins_kernel!(
             gpu_data.img, gpu_data.mask_indices, max_gl, min_gl,
-            inv_bin_width, n_bins, vmin, disc, n_of_indices)
+            inv_bin_width, n_bins, vmin_kernel, disc, n_of_indices)
         n_bins_actual = n_bins
     else
         bin_width_used = bin_width
