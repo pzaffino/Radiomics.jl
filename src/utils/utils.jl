@@ -229,10 +229,13 @@ function discretize_image(img::AbstractArray{Float64},
     end
 
     if !isnothing(n_bins)
-        bin_width_used = (vmax - vmin) / Float64(n_bins)
-        if bin_width_used ≈ 0.0
-            bin_width_used = 1.0
+        if vmax == vmin
+            # Constant ROI: np.histogram uses [v-0.5, v+0.5] → the value falls in the central bin (as pyradiomics)
+            disc[mask] .= n_bins ÷ 2 + 1
+            gray_levels = [n_bins ÷ 2 + 1]
+            return disc, 1, gray_levels, 1.0 / n_bins
         end
+        bin_width_used = (vmax - vmin) / Float64(n_bins)
         inv_bin_width = 1.0 / bin_width_used
         @inbounds for i in eachindex(mask)
             if mask[i]

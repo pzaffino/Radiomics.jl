@@ -31,10 +31,8 @@ function get_first_order_features(img::AbstractArray{Float64},
     vmin = sorted_voxels[1]
     vmax = sorted_voxels[end]
 
-    function _percentile(sv::Vector{Float64}, p::Float64)
-        idx = clamp(round(Int, p / 100.0 * length(sv)), 1, length(sv))
-        return sv[idx]
-    end
+    # Linear interpolation between order statistics (type 7), as numpy.percentile / pyradiomics
+    _percentile(sv::Vector{Float64}, p::Float64) = quantile(sv, p / 100.0; sorted=true)
 
     p10 = _percentile(sorted_voxels, 10.0)
     p25 = _percentile(sorted_voxels, 25.0)
@@ -215,6 +213,7 @@ function get_skewness_and_kurtosis(roi_voxels::Vector{Float64}, mean_val::Float6
     mu2 /= n;
     mu3 /= n;
     mu4 /= n
+    mu2 == 0.0 && return 0.0, 0.0       # constant ROI: 0 as in pyradiomics
     return mu3 / mu2^1.5, mu4 / mu2^2
 end
 

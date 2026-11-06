@@ -169,6 +169,23 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                 verbose=p.verbose
             )
 
+            if plan != 3
+                for d in (p.labels isa Int ? (result,) : values(result))
+                    s = pop!(d, "shape3d_maximum_2d_diameter_slice", nothing)
+                    isnothing(s) && continue
+                    r = pop!(d, "shape3d_maximum_2d_diameter_row")
+                    c = pop!(d, "shape3d_maximum_2d_diameter_column")
+                    d["shape3d_maximum_2d_diameter_slice"] = c
+                    if plan == 1
+                        d["shape3d_maximum_2d_diameter_row"] = s
+                        d["shape3d_maximum_2d_diameter_column"] = r
+                    else
+                        d["shape3d_maximum_2d_diameter_column"] = s
+                        d["shape3d_maximum_2d_diameter_row"] = r
+                    end
+                end
+            end
+
             lock(dict_lock) do
                 results_2d[(plan, slice_idx)] = result
             end
