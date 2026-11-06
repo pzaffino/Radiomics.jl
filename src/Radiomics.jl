@@ -213,13 +213,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                 push!(log_buffer, "Applying bounding box to Label $label...")
                 local img_to_use
                 img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; log_buffer=log_buffer)
-                # Squeeze only genuinely 2D input (a unit dimension in the full image), not a
-                # label of a 3D image whose bounding box happens to be one slice thick.
-                if any(size(p.img) .== 1)
-                    img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
-                else
-                    spacing_to_use = p.spacing
-                end
+                
+                img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
+                # Single-slice ROI (from slices_2d, or a one-slice label of a 3D image): textures in 2D, shape in 3D
+                local is_slice = !isnothing(p.slices_2d) || (ndims(p.img) == 3 && ndims(mask_to_use) == 2)
 
                 if compute_all
                     push!(log_buffer, "Computing ALL features")
@@ -251,7 +248,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                         features=p.features,
                         get_raw_matrices=p.get_raw_matrices,
                         use_gpu=p.use_gpu,
-                        slices_2d=p.slices_2d,
+                        is_slice=is_slice,
                         log_buffer=log_buffer
                     )
 
@@ -333,13 +330,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     end
 
     img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose)
-    # Squeeze only genuinely 2D input (a unit dimension in the full image), not a
-    # label of a 3D image whose bounding box happens to be one slice thick.
-    if any(size(p.img) .== 1)
-        img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
-    else
-        spacing_to_use = p.spacing
-    end
+    
+    img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
+    # Single-slice ROI (from slices_2d, or a one-slice label of a 3D image): textures in 2D, shape in 3D
+    is_slice = !isnothing(p.slices_2d) || (ndims(p.img) == 3 && ndims(mask_to_use) == 2)
 
     total_start_time = time()
     total_time_accumulated = 0.0
@@ -377,7 +371,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         features=p.features,
         use_gpu=p.use_gpu,
         get_raw_matrices=p.get_raw_matrices,
-        slices_2d=p.slices_2d
+        is_slice=is_slice
     )
 
     total_time_accumulated += time_acc
@@ -443,7 +437,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
     use_gpu::Bool=false,
-    slices_2d::Union{Nothing,Vector{Tuple{Int,Int}}}=nothing,
+    is_slice::Bool=false,
     log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any},Float64}
 
     radiomic_features = Dict{String,Any}()
@@ -575,9 +569,6 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
             )
         end
     end
-
-    # 2D slice coming from slices_2d → 3D shape on a single-slice volume
-    is_slice = !isnothing(slices_2d) && ndims(mask) == 2
 
     # 3D shape: 3D volumes, or slices from slices_2d (thickness = voxel_spacing[3])
     if ndims(mask) == 3 || is_slice
