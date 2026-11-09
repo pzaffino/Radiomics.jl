@@ -147,6 +147,8 @@ def extract_radiomic_features(
 
     image_in = _image_input(image, "image")
     mask_in = _image_input(mask, "mask")
+    if not isinstance(mask_in, str) and np.issubdtype(mask_in.dtype, np.floating):
+        mask_in = np.rint(mask_in).astype(np.int64)
     features_in = _features_input(features)
 
     result = get_bridge().extract(
