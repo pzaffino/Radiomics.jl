@@ -1,0 +1,37 @@
+# Builds the radiomicsjl Python package and publishes it to PyPI.
+# Trigger: a GitHub release whose tag starts with "py-v" (e.g. py-v2.1.0), or manual run.
+# PyPI side: add a "Trusted Publisher" for this repo/workflow/environment "pypi".
+name: Publish radiomicsjl to PyPI
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+jobs:
+  test:
+    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'py-v')
+    runs-on: ubuntu-latest
+    defaults: { run: { working-directory: pysrc } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install ".[test]"
+      - run: pytest -v tests
+
+  publish:
+    needs: test
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write   # trusted publishing, no API token needed
+    defaults: { run: { working-directory: pysrc } }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: "3.12" }
+      - run: pip install build && python -m build
+      - uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: pysrc/dist
