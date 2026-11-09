@@ -21,7 +21,7 @@ authors = [
     { name = "Nastaran Ghaffari Elkhechi", email = "nastaran.ghaffari@mail.polimi.it" },
     { name = "Michela Destito", email = "michela.destito@unicz.it" },
 ]
-keywords = ["radiomics", "medical imaging", "IBSI", "julia", "feature extraction"]
+keywords = ["radiomics", "medical imaging", "IBSI", "julia", "feature extraction", "GPU", "IBSI", "Radiomics feature maps", "Medical AI", "CUDA Acceleration"]
 classifiers = [
     "Programming Language :: Python :: 3",
     "Topic :: Scientific/Engineering :: Medical Science Apps.",
