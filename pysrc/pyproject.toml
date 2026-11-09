@@ -47,3 +47,9 @@ packages = ["src/radiomicsjl"]
 
 [tool.hatch.build.targets.sdist]
 include = ["src/radiomicsjl", "tests", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+markers = [
+    "gpu: needs an NVIDIA GPU and `python -m radiomicsjl install-gpu`",
+    "dro: downloads the QIBA PET DROs (~60 DICOM series) for the SUV tests",
+]
