@@ -11,8 +11,15 @@ license = "MIT"
 license-files = ["LICENSE"]
 requires-python = ">=3.9"
 authors = [
-    { name = "Paolo Zaffino", email = "p.zaffino@unicz.it" },
     { name = "Aldo Giuliani", email = "aldo.giuliani@studenti.unicz.it" },
+    { name = "Paolo Zaffino", email = "p.zaffino@unicz.it" },
+    { name = "Maria Francesca Spadea", email = "mf.spadea@kit.edu" },
+    { name = "Carlo Cosentino", email = "carlo.cosentino@unicz.it" },
+    { name = "Jakub Mitura", email = "jakub.mitura14@gmail.com" },
+    { name = "Ciro Benito Raggio", email = "ciro.raggio@kit.edu" },
+    { name = "Mohammadreza Javadi Namin", email = "mohammadreza.javadi@mail.polimi.it" },
+    { name = "Nastaran Ghaffari Elkhechi", email = "nastaran.ghaffari@mail.polimi.it" },
+    { name = "Michela Destito", email = "michela.destito@unicz.it" },
 ]
 keywords = ["radiomics", "medical imaging", "IBSI", "julia", "feature extraction"]
 classifiers = [
