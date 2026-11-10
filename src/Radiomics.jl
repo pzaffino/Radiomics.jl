@@ -17,8 +17,10 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
-include("wavelet_filters/haar_filters.jl")
-include("wavelet_filters/filters_register.jl")
+include("utils/filters/wavelet_filters/haar_filters.jl")
+include("utils/filters/convolutional_filters/log_filter.jl")
+include("utils/filters/convolutional_filters/gabor_filter.jl")
+include("utils/filters/filters_register.jl")
 
 const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
 

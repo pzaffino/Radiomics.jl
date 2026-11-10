@@ -2,7 +2,7 @@
 const _HAAR_INV_SQRT2 = 1.0 / sqrt(2.0)
 
 """
-    haar_wavelet_filter(img; level=1, start_level=0, subbands=nothing)
+        haar_wavelet_filter(img, spacing; level=1, start_level=0, subbands="all")
 
 Applies the Haar Stationary Wavelet Transform (SWT, à-trous algorithm) to `img`,
 matching pyradiomics' `getWaveletImage` / `_swt3` implementation exactly.
@@ -23,18 +23,21 @@ first character = dim 1 / X-axis, second = dim 2 / Y-axis, third = dim 3 / Z-axi
 
 # Arguments
 - `img`: 2D or 3D image (any real-valued array; converted to Float64 internally)
-- `level::Int=1`: number of decomposition levels
-- `start_level::Int=0`: skip this many levels of approximation before starting
+- `spacing::AbstractVector{<:Real}`: voxel spacing in mm (one value per dimension). Not used by the
+  Haar transform, which works in voxel units; accepted to match the common filter signature.
+- `level::Int=1`: number of decomposition levels.
+- `start_level::Int=0`: skip this many levels of approximation before starting.
 - `subbands::Union{String, Vector{String}}="all"`: controls which subbands are returned.
   `"all"` (default) returns all 8 subbands. A `Vector{String}` returns only the listed
   ones (e.g. `["LLL", "HHH"]`). For 3D images the valid names are all combinations of
   L/H of length 3; for 2D, length 2. Unused branches of the filter tree are skipped,
   so requesting fewer subbands is faster.
 """
-function haar_wavelet_filter(img::AbstractArray{<:Real};
+function haar_wavelet_filter(img::AbstractArray{<:Real}, spacing::AbstractVector{<:Real};
     level::Int=1,
     start_level::Int=0,
     subbands::Union{String,Vector{String}}="all")::Dict{String,Array{Float64}}
+    
     Nd = ndims(img)
     Nd ∈ (2, 3) || error("img must be 2D or 3D, got $(Nd)D")
     level >= 1 || error("level must be ≥ 1")
