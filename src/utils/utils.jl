@@ -410,13 +410,10 @@ function _cast_inputs(
     get_raw_matrices,
     use_gpu,
     cuda_streams,
-    wavelet_type,
-    wavelet_level,
-    wavelet_start_level,
-    wavelet_subbands,
+    filter_type,
     verbose
 )::NamedTuple{
-    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :cuda_streams, :wavelet_type, :wavelet_level, :wavelet_start_level, :wavelet_subbands, :verbose),
+    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :cuda_streams, :filter_type, :verbose),
     Tuple{
         Union{Array{Float64,2},Array{Float64,3}},
         Union{Array{Int,2},Array{Int,3}},
@@ -433,9 +430,6 @@ function _cast_inputs(
         Bool,
         Bool,
         Union{Nothing,Vector{String}},
-        Int,
-        Int,
-        Union{String,Vector{String}},
         Bool
     }
 }
@@ -503,25 +497,17 @@ function _cast_inputs(
         Int(labels)
     end
 
-    # Wavelet_type
-    wavelet_type_cast = if isnothing(wavelet_type)
+    # filter_type
+    filter_type_cast = if isnothing(filter_type)
         nothing
-    elseif wavelet_type isa String
-        [wavelet_type]
-    elseif wavelet_type isa Vector{String}
-        isempty(wavelet_type) && error("wavelet_type cannot be an empty vector")
-        wavelet_type
+    elseif filter_type isa String
+        [filter_type]
+    elseif filter_type isa Vector{String}
+        isempty(filter_type) && error("filter_type cannot be an empty vector")
+        filter_type
     else
-        error("wavelet_type must be `nothing`, a String, or a Vector{String}, got $(typeof(wavelet_type))")
+        error("filter_type must be `nothing`, a String, or a Vector{String}, got $(typeof(filter_type))")
     end
-
-    # wavelet_level
-    wavelet_level >= 1 || error("wavelet_level must be >= 1, got $wavelet_level")
-    wavelet_start_level >= 0 || error("wavelet_start_level must be >= 0, got $wavelet_start_level")
-
-    # Wavelet_subbands
-    wavelet_subbands isa Union{String,Vector{String}} || error(
-    "wavelet_subbands must be a String or Vector{String}, got $(typeof(wavelet_subbands))")
 
     # Convert n_bins 
     n_bins_out::Union{Nothing,Int} = isnothing(n_bins) ? nothing : Int(n_bins)
@@ -554,10 +540,7 @@ function _cast_inputs(
         get_raw_matrices=Bool(get_raw_matrices),
         use_gpu=Bool(use_gpu),
         cuda_streams=Bool(cuda_streams),
-        wavelet_type=wavelet_type_cast,
-        wavelet_level=wavelet_level,
-        wavelet_start_level=wavelet_start_level,
-        wavelet_subbands=wavelet_subbands,
+        filter_type=filter_type_cast,
         verbose=Bool(verbose)
     )
 end

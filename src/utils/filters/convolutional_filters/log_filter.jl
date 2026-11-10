@@ -1,28 +1,28 @@
 """
     log_filter(img, spacing; sigma, truncate=4.0, padding="zero", dims=3)
 
-IBSI-compliant Laplacian of Gaussian filter (IBSI 2 reference manual, section 4.3).
+    IBSI-compliant Laplacian of Gaussian filter (IBSI 2 reference manual, section 4.3).
 
-The kernel is the radial second derivative of a `D`-dimensional Gaussian (Eq. 4.2),
+    The kernel is the radial second derivative of a `D`-dimensional Gaussian (Eq. 4.2),
 
-    g[k] = -1/σ² · (1/(√(2π)σ))^D · (D - ‖k‖²/σ²) · exp(-‖k‖²/(2σ²)),
+        g[k] = -1/σ² · (1/(√(2π)σ))^D · (D - ‖k‖²/σ²) · exp(-‖k‖²/(2σ²)),
 
-with `σ = σ*/s` in voxel units (`σ*` in mm, `s` the voxel spacing, per axis). The kernel is truncated
-to `M = 1 + 2⌊d·σ + 0.5⌋` samples per axis (`d = truncate`) and is **not** scale-normalised.
-Because the Laplacian is a sum of separable terms, the filter is computed with 1D convolutions; the
-result is identical to convolving with the full truncated `D`-dimensional kernel.
+    with `σ = σ*/s` in voxel units (`σ*` in mm, `s` the voxel spacing, per axis). The kernel is truncated
+    to `M = 1 + 2⌊d·σ + 0.5⌋` samples per axis (`d = truncate`) and is **not** scale-normalised.
+    Because the Laplacian is a sum of separable terms, the filter is computed with 1D convolutions; the
+    result is identical to convolving with the full truncated `D`-dimensional kernel.
 
-# Arguments
-- `img`: 2D or 3D real array.
-- `spacing`: voxel spacing, one entry per image dimension (mm).
-- `sigma`: scale `σ*` in mm. A number returns one image; a vector returns one image per entry.
-- `truncate`: kernel truncation `d` (default 4).
-- `padding`: `"zero"` (default), `"mirror"` (edge sample repeated, as IBSI), `"periodic"` or `"nearest"`.
-- `dims`: `3` (default) filters in 3D; `2` filters slice-wise in the plane of the first two dimensions.
-  A 2D image only supports `dims=2`.
+    # Arguments
+    - `img`: 2D or 3D real array.
+    - `spacing`: voxel spacing, one entry per image dimension (mm).
+    - `sigma`: scale `σ*` in mm. A number returns one image; a vector returns one image per entry.
+    - `truncate`: kernel truncation `d` (default 4).
+    - `padding`: `"zero"` (default), `"mirror"` (edge sample repeated, as IBSI), `"periodic"` or `"nearest"`.
+    - `dims`: `3` (default) filters in 3D; `2` filters slice-wise in the plane of the first two dimensions.
+    A 2D image only supports `dims=2`.
 
-Returns a `Dict{String,Array{Float64}}` keyed pyradiomics-style, `"log-sigma-<σ>-mm-3D"` (or `-2D`),
-where `.` in `σ` is replaced by `-` (e.g. `"log-sigma-3-0-mm-3D"`).
+    Returns a `Dict{String,Array{Float64}}` keyed pyradiomics-style, `"log-sigma-<σ>-mm-3D"` (or `-2D`),
+    where `.` in `σ` is replaced by `-` (e.g. `"log-sigma-3-0-mm-3D"`).
 """
 function log_filter(img::AbstractArray{<:Real}, spacing::AbstractVector{<:Real};
     sigma::Union{Real,AbstractVector{<:Real}},

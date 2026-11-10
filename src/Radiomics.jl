@@ -62,10 +62,12 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
     - `suv_ibsi_normalization`: If true, normalizes the image using the IBSI SUV normalization method.
     - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
-    - `wavelet_type::Union{Nothing, String, Vector{String}}`: The type of wavelet to use (e.g., `"haar"`, `"db1"`). Defaults to `nothing`.
-    - `wavelet_level::Int`: The decomposition level for the wavelet transform. Defaults to `1`.
-    - `wavelet_start_level::Int`: The starting level for the decomposition. Defaults to `0`.
-    - `wavelet_subbands::Union{String, Vector{String}}`: The subbands to extract or analyze (e.g., `"all"` or specific subbands). Defaults to `"all"`.
+    - `filter_type::Union{Nothing, String, Vector{String}}`: The image filter(s) to apply before feature extraction
+                (e.g. `"haar"`, `"log"`, `"gabor"`; see `FILTERS` in `filters_register.jl`). Features are computed
+                on every response map returned by the filter. Defaults to `nothing` (no filtering).
+    - `filter_params::NamedTuple`: Filter-specific parameters, forwarded to the filter function. Defaults to `(;)`.
+                e.g. `"haar"`: `(level=2, subbands=["LLL"])`; `"log"`: `(sigma=[1.0, 2.0],)`;
+                `"gabor"`: `(sigma=5.0, lambda=2.0, gamma=1.5, rotation_invariant=true, delta_theta=pi/8)`.
     - `prefix::String`: An optional prefix to add to the generated variable or column names. Defaults to `""`.
     - `verbose`: If true, prints progress messages.
         
@@ -86,10 +88,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     use_gpu::Bool=false,
     suv_ibsi_normalization::Bool=false,
     cuda_streams::Bool=false,
-    wavelet_type::Union{Nothing,String,Vector{String}}=nothing,
-    wavelet_level::Int=1,
-    wavelet_start_level::Int=0,
-    wavelet_subbands::Union{String,Vector{String}}="all",
+    filter_type::Union{Nothing,String,Vector{String}}=nothing,
+    filter_params::NamedTuple=(;),
     prefix::String="",
     verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any},Dict{String,Dict{String,Any}}}
 
@@ -111,10 +111,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         get_raw_matrices,
         use_gpu,
         cuda_streams,
-        wavelet_type,
-        wavelet_level,
-        wavelet_start_level,
-        wavelet_subbands,
+        filter_type,
         verbose
     )
 
@@ -133,34 +130,34 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
 
     compute_all = isempty(p.features) || :all in p.features
 
-    # Managment of wavelets
-    if !isnothing(p.wavelet_type)
-        wavelet_features = if compute_all
+    # Management of image filters (wavelets and convolutional filters)
+    if !isnothing(p.filter_type)
+        filtered_features = if compute_all
             [:first_order, :glcm, :glszm, :ngtdm, :glrlm, :gldm]
         else
             filter(f -> f ∉ (:shape2d, :shape3d), p.features)
         end
 
-        if !compute_all && isempty(wavelet_features)
-            error("With wavelet_type, shape features cannot be calculated on the subbands: choose at least one intensity/texture feature.")
+        if !compute_all && isempty(filtered_features)
+            error("With filter_type, shape features cannot be calculated on the filtered images: choose at least one intensity/texture feature.")
         end
 
-        wavelet_results = Dict{String,Any}()
+        filter_results = Dict{String,Any}()
 
-        for wtype in p.wavelet_type
-            filter_fn = get_wavelet_filter(wtype)
-            subbands = filter_fn(p.img; level=p.wavelet_level, start_level=p.wavelet_start_level, subbands=p.wavelet_subbands)
+        for ftype in p.filter_type
+            filter_fn = get_filter(ftype)
+            response_maps = filter_fn(p.img, p.spacing; filter_params...)
 
-            for (subband_name, subband_img) in subbands
-                full_key = "$(wtype)_$(subband_name)"
+            for (map_name, map_img) in response_maps
+                full_key = "$(ftype)_$(map_name)"
 
                 if verbose
-                    println("\n=== Wavelet subband: $full_key ===")
+                    println("\n=== Filtered image: $full_key ===")
                 end
 
-                wavelet_results[full_key] = extract_radiomic_features(
-                    subband_img, mask_input, voxel_spacing_input;
-                    features=wavelet_features,
+                filter_results[full_key] = extract_radiomic_features(
+                    map_img, mask_input, voxel_spacing_input;
+                    features=filtered_features,
                     labels=labels,
                     n_bins=n_bins,
                     bin_width=bin_width,
@@ -171,20 +168,18 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                     slices_2d=slices_2d,
                     use_gpu=use_gpu,
                     cuda_streams=cuda_streams,
-                    wavelet_type=nothing,
+                    filter_type=nothing,
                     prefix=full_key,
                     verbose=verbose
                 )
             end
-
         end
 
-        if length(wavelet_results) == 1
-            return only(values(wavelet_results))
+        if length(filter_results) == 1
+            return only(values(filter_results))
         end
 
-        return wavelet_results
-
+        return filter_results
     end
 
     # Management slices_2d

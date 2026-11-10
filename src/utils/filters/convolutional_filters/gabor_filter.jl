@@ -4,36 +4,37 @@
                  rotation_invariant=false, delta_theta=π/4, pooling="average",
                  orthogonal_planes=false)
 
-IBSI-compliant 2D Gabor filter (IBSI 2 reference manual, section 4.5).
+    IBSI-compliant 2D Gabor filter (IBSI 2 reference manual, section 4.5).
 
-The complex kernel is
+    The complex kernel is
 
-    g[k] = exp(-(k̃₁² + γ² k̃₂²) / (2σ²) + j 2π k̃₁ / λ),   (k̃₁, k̃₂) = R_θ k,
-    R_θ  = [cos θ  sin θ; sin θ  -cos θ]
+        g[k] = exp(-(k̃₁² + γ² k̃₂²) / (2σ²) + j 2π k̃₁ / λ),   (k̃₁, k̃₂) = R_θ k,
+        R_θ  = [cos θ  sin θ; sin θ  -cos θ]
 
-with `σ` and `λ` given in physical units (e.g. mm) and `k` the physical offset from the kernel
-centre, i.e. `σ = σ*/s` and `λ = λ*/s` in voxel units. The kernel is cropped to the image size
-(`M = N` if `N` is odd, `N + 1` if `N` is even, Eq. 4.5) and convolved with the image.
+    with `σ` and `λ` given in physical units (e.g. mm) and `k` the physical offset from the kernel
+    centre, i.e. `σ = σ*/s` and `λ = λ*/s` in voxel units. The kernel is cropped to the image size
+    (`M = N` if `N` is odd, `N + 1` if `N` is even, Eq. 4.5) and convolved with the image.
 
-The filter is applied slice-wise in the plane spanned by the first two array dimensions.
-A 2D input is filtered directly.
+    The filter is applied slice-wise in the plane spanned by the first two array dimensions.
+    A 2D input is filtered directly.
 
-# Arguments
-- `img`: 2D or 3D real array.
-- `spacing`: voxel spacing (same length as `ndims(img)`), in the unit of `sigma` and `lambda`.
-- `sigma`: scale of the Gaussian envelope.
-- `lambda`: wavelength of the oscillation.
-- `gamma`: spatial aspect ratio (ellipticity). Default 1.
-- `theta`: orientation in radians. Default 0.
-- `response`: `"modulus"` (default), `"real"`, `"imaginary"` or `"phase"`.
-- `padding`: `"zero"` (default), `"mirror"` (edge sample repeated, as IBSI), `"periodic"` or `"nearest"`.
-- `rotation_invariant`: if true, pool response maps over orientations
-  `θ + i·delta_theta`, `i = 0, …, ⌈2π/delta_theta⌉ - 1`.
-- `pooling`: `"average"` (default), `"max"` or `"min"`.
-- `orthogonal_planes`: if true (3D only), the 2D filter is applied in the three orthogonal
-  planes and the three response maps are averaged.
+    # Arguments
+    - `img`: 2D or 3D real array.
+    - `spacing`: voxel spacing (same length as `ndims(img)`), in the unit of `sigma` and `lambda`.
+    - `sigma`: scale of the Gaussian envelope.
+    - `lambda`: wavelength of the oscillation.
+    - `gamma`: spatial aspect ratio (ellipticity). Default 1.
+    - `theta`: orientation in radians. Default 0.
+    - `response`: `"modulus"` (default), `"real"`, `"imaginary"` or `"phase"`.
+    - `padding`: `"zero"` (default), `"mirror"` (edge sample repeated, as IBSI), `"periodic"` or `"nearest"`.
+    - `rotation_invariant`: if true, pool response maps over orientations
+    `θ + i·delta_theta`, `i = 0, …, ⌈2π/delta_theta⌉ - 1`.
+    - `pooling`: `"average"` (default), `"max"` or `"min"`.
+    - `orthogonal_planes`: if true (3D only), the 2D filter is applied in the three orthogonal
+    planes and the three response maps are averaged.
 
-Returns an `Array{Float64}` with the size of `img`.
+    Returns a one-entry `Dict{String,Array{Float64}}` keyed by the response type
+    (e.g. `"modulus"` => response map with the size of `img`).
 """
 function gabor_filter(img::AbstractArray{<:Real}, spacing::AbstractVector{<:Real};
     sigma::Real,
@@ -45,7 +46,7 @@ function gabor_filter(img::AbstractArray{<:Real}, spacing::AbstractVector{<:Real
     rotation_invariant::Bool=false,
     delta_theta::Real=π / 4,
     pooling::String="average",
-    orthogonal_planes::Bool=false)::Array{Float64}
+    orthogonal_planes::Bool=false)::Dict{String,Array{Float64}}
 
     Nd = ndims(img)
     Nd ∈ (2, 3) || error("img must be 2D or 3D, got $(Nd)D")
@@ -73,8 +74,9 @@ function gabor_filter(img::AbstractArray{<:Real}, spacing::AbstractVector{<:Real
     end
 
     if !orthogonal_planes
-        return _gabor_pooled(data, sp, 1, 2, Float64(sigma), Float64(lambda), Float64(gamma),
+        h = _gabor_pooled(data, sp, 1, 2, Float64(sigma), Float64(lambda), Float64(gamma),
             thetas, response, padding, pooling)
+        return Dict{String,Array{Float64}}(response => h)
     end
 
     # Orthogonal planes: (dim1, dim2), (dim1, dim3), (dim2, dim3), averaged.
@@ -83,7 +85,9 @@ function gabor_filter(img::AbstractArray{<:Real}, spacing::AbstractVector{<:Real
         acc .+= _gabor_pooled(data, sp, a, b, Float64(sigma), Float64(lambda), Float64(gamma),
             thetas, response, padding, pooling)
     end
-    return acc ./ 3
+
+    return Dict{String,Array{Float64}}(response => acc ./ 3)
+    
 end
 
 # Pool response maps over `thetas`, filtering in the plane (dim_a, dim_b).
