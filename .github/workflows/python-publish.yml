@@ -1,6 +1,15 @@
 # Builds the radiomicsjl Python package and publishes it to PyPI.
-# Trigger: a GitHub release whose tag starts with "py-v" (e.g. py-v2.1.0), or manual run.
-# PyPI side: add a "Trusted Publisher" for this repo/workflow/environment "pypi".
+#
+# Trigger: a published GitHub release whose tag is the package version, with or
+# without a leading "v" (e.g. 2.1.1 or v2.1.1 -> radiomicsjl 2.1.1), or a manual run.
+# The package is published only if that version equals `version` in pysrc/pyproject.toml:
+# a release whose number differs (e.g. a Julia-only release) skips publishing, without failing.
+#
+# Tests run on the Julia code of the tagged commit. Publishing waits for the approval of the
+# "pypi" environment (GitHub required reviewer): approve it once JuliaRegistrator's PR is merged
+# in the General registry, so that `pip install radiomicsjl` can resolve the new Radiomics.jl.
+#
+# PyPI side: trusted publisher for this repo, workflow python-publish.yml, environment "pypi".
 name: Publish radiomicsjl to PyPI
 
 on:
@@ -9,8 +18,33 @@ on:
   workflow_dispatch:
 
 jobs:
+  check:
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.v.outputs.publish }}
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        env:
+          TAG: ${{ github.event.release.tag_name }}
+        run: |
+          pkg=$(python3 -c "import tomllib; print(tomllib.load(open('pysrc/pyproject.toml','rb'))['project']['version'])")
+          echo "version=$pkg" >> "$GITHUB_OUTPUT"
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual run: publishing radiomicsjl $pkg"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          elif [ "${TAG#v}" = "$pkg" ]; then
+            echo "Tag $TAG matches pysrc/pyproject.toml ($pkg): publishing"
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "::notice::Tag $TAG does not match radiomicsjl $pkg in pysrc/pyproject.toml: not publishing"
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
   test:
-    if: github.event_name == 'workflow_dispatch' || startsWith(github.event.release.tag_name, 'py-v')
+    needs: check
+    if: needs.check.outputs.publish == 'true'
     runs-on: ubuntu-latest
     defaults: { run: { working-directory: pysrc } }
     steps:
@@ -18,10 +52,13 @@ jobs:
       - uses: actions/setup-python@v5
         with: { python-version: "3.12" }
       - run: pip install ".[test]"
+      # Test the Julia code of this same commit (the release may not be in the General registry yet)
+      - run: python -c "import juliapkg; juliapkg.add('Radiomics', 'a80a7044-09a6-4a0a-a486-eb806178b9ba', dev=True, path='${{ github.workspace }}'); juliapkg.resolve()"
       - run: pytest -v tests
 
   publish:
-    needs: test
+    needs: [check, test]
+    if: needs.check.outputs.publish == 'true'
     runs-on: ubuntu-latest
     environment: pypi
     permissions:
