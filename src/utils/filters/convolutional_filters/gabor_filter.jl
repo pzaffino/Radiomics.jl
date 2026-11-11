@@ -177,19 +177,6 @@ function _pad_plane(slice::AbstractMatrix{Float64}, pa::Int, pb::Int, padding::S
     return out
 end
 
-# Map an out-of-range 1-based index into 1:N according to the padding mode (0 = zero fill).
-function _pad_index(i::Int, N::Int, padding::String)::Int
-    1 <= i <= N && return i
-    padding == "zero" && return 0
-    padding == "nearest" && return clamp(i, 1, N)
-    if padding == "periodic"
-        return mod1(i, N)
-    end
-    # mirror (IBSI): reflect about the image edge with the edge sample repeated (d c b a | a b c d)
-    m = mod(i - 1, 2N)
-    return m < N ? m + 1 : 2N - m
-end
-
 # True 2D convolution; `padded` is the image padded by half the kernel size, output is image-sized.
 function _conv2_valid(padded::Matrix{Float64}, kernel::Matrix{ComplexF64})::Matrix{ComplexF64}
     Ma, Mb = size(kernel)

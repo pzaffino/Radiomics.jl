@@ -17,6 +17,7 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
+include("utils/filters/filters_utils.jl")
 include("utils/filters/wavelet_filters/haar_filters.jl")
 include("utils/filters/convolutional_filters/log_filter.jl")
 include("utils/filters/convolutional_filters/gabor_filter.jl")

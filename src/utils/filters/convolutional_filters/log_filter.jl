@@ -81,27 +81,3 @@ function _gauss_kernel(sigma::Float64, truncate::Float64, order::Int)::Vector{Fl
     order == 0 && return g
     return @. (k^2 / sigma^4 - 1 / sigma^2) * g
 end
-
-# Convolve along `axis` with a symmetric, odd-length kernel, handling the boundary via `padding`.
-function _conv1d_axis(data::Array{Float64}, axis::Int, kernel::Vector{Float64}, padding::String)::Array{Float64}
-    r = length(kernel) ÷ 2
-    N = size(data, axis)
-    out = zeros(Float64, size(data))
-    # reshape to (before, N, after) so the filtered axis is the middle one
-    nb = prod(size(data)[1:axis-1])
-    na = prod(size(data)[axis+1:end])
-    d3 = reshape(data, nb, N, na)
-    o3 = reshape(out, nb, N, na)
-    idx = [_pad_index(i + o, N, padding) for i in 1:N, o in -r:r]  # N × M, 0 = zero fill
-    Threads.@threads for c in 1:na
-        @inbounds for i in 1:N, t in eachindex(kernel)
-            src = idx[i, t]
-            src == 0 && continue
-            w = kernel[t]
-            for b in 1:nb
-                o3[b, i, c] += w * d3[b, src, c]
-            end
-        end
-    end
-    return out
-end
