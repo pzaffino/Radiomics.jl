@@ -1,5 +1,5 @@
 using Test
-using NIfTI
+#using NIfTI
 using Radiomics
 using Downloads
 using CUDA
@@ -492,7 +492,56 @@ mktempdir() do tmpdir
             end
         end
 
-    end 
+    end
+
+    @info "Executing tests for Haar filter on the CPU..."
+
+    @testset "Haar Filter" begin
+        vol = rand(16, 16, 16); sp1 = [1.0, 1.0, 1.0]
+
+        # Without rotation invariance: all 8 subbands, same size as the image, no log messages
+        r = @test_logs Radiomics.haar_wavelet_filter(vol, sp1; rotation_invariant=false)
+        @test length(r) == 8
+        @test all(size(v) == size(vol) for v in values(r))
+
+        # Rotation invariance + "all": only the distinct subbands, with @info
+        r = @test_logs (:info, r"returning only") Radiomics.haar_wavelet_filter(vol, sp1)
+        @test sort(collect(keys(r))) == sort(["wavelet-LLL", "wavelet-LLH", "wavelet-LHH", "wavelet-HHH"])
+        r2d = @test_logs (:info, r"returning only") Radiomics.haar_wavelet_filter(rand(16, 16), [1.0, 1.0])
+        @test sort(collect(keys(r2d))) == sort(["wavelet-LL", "wavelet-LH", "wavelet-HH"])
+
+        # Equivalent subbands are identical after pooling; requesting them gives one @warn each
+        r = @test_logs (:warn, r"requested LLH") (:warn, r"requested LHL") (:warn, r"requested HLL") Radiomics.haar_wavelet_filter(vol, sp1; subbands=["LLH", "LHL", "HLL"])
+        @test r["wavelet-LLH"] ≈ r["wavelet-LHL"] ≈ r["wavelet-HLL"]
+        # All-L and all-H subbands have no equivalents: no warning
+        @test_logs Radiomics.haar_wavelet_filter(vol, sp1; subbands=["LLL", "HHH"])
+
+        # Constant image, mirror padding: LLL = c·(√2)^3, details = 0
+        c = Radiomics.haar_wavelet_filter(fill(5.0, 8, 8, 8), sp1; subbands=["LLL", "HHH"])
+        @test all(c["wavelet-LLL"] .≈ 5 * sqrt(2)^3)
+        @test maximum(abs, c["wavelet-HHH"]) < 1e-12
+
+        # Levels: details for every level, approximation only for the last one
+        r = Radiomics.haar_wavelet_filter(vol, sp1; level=2, subbands=["LLL", "HHH"])
+        @test sort(collect(keys(r))) == ["wavelet-HHH", "wavelet2-HHH", "wavelet2-LLL"]
+
+        # Invalid arguments
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; level=0)
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; padding="foo")
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; pooling="foo")
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; subbands=["LLX"])
+        @test_throws MethodError Radiomics.haar_wavelet_filter(vol, sp1; sigma=1.0)
+
+        # Integration with extract_radiomic_features
+        hf = Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="haar", filter_params=(level=1, subbands=["LLL"]), features=[:first_order],
+            n_bins=6, keep_largest_only=false)
+        @test haskey(hf, "firstorder_mean")
+        @test_throws MethodError Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="haar", filter_params=(sigma=1.0,), features=[:first_order])
+        @test Radiomics.get_filter("haar") === Radiomics.haar_wavelet_filter
+
+    end
 
     @info "Executing tests for Gabor filter on the CPU..."
 
@@ -592,12 +641,12 @@ mktempdir() do tmpdir
         @test Radiomics.get_filter("log") === Radiomics.log_filter
     end
 
-    @info "Executing IBSI 2 reference response map tests (Gabor, LoG) on the CPU..."
+    @info "Executing IBSI 2 reference response map tests (Gabor, LoG, Haar) on the CPU..."
 
     @testset "IBSI 2 reference response maps" begin
         # Phantoms and consensus response maps are downloaded in STEP 4 into ibsi2_dir
-        phantom(name) = Float64.(niread(joinpath(ibsi2_dir, "$name.nii.gz")).raw)
-        crm(id) = Float64.(niread(joinpath(ibsi2_dir, "$id.nii")).raw)
+        phantom(name) = Radiomics.read_image(joinpath(ibsi2_dir, "$name.nii.gz"))
+        crm(id) = Float64.(Radiomics.read_image(joinpath(ibsi2_dir, "$id.nii")).data)
 
         # IBSI 2 compliance (reference manual, sec. 7.1): every voxel within 1% of the reference intensity range
         function ibsi2_compliant(h, ref)
@@ -606,11 +655,12 @@ mktempdir() do tmpdir
         # Filters return a Dict of response maps: these tests produce exactly one
         one_map(d) = only(values(d))
 
-        sp = [2.0, 2.0, 2.0]   # IBSI 2 digital phantoms: 64x64x64 voxels, 2 mm isotropic
+        impulse_img = phantom("impulse")
+        sp = impulse_img.spacing   # IBSI 2 digital phantoms: 64x64x64 voxels, 2 mm isotropic (from header)
 
-        impulse = phantom("impulse")
-        sphere = phantom("sphere")
-        checkerboard = phantom("checkerboard")
+        impulse = Float64.(impulse_img.data)
+        sphere = Float64.(phantom("sphere").data)
+        checkerboard = Float64.(phantom("checkerboard").data)
 
         @testset "LoG" begin
             @test ibsi2_compliant(one_map(Radiomics.log_filter(impulse, sp; sigma=3.0, padding="zero")), crm("2_a"))                    # 2.a
@@ -630,6 +680,15 @@ mktempdir() do tmpdir
             @test ibsi2_compliant(one_map(Radiomics.gabor_filter(sphere, sp; sigma=20.0, lambda=8.0, gamma=2.5, padding="mirror",
                 rotation_invariant=true, delta_theta=π / 8, orthogonal_planes=true)), crm("4_b_2"))
         end
+
+        @testset "Haar" begin
+            # 7.a.1 / 7.a.2: 3D, 2nd level, mirror padding, rotation invariance (average pooling)
+            haar = Radiomics.haar_wavelet_filter(checkerboard, sp; level=2, subbands=["LLL", "HHH"],
+                padding="mirror", rotation_invariant=true, pooling="average")
+            @test ibsi2_compliant(haar["wavelet2-LLL"], crm("7_a_1"))   # 7.a.1
+            @test ibsi2_compliant(haar["wavelet2-HHH"], crm("7_a_2"))   # 7.a.2
+        end
+
     end
 
     # Test on GPU
