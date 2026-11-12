@@ -17,6 +17,12 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
+include("utils/filters/filters_utils.jl")
+include("utils/filters/wavelet_filters/haar_filters.jl")
+include("utils/filters/convolutional_filters/log_filter.jl")
+include("utils/filters/convolutional_filters/gabor_filter.jl")
+include("utils/filters/filters_register.jl")
+
 const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
 
 """
@@ -56,6 +62,14 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
     - `suv_ibsi_normalization`: If true, normalizes the image using the IBSI SUV normalization method.
+    - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
+    - `filter_type::Union{Nothing, String, Vector{String}}`: The image filter(s) to apply before feature extraction
+                (e.g. `"haar"`, `"log"`, `"gabor"`; see `FILTERS` in `filters_register.jl`). Features are computed
+                on every response map returned by the filter. Defaults to `nothing` (no filtering).
+    - `filter_params::NamedTuple`: Filter-specific parameters, forwarded to the filter function. Defaults to `(;)`.
+                e.g. `"haar"`: `(level=2, subbands=["LLL"])`; `"log"`: `(sigma=[1.0, 2.0],)`;
+                `"gabor"`: `(sigma=5.0, lambda=2.0, gamma=1.5, rotation_invariant=true, delta_theta=pi/8)`.
+    - `prefix::String`: An optional prefix to add to the generated variable or column names. Defaults to `""`.
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -74,7 +88,11 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     slices_2d=nothing,
     use_gpu::Bool=false,
     suv_ibsi_normalization::Bool=false,
-    verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
+    cuda_streams::Bool=false,
+    filter_type::Union{Nothing,String,Vector{String}}=nothing,
+    filter_params::NamedTuple=(;),
+    prefix::String="",
+    verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any},Dict{String,Dict{String,Any}}}
 
     img_input, mask_input, voxel_spacing_input = _resolve_inputs(img_input, mask_input, voxel_spacing_input, suv_ibsi_normalization)
 
@@ -93,6 +111,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         keep_largest_only,
         get_raw_matrices,
         use_gpu,
+        cuda_streams,
+        filter_type,
         verbose
     )
 
@@ -110,6 +130,58 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     end
 
     compute_all = isempty(p.features) || :all in p.features
+
+    # Management of image filters (wavelets and convolutional filters)
+    if !isnothing(p.filter_type)
+        filtered_features = if compute_all
+            [:first_order, :glcm, :glszm, :ngtdm, :glrlm, :gldm]
+        else
+            filter(f -> f ∉ (:shape2d, :shape3d), p.features)
+        end
+
+        if !compute_all && isempty(filtered_features)
+            error("With filter_type, shape features cannot be calculated on the filtered images: choose at least one intensity/texture feature.")
+        end
+
+        filter_results = Dict{String,Any}()
+
+        for ftype in p.filter_type
+            filter_fn = get_filter(ftype)
+            response_maps = filter_fn(p.img, p.spacing; filter_params...)
+
+            for (map_name, map_img) in response_maps
+                full_key = "$(ftype)_$(map_name)"
+
+                if verbose
+                    println("\n=== Filtered image: $full_key ===")
+                end
+
+                filter_results[full_key] = extract_radiomic_features(
+                    map_img, mask_input, voxel_spacing_input;
+                    features=filtered_features,
+                    labels=labels,
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    keep_largest_only=keep_largest_only,
+                    get_raw_matrices=get_raw_matrices,
+                    features_std=features_std,
+                    slices_2d=slices_2d,
+                    use_gpu=use_gpu,
+                    cuda_streams=cuda_streams,
+                    filter_type=nothing,
+                    prefix=full_key,
+                    verbose=verbose
+                )
+            end
+        end
+
+        if length(filter_results) == 1
+            return only(values(filter_results))
+        end
+
+        return filter_results
+    end
 
     # Management slices_2d
     if !isnothing(p.slices_2d) && ndims(p.img) == 3
@@ -277,14 +349,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                     push!(log_buffer, "Real time (end-to-end): $(total_time_real) sec")
                     push!(log_buffer, "Overhead: $(total_time_real - total_time_accumulated) sec")
 
-                    diagnosis_features = get_diagnosis_features(
-                        p.bin_width, p.spacing, total_time_real,
-                        p.weighting_norm, p.n_bins, p.keep_largest_only,
-                        p.img, p.features_std, img_to_use, p.mask, mask_to_use
-                    )
-                    merge!(radiomic_features, diagnosis_features)
+                    if p.verbose
+                        diagnosis_features = get_diagnosis_features(
+                            p.bin_width, p.spacing, total_time_real,
+                            p.weighting_norm, p.n_bins, p.keep_largest_only,
+                            p.img, p.features_std, img_to_use, p.mask, mask_to_use
+                        )
+                        merge!(radiomic_features, diagnosis_features)
 
-                    print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
+                        print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
+                    end
 
                     push!(log_buffer, "Total features extracted: $(length(radiomic_features))")
                     push!(log_buffer, "Features extraction completed for LABEL $label")

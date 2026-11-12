@@ -1,5 +1,5 @@
 using Test
-using NIfTI
+#using NIfTI
 using Radiomics
 using Downloads
 using CUDA
@@ -15,17 +15,45 @@ using JSON3
     computed values strictly match the official IBSI reference values, ensuring the 
     mathematical correctness and compliance of the extraction pipeline.
 
-    Reference Data:
+    Reference Data IBSI phase 1:
     The benchmark values used for validation in this suite are derived from the 
     official IBSI Phase 1 standard. 
     The reference manuals and data sets can be accessed at:
     - Reference Data Sets Guide: https://ibsi.readthedocs.io/en/latest/05_Reference_data_sets.html
     - Official Website: https://theibsi.github.io/
     - Data Repository: https://github.com/theibsi/data_sets
+
 """
 
 const PHANTOM_DIR = "https://raw.githubusercontent.com/theibsi/data_sets/master/ibsi_1_digital_phantom/nifti/image/phantom.nii.gz"
 const MASK_DIR = "https://raw.githubusercontent.com/theibsi/data_sets/master/ibsi_1_digital_phantom/nifti/mask/mask.nii.gz"
+
+"""
+    Reference Data IBSI phase 2:
+    The benchmark values used for validation in this suite are derived from the 
+    official IBSI 2 (convolutional filters): digital phantoms and consensus reference response maps. 
+    The reference manuals and data sets can be accessed at:
+    - Data Repository: https://github.com/theibsi/ibsi_2_reference_data
+
+"""
+
+const IBSI2_PHANTOM_URL(name) = "https://raw.githubusercontent.com/theibsi/data_sets/master/ibsi_2_digital_phantom/nifti/$name/image/$name.nii.gz"
+const IBSI2_CRM_URL(id) = "https://raw.githubusercontent.com/theibsi/ibsi_2_reference_data/master/reference_response_maps/$id-ValidCRM.nii"
+
+# All filter configurations with a consensus response map (Tab. 6.1, sez. 7.1;
+# configurations 9 and 10 have no consensus)
+const IBSI2_PHANTOMS = ["impulse", "checkerboard", "sphere"]
+const IBSI2_CRM_IDS = [
+    "1_a_1", "1_a_2", "1_a_3", "1_a_4", "1_b_1",            # mean
+    "2_a", "2_b", "2_c",                                    # LoG
+    "3_a_1", "3_a_2", "3_a_3", "3_b_1", "3_b_2", "3_b_3",
+    "3_c_1", "3_c_2", "3_c_3",                              # Laws
+    "4_a_1", "4_a_2", "4_b_1", "4_b_2",                     # Gabor
+    "5_a_1", "5_a_2",                                       # Daubechies 2
+    "6_a_1", "6_a_2",                                       # Coiflet 1
+    "7_a_1", "7_a_2",                                       # Haar
+    "8_a_1", "8_a_2", "8_a_3",                              # Simoncelli
+]
 
 """
     ibsi_test(actual::Real, reference::Real, tolerance::Real) -> Bool
@@ -163,14 +191,24 @@ mktempdir() do tmpdir
     phantom_path = joinpath(tmpdir, "phantom.nii.gz")
     mask_path = joinpath(tmpdir, "mask.nii.gz")
     dro_dir = joinpath(tmpdir, "DRO")
-    @info "[STEP 1] Start Download"
+    @info "=== Start Download ===="
 
-    @info "[STEP 2] Downloading Phantom and mask..."
+    @info "[STEP 1] Downloading Phantom and mask..."
     Downloads.download(PHANTOM_DIR, phantom_path)
     Downloads.download(MASK_DIR, mask_path)
 
-    @info "[STEP 3] Downloading DROs datasets..."
+    @info "[STEP 2] Downloading DROs datasets..."
     download_dro_all(dro_dir)
+
+    @info "[STEP 3] Downloading IBSI 2 phantoms and reference response maps..."
+    ibsi2_dir = joinpath(tmpdir, "IBSI2")
+    mkpath(ibsi2_dir)
+    for name in IBSI2_PHANTOMS
+        Downloads.download(IBSI2_PHANTOM_URL(name), joinpath(ibsi2_dir, "$name.nii.gz"))
+    end
+    for id in IBSI2_CRM_IDS
+        Downloads.download(IBSI2_CRM_URL(id), joinpath(ibsi2_dir, "$id.nii"))
+    end
 
     @info "Download complete."
 
@@ -444,7 +482,7 @@ mktempdir() do tmpdir
 
     end
 
-    @info "Executing tests for DRO dataset features..."
+    @info "Executing tests for DRO dataset features on the CPU..."
 
     @testset "Radiomics DROs set" begin
         for n in names
@@ -461,6 +499,204 @@ mktempdir() do tmpdir
                 end
             end
         end
+
+    end
+
+    @info "Executing tests for Haar filter on the CPU..."
+
+    @testset "Haar Filter" begin
+        vol = rand(16, 16, 16); sp1 = [1.0, 1.0, 1.0]
+
+        # Without rotation invariance: all 8 subbands, same size as the image, no log messages
+        r = @test_logs Radiomics.haar_wavelet_filter(vol, sp1; rotation_invariant=false)
+        @test length(r) == 8
+        @test all(size(v) == size(vol) for v in values(r))
+
+        # Rotation invariance + "all": only the distinct subbands, with @info
+        r = @test_logs (:info, r"returning only") Radiomics.haar_wavelet_filter(vol, sp1)
+        @test sort(collect(keys(r))) == sort(["wavelet-LLL", "wavelet-LLH", "wavelet-LHH", "wavelet-HHH"])
+        r2d = @test_logs (:info, r"returning only") Radiomics.haar_wavelet_filter(rand(16, 16), [1.0, 1.0])
+        @test sort(collect(keys(r2d))) == sort(["wavelet-LL", "wavelet-LH", "wavelet-HH"])
+
+        # Equivalent subbands are identical after pooling; requesting them gives one @warn each
+        r = @test_logs (:warn, r"requested LLH") (:warn, r"requested LHL") (:warn, r"requested HLL") Radiomics.haar_wavelet_filter(vol, sp1; subbands=["LLH", "LHL", "HLL"])
+        @test r["wavelet-LLH"] ≈ r["wavelet-LHL"] ≈ r["wavelet-HLL"]
+        # All-L and all-H subbands have no equivalents: no warning
+        @test_logs Radiomics.haar_wavelet_filter(vol, sp1; subbands=["LLL", "HHH"])
+
+        # Constant image, mirror padding: LLL = c·(√2)^3, details = 0
+        c = Radiomics.haar_wavelet_filter(fill(5.0, 8, 8, 8), sp1; subbands=["LLL", "HHH"])
+        @test all(c["wavelet-LLL"] .≈ 5 * sqrt(2)^3)
+        @test maximum(abs, c["wavelet-HHH"]) < 1e-12
+
+        # Levels: details for every level, approximation only for the last one
+        r = Radiomics.haar_wavelet_filter(vol, sp1; level=2, subbands=["LLL", "HHH"])
+        @test sort(collect(keys(r))) == ["wavelet-HHH", "wavelet2-HHH", "wavelet2-LLL"]
+
+        # Invalid arguments
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; level=0)
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; padding="foo")
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; pooling="foo")
+        @test_throws ErrorException Radiomics.haar_wavelet_filter(vol, sp1; subbands=["LLX"])
+        @test_throws MethodError Radiomics.haar_wavelet_filter(vol, sp1; sigma=1.0)
+
+        # Integration with extract_radiomic_features
+        hf = Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="haar", filter_params=(level=1, subbands=["LLL"]), features=[:first_order],
+            n_bins=6, keep_largest_only=false)
+        @test haskey(hf, "firstorder_mean")
+        @test_throws MethodError Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="haar", filter_params=(sigma=1.0,), features=[:first_order])
+        @test Radiomics.get_filter("haar") === Radiomics.haar_wavelet_filter
+
+    end
+
+    @info "Executing tests for Gabor filter on the CPU..."
+
+    @testset "Gabor Filter" begin
+        # gabor_filter returns a one-entry Dict (response => map): extract the map
+        gabor_map(args...; kwargs...) = only(values(Radiomics.gabor_filter(args...; kwargs...)))
+
+        # Output format: one entry keyed by the response type
+        imp = zeros(33, 33); imp[17, 17] = 1.0
+        @test collect(keys(Radiomics.gabor_filter(imp, [1.0, 1.0]; sigma=4.0, lambda=5.0))) == ["modulus"]
+        @test collect(keys(Radiomics.gabor_filter(imp, [1.0, 1.0]; sigma=4.0, lambda=5.0, response="real"))) == ["real"]
+
+        # Impulse response: the modulus is the Gaussian envelope of the kernel
+        h = gabor_map(imp, [1.0, 1.0]; sigma=4.0, lambda=5.0, gamma=1.0, theta=0.0)
+        @test size(h) == size(imp)
+        @test h[17, 17] ≈ 1.0
+        @test h[17+3, 17] ≈ exp(-3^2 / (2 * 4.0^2))
+        @test h[17, 17+3] ≈ exp(-(1.0^2 * 3^2) / (2 * 4.0^2))
+
+        # Orientation: theta=0 has the oscillation (and gamma-free axis) along dim 1
+        h_g = gabor_map(imp, [1.0, 1.0]; sigma=4.0, lambda=5.0, gamma=2.0, theta=0.0)
+        @test h_g[17+3, 17] ≈ exp(-3^2 / (2 * 4.0^2))
+        @test h_g[17, 17+3] ≈ exp(-(2.0^2 * 3^2) / (2 * 4.0^2))
+
+        # Modulus does not depend on theta -> theta + pi
+        img = rand(20, 20)
+        @test gabor_map(img, [1.0, 1.0]; sigma=3.0, lambda=4.0, theta=0.3) ≈
+              gabor_map(img, [1.0, 1.0]; sigma=3.0, lambda=4.0, theta=0.3 + π)
+
+        # Physical units: sigma/lambda in mm scale with spacing
+        imp2 = zeros(33, 33); imp2[17, 17] = 1.0
+        h2 = gabor_map(imp2, [2.0, 2.0]; sigma=8.0, lambda=10.0)
+        h1 = gabor_map(imp2, [1.0, 1.0]; sigma=4.0, lambda=5.0)
+        @test h1 ≈ h2
+
+        # Pooling and 3D / orthogonal planes keep the image shape
+        vol = rand(10, 12, 8)
+        @test size(gabor_map(vol, [1.0, 1.0, 2.0]; sigma=2.0, lambda=3.0)) == size(vol)
+        @test size(gabor_map(vol, [1.0, 1.0, 2.0]; sigma=2.0, lambda=3.0,
+            rotation_invariant=true, delta_theta=π / 2, pooling="max", orthogonal_planes=true, padding="mirror")) == size(vol)
+
+        # Invalid arguments
+        @test_throws ErrorException Radiomics.gabor_filter(imp, [1.0, 1.0]; sigma=-1.0, lambda=5.0)
+        @test_throws ErrorException Radiomics.gabor_filter(imp, [1.0, 1.0]; sigma=1.0, lambda=5.0, padding="foo")
+        @test_throws ErrorException Radiomics.gabor_filter(imp, [1.0, 1.0]; sigma=1.0, lambda=5.0, orthogonal_planes=true)
+        # Unknown keyword (e.g. a wavelet parameter) is rejected
+        @test_throws MethodError Radiomics.gabor_filter(imp, [1.0, 1.0]; sigma=1.0, lambda=5.0, level=2)
+
+        # Integration with extract_radiomic_features
+        gf = Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="gabor", filter_params=(sigma=2.0, lambda=3.0, gamma=1.0), features=[:first_order],
+            n_bins=6, keep_largest_only=false)
+        @test haskey(gf, "firstorder_mean")
+        @test_throws ErrorException Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="gabor", filter_params=(sigma=2.0, lambda=3.0), features=[:shape3d])
+        @test_throws MethodError Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="gabor", filter_params=(sigma=2.0, lambda=3.0, level=2), features=[:first_order])
+        @test Radiomics.get_filter("gabor") === Radiomics.gabor_filter
+    end
+
+    @info "Executing tests for LoG filter on the CPU..."
+
+    @testset "LoG Filter" begin
+        # Impulse response of an interior voxel equals the (truncated) 3D kernel; zero-sum check
+        imp = zeros(41, 41, 41); imp[21, 21, 21] = 1.0
+        h = only(values(Radiomics.log_filter(imp, [2.0, 2.0, 2.0]; sigma=3.0)))
+        σ = 1.5
+        g0 = -(1 / σ^2) * (1 / (sqrt(2π) * σ))^3 * 3
+        @test h[21, 21, 21] ≈ g0
+        @test isapprox(sum(h), 0.0; atol=0.03 * abs(g0))
+
+        # Output keys are pyradiomics-style, one image per sigma
+        r = Radiomics.log_filter(imp, [2.0, 2.0, 2.0]; sigma=[1.5, 3.0])
+        @test sort(collect(keys(r))) == ["log-sigma-1-5-mm-3D", "log-sigma-3-0-mm-3D"]
+        r2 = Radiomics.log_filter(imp, [2.0, 2.0, 2.0]; sigma=3.0, dims=2)
+        @test haskey(r2, "log-sigma-3-0-mm-2D")
+
+        # Constant image with mirror padding gives zero response (kernel sums to ~0)
+        c = Radiomics.log_filter(fill(5.0, 12, 12, 12), [1.0, 1.0, 1.0]; sigma=1.0, padding="mirror")
+        @test maximum(abs, only(values(c))) < 0.05
+
+        # Invalid arguments
+        @test_throws ErrorException Radiomics.log_filter(imp, [2.0, 2.0, 2.0]; sigma=-1.0)
+        @test_throws ErrorException Radiomics.log_filter(imp, [2.0, 2.0, 2.0]; sigma=1.0, padding="foo")
+        @test_throws ErrorException Radiomics.log_filter(rand(8, 8), [1.0, 1.0]; sigma=1.0)
+        # Unknown keyword (e.g. a wavelet parameter) is rejected
+        @test_throws MethodError Radiomics.log_filter(imp, [2.0, 2.0, 2.0]; sigma=1.0, level=2)
+
+        # Integration through the filter register
+        lf = Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="log", filter_params=(sigma=[1.0, 2.0],), features=[:first_order],
+            n_bins=6, keep_largest_only=false)
+        @test sort(collect(keys(lf))) == ["log_log-sigma-1-0-mm-3D", "log_log-sigma-2-0-mm-3D"]
+        @test haskey(lf["log_log-sigma-1-0-mm-3D"], "firstorder_mean")
+        @test_throws MethodError Radiomics.extract_radiomic_features(phantom_path, mask_path;
+            filter_type="log", filter_params=(sigma=1.0, level=2), features=[:first_order])
+        @test Radiomics.get_filter("log") === Radiomics.log_filter
+    end
+
+    @info "Executing IBSI 2 reference response map tests (Gabor, LoG, Haar) on the CPU..."
+
+    @testset "IBSI 2 reference response maps" begin
+        # Phantoms and consensus response maps are downloaded in STEP 4 into ibsi2_dir
+        phantom(name) = Radiomics.read_image(joinpath(ibsi2_dir, "$name.nii.gz"))
+        crm(id) = Float64.(Radiomics.read_image(joinpath(ibsi2_dir, "$id.nii")).data)
+
+        # IBSI 2 compliance (reference manual, sec. 7.1): every voxel within 1% of the reference intensity range
+        function ibsi2_compliant(h, ref)
+            return size(h) == size(ref) && maximum(abs.(h .- ref)) <= 0.01 * (maximum(ref) - minimum(ref))
+        end
+        # Filters return a Dict of response maps: these tests produce exactly one
+        one_map(d) = only(values(d))
+
+        impulse_img = phantom("impulse")
+        sp = impulse_img.spacing   # IBSI 2 digital phantoms: 64x64x64 voxels, 2 mm isotropic (from header)
+
+        impulse = Float64.(impulse_img.data)
+        sphere = Float64.(phantom("sphere").data)
+        checkerboard = Float64.(phantom("checkerboard").data)
+
+        @testset "LoG" begin
+            @test ibsi2_compliant(one_map(Radiomics.log_filter(impulse, sp; sigma=3.0, padding="zero")), crm("2_a"))                    # 2.a
+            @test ibsi2_compliant(one_map(Radiomics.log_filter(checkerboard, sp; sigma=5.0, padding="mirror")), crm("2_b"))             # 2.b
+            @test ibsi2_compliant(one_map(Radiomics.log_filter(checkerboard, sp; sigma=5.0, padding="mirror", dims=2)), crm("2_c"))     # 2.c
+        end
+
+        @testset "Gabor" begin
+            # 4.a.1: single orientation, zero padding
+            @test ibsi2_compliant(one_map(Radiomics.gabor_filter(impulse, sp; sigma=10.0, lambda=4.0, gamma=0.5, theta=π / 3)), crm("4_a_1"))
+            # 4.a.2: rotation invariance (average pooling) + average over orthogonal planes
+            @test ibsi2_compliant(one_map(Radiomics.gabor_filter(impulse, sp; sigma=10.0, lambda=4.0, gamma=0.5,
+                rotation_invariant=true, delta_theta=π / 4, orthogonal_planes=true)), crm("4_a_2"))
+            # 4.b.1: single orientation, mirror padding
+            @test ibsi2_compliant(one_map(Radiomics.gabor_filter(sphere, sp; sigma=20.0, lambda=8.0, gamma=2.5, theta=5π / 4, padding="mirror")), crm("4_b_1"))
+            # 4.b.2: rotation invariance + orthogonal planes
+            @test ibsi2_compliant(one_map(Radiomics.gabor_filter(sphere, sp; sigma=20.0, lambda=8.0, gamma=2.5, padding="mirror",
+                rotation_invariant=true, delta_theta=π / 8, orthogonal_planes=true)), crm("4_b_2"))
+        end
+
+        @testset "Haar" begin
+            # 7.a.1 / 7.a.2: 3D, 2nd level, mirror padding, rotation invariance (average pooling)
+            haar = Radiomics.haar_wavelet_filter(checkerboard, sp; level=2, subbands=["LLL", "HHH"],
+                padding="mirror", rotation_invariant=true, pooling="average")
+            @test ibsi2_compliant(haar["wavelet2-LLL"], crm("7_a_1"))   # 7.a.1
+            @test ibsi2_compliant(haar["wavelet2-HHH"], crm("7_a_2"))   # 7.a.2
+        end
+
     end
 
     @info "Executing tests for a single-slice label in a 3D image..."

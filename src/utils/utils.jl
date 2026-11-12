@@ -391,8 +391,7 @@ function print_features(title::String,
 end
 
 """
-    _cast_inputs(img_input, mask_input, voxel_spacing_input,
-                 features, labels, n_bins, bin_width, weighting_norm)
+    _cast_inputs(...)
 
     Converts all input parameters to their correct concrete types.
     Acts as a type barrier before the main feature extraction logic.
@@ -414,9 +413,11 @@ function _cast_inputs(
     keep_largest_only,
     get_raw_matrices,
     use_gpu,
+    cuda_streams,
+    filter_type,
     verbose
 )::NamedTuple{
-    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :verbose),
+    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :cuda_streams, :filter_type, :verbose),
     Tuple{
         Union{Array{Float64,2},Array{Float64,3}},
         Union{Array{Int,2},Array{Int,3}},
@@ -431,6 +432,8 @@ function _cast_inputs(
         Bool,
         Bool,
         Bool,
+        Bool,
+        Union{Nothing,Vector{String}},
         Bool
     }
 }
@@ -498,6 +501,18 @@ function _cast_inputs(
         Int(labels)
     end
 
+    # filter_type
+    filter_type_cast = if isnothing(filter_type)
+        nothing
+    elseif filter_type isa String
+        [filter_type]
+    elseif filter_type isa Vector{String}
+        isempty(filter_type) && error("filter_type cannot be an empty vector")
+        filter_type
+    else
+        error("filter_type must be `nothing`, a String, or a Vector{String}, got $(typeof(filter_type))")
+    end
+
     # Convert n_bins 
     n_bins_out::Union{Nothing,Int} = isnothing(n_bins) ? nothing : Int(n_bins)
 
@@ -545,6 +560,8 @@ function _cast_inputs(
         keep_largest_only=Bool(keep_largest_only),
         get_raw_matrices=Bool(get_raw_matrices),
         use_gpu=Bool(use_gpu),
+        cuda_streams=Bool(cuda_streams),
+        filter_type=filter_type_cast,
         verbose=Bool(verbose)
     )
 end
