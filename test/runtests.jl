@@ -1,5 +1,4 @@
 using Test
-#using NIfTI
 using Radiomics
 using Downloads
 using CUDA
