@@ -103,45 +103,72 @@ export PYTHON_JULIACALL_HANDLE_SIGNALS=yes
 ```
 
 # Using Radiomics.jl from Python
-Radiomics.jl can be used directly from Python in a simple and convenient way.
+Radiomics.jl can be used directly from Python through the `radiomicsjl` package.
 
 ## Setup
 
-Juliacall acts as a bridge between Python and Julia.
+```bash
+pip install radiomicsjl
+```
 
-Install it via:
+Julia and Radiomics.jl are installed automatically the first time a feature extraction is run (a few minutes, only once). If a compatible Julia is already installed on your system, it is used; otherwise an embedded version is downloaded.
 
-If Julia is not already installed on your system, juliacall will download and use its own embedded version.
+For GPU acceleration (NVIDIA GPU required), install CUDA.jl once:
+
+```bash
+python -m radiomicsjl install-gpu
+```
+
+## Feature extraction
+
+From image files (NIfTI, NRRD, DICOM file or folder), with the voxel spacing read from the header:
+
+```python
+import radiomicsjl as rj
+
+radiomic_features = rj.extract_radiomic_features('DATA_PATH/ct.nii.gz', 'DATA_PATH/mask.nii.gz')
+```
+
+From SimpleITK images:
+
+```python
+import SimpleITK as sitk
+import radiomicsjl as rj
+
+ct_sitk = sitk.ReadImage('DATA_PATH/ct.nii.gz')
+mask_sitk = sitk.ReadImage('DATA_PATH/mask.nii.gz')
+
+radiomic_features = rj.extract_radiomic_features(ct_sitk, mask_sitk)
+```
+
+From numpy arrays, with the spacing in the same order as the array axes:
+
+```python
+ct = sitk.GetArrayFromImage(ct_sitk)        # axes (z, y, x)
+mask = sitk.GetArrayFromImage(mask_sitk)
+spacing = ct_sitk.GetSpacing()[::-1]        # GetSpacing() is (x, y, z): reverse it
+
+radiomic_features = rj.extract_radiomic_features(ct, mask, spacing)
+```
+
+The arguments are the same as in Julia (`features`, `labels`, `n_bins`, `bin_width`, `use_gpu`, ...). `slices_2d` is 0-based in Python: `(2, 10)` is the slice `[:, :, 10]`.
+
+## Using juliacall directly
+
+Radiomics.jl can also be called through [juliacall](https://github.com/JuliaPy/PythonCall.jl) without the `radiomicsjl` package:
 
 ```bash
 pip install juliacall
 ```
 
-To install the Radiomics.jl package, run the following in Python:
-
 ```python
 from juliacall import Main as jl
 jl.seval('import Pkg; Pkg.add("Radiomics")')
-```
-
-## Feature extraction
-
-Once the environment is set up, you can extract radiomic features as shown below:
-
-```python
-import SimpleITK as sitk
-import numpy as np
-
-from juliacall import Main as jl
 jl.seval("using Radiomics")
-
-ct_sitk = sitk.ReadImage('DATA_PATH/ct.nii.gz')
-mask_sitk = sitk.ReadImage('DATA_PATH/mask.nii.gz')
 
 ct = sitk.GetArrayFromImage(ct_sitk)
 mask = sitk.GetArrayFromImage(mask_sitk)
-
-spacing = ct_sitk.GetSpacing()
+spacing = ct_sitk.GetSpacing()[::-1]        # match the (z, y, x) array axes
 
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
