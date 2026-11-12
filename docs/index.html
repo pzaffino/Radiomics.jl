@@ -437,17 +437,27 @@
       margin: 0 auto;
     }
 
+    /* 3 cards per row on a 6-column grid (each card spans 2 columns),
+    so that an incomplete last row can be centered */
     .team-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: repeat(6, 1fr);
       gap: 40px;
       max-width: 1100px;
       margin: 0 auto;
     }
 
-    /* --- Delete if add other member --- */
+    .team-member-wrapper {
+      grid-column: span 2;
+    }
+
+    /* --- Last row with 2 cards (11 members): centered. Update if members are added or removed --- */
+    .team-member-wrapper:nth-last-child(2) {
+      grid-column: 2 / span 2;
+    }
+
     .team-member-wrapper:last-child {
-      grid-column: 2;
+      grid-column: 4 / span 2;
     }
 
     .team-member-wrapper {
@@ -579,8 +589,17 @@
         padding: 40px;
       }
 
+      /* 2 cards per row on a 4-column grid: the last card (11 members) is centered */
       .team-grid {
-        grid-template-columns: repeat(2, 1fr);
+        grid-template-columns: repeat(4, 1fr);
+      }
+
+      .team-member-wrapper:nth-last-child(2) {
+        grid-column: span 2;
+      }
+
+      .team-member-wrapper:last-child {
+        grid-column: 2 / span 2;
       }
     }
 
@@ -637,7 +656,8 @@
         grid-template-columns: 1fr;
       }
 
-      /* --- Delete if add other member --- */
+      .team-member-wrapper,
+      .team-member-wrapper:nth-last-child(2),
       .team-member-wrapper:last-child {
         grid-column: 1;
       }
@@ -676,6 +696,7 @@
         <div class="dropdown-content">
           <a href="IBSI_compliance.html">IBSI Compliance</a>
           <a href="IBSI_SUV_Normalization.html">IBSI SUV Normalization</a>
+          <a href="IBSI_filters.html">IBSI Image Filters</a>
         </div>
       </div>
       <a href="example.html">Examples</a>
@@ -898,14 +919,25 @@ radiomic_features = <span class="julia-type">Radiomics</span>.<span class="julia
         <a href="https://www.linkedin.com/in/marco-tullio-giannotti-a314a0357/" class="team-member-wrapper">
           <div class="team-member">
             <div class="team-member-image">
-              <img
-                src="https://media.licdn.com/dms/image/v2/D4E03AQGgvH17E9x_5g/profile-displayphoto-scale_400_400/B4EaBhaeedIgAg-/0/1788340728012?e=1794441600&v=beta&t=to3znwi9x5gB7TdPtETB4Ai8Ushz06U0Hr-cbfAbF-Y"
+              <img src="https://avatars.githubusercontent.com/u/61711684?v=4"
                 alt="M.Sc. Student, Marco Tullio Giannotti">
             </div>
             <h3>M.Sc. Student, Marco Tullio Giannotti</h3>
             <div class="role">Università degli Studi "Magna Graecia" di Catanzaro, Italy</div>
           </div>
         </a>
+
+        <a href="https://www.ibt.kit.edu/Arndt_M.php" class="team-member-wrapper">
+          <div class="team-member">
+            <div class="team-member-image">
+              <img src="https://www.ibt.kit.edu/img/content/IMG_Mark_Daniel_Arndt_2024_rdax_230x230.png"
+                alt="M.Sc. Mark Daniel Arndt">
+            </div>
+            <h3>M.Sc. Mark Daniel Arndt</h3>
+            <div class="role">Karlsruher Institut für Technologie, Germany</div>
+          </div>
+        </a>
+
       </div>
     </section>
 
