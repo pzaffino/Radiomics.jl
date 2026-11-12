@@ -37,6 +37,9 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
                               slices_2d=nothing,
                               use_gpu::Bool=false,
                               suv_ibsi_normalization::Bool=false,
+                              filter_type::Union{Nothing,String,Vector{String}}=nothing,
+                              filter_params::NamedTuple=(;),
+                              prefix::String="",
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -62,7 +65,6 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
     - `suv_ibsi_normalization`: If true, normalizes the image using the IBSI SUV normalization method.
-    - `cuda_streams` : If true, enables CUDA streams for concurrent kernel execution
     - `filter_type::Union{Nothing, String, Vector{String}}`: The image filter(s) to apply before feature extraction
                 (e.g. `"haar"`, `"log"`, `"gabor"`; see `FILTERS` in `filters_register.jl`). Features are computed
                 on every response map returned by the filter. Defaults to `nothing` (no filtering).
@@ -88,7 +90,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     slices_2d=nothing,
     use_gpu::Bool=false,
     suv_ibsi_normalization::Bool=false,
-    cuda_streams::Bool=false,
     filter_type::Union{Nothing,String,Vector{String}}=nothing,
     filter_params::NamedTuple=(;),
     prefix::String="",
@@ -111,7 +112,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         keep_largest_only,
         get_raw_matrices,
         use_gpu,
-        cuda_streams,
         filter_type,
         verbose
     )
@@ -168,7 +168,6 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                     features_std=features_std,
                     slices_2d=slices_2d,
                     use_gpu=use_gpu,
-                    cuda_streams=cuda_streams,
                     filter_type=nothing,
                     prefix=full_key,
                     verbose=verbose

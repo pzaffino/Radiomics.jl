@@ -83,7 +83,7 @@ radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacin
 ```
 To enable CUDA streams for the concurrent extraction of feature families, you need to set the flag as shown in the following example:
 ```julia
-radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing, use_gpu = true, cuda_streams =true)
+radiomic_features = Radiomics.extract_radiomic_features(ct.raw, mask.raw, spacing, use_gpu = true)
 ```
 # Multi threading
 Radiomics.jl can be run in multi-threading mode (highly recommended to speed up the computation).
