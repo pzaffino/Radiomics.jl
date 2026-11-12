@@ -145,33 +145,57 @@ spacing = ct_sitk.GetSpacing()
 
 radiomic_features = jl.Radiomics.extract_radiomic_features(ct, mask, spacing)
 ```
-# Using Radiomics.jl from Docker
-### Install Radiomics.jl with CUDA from Docker
-Install the image of Radiomics.jl compliant with CUDA in your Docker development environment:
-```bash
-docker pull ghcr.io/pzaffino/radiomics.jl:latest-gpu
-```
-or you can use a version without GPU acceleration
-```bash
-docker pull ghcr.io/pzaffino/radiomics.jl:latest
-```
-### Run Container
-Run the container mounting the current directory as /data and passing the CT image and mask as arguments.
-```bash
-docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz
-```
-Run the container and save the results to a CSV file.
-```bash
-docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz -o /data/results.csv
-```
-Run the container with custom parameters.
-```bash
-docker run -it -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false
-```
-Run the container with multi-threading enabled.
-```bash
-docker run -it -e JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --keep_largest_only false
-```
+## Using Radiomics.jl from Docker
+
+### Install
+
+Image with CUDA (NVIDIA GPU) acceleration:
+
+    docker pull ghcr.io/pzaffino/radiomics.jl:latest-gpu
+
+Image without GPU acceleration:
+
+    docker pull ghcr.io/pzaffino/radiomics.jl:latest
+
+### Extract features
+
+Mount the folder with your data as `/data` and pass the image and the mask (NIfTI, NRRD or DICOM folder):
+
+    docker run --rm -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz -o /data/features.csv
+
+On GPU (requires the [NVIDIA Container Toolkit](https://docs.nvidia.com/datacenter/cloud-native/container-toolkit/latest/install-guide.html)):
+
+    docker run --rm --gpus all -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest-gpu /data/ct.nii.gz /data/mask.nii.gz -o /data/features.csv
+
+Use `--gpus '"device=0"'` to select a specific GPU.
+
+### Options
+
+| option | example | description |
+|---|---|---|
+| `-o`, `--output` | `/data/features.csv` | output CSV file |
+| `--features` | `first_order,glcm,shape3d` | feature families (default: all) |
+| `--labels` | `1` or `1,2,3` | label values (default: 1) |
+| `--n_bins` / `--bin_width` | `32` / `25` | discretisation |
+| `--weighting_norm` | `euclidean` | weighting normalisation |
+| `--keep_largest_only` | `false` | keep only the largest connected component (default: true) |
+| `--slices_2d` | `3:10,3:11` | plane:slice pairs, 1-based |
+| `--filter_type` | `haar`, `log`, `gabor` | image filter applied before extraction |
+| `--filter_params` | `'(level=2,)'`, `'(sigma=[1.0, 3.0],)'` | filter parameters (Julia NamedTuple) |
+| `--features_std` | `true` | std, min and max over directions for GLCM and GLRLM |
+| `--suv_ibsi_normalization` | `true` | SUV normalisation of a PET DICOM series |
+| `--use_gpu` | `false` | GPU on/off (default: on in the `-gpu` image) |
+| `--verbose` | `false` | progress messages (default: true) |
+
+With several labels, slices or filter response maps, the CSV has one row each, identified by the `label`, `slice` and `filter_map` columns.
+
+Example with the Haar wavelet:
+
+    docker run --rm -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz --filter_type haar --features first_order,glcm -o /data/features_haar.csv
+
+Multi-threading:
+
+    docker run --rm -e JULIA_NUM_THREADS=auto -v $(pwd):/data ghcr.io/pzaffino/radiomics.jl:latest /data/ct.nii.gz /data/mask.nii.gz
 
 # Discalaimer
 This software is for research purposes only.

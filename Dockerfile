@@ -1,3 +1,4 @@
+# syntax=docker/dockerfile:1.7
 # Official Julia image
 FROM julia:1.10-bookworm
 LABEL org.opencontainers.image.source=https://github.com/pzaffino/Radiomics.jl
@@ -15,9 +16,14 @@ RUN apt-get update && apt-get install -y \
     ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
+# Radiomics.jl from the build context: the image contains exactly the code of the commit being built
+COPY Project.toml /opt/Radiomics.jl/Project.toml
+COPY src /opt/Radiomics.jl/src
+COPY ext /opt/Radiomics.jl/ext
+
 # Conditional dependency installation
 RUN julia -e 'using Pkg; \
-    Pkg.add(url="https://github.com/pzaffino/Radiomics.jl"); \
+    Pkg.develop(path="/opt/Radiomics.jl"); \
     pkgs = ["ArgParse", "CSV", "DataFrames", "PrecompileTools"]; \
     if get(ENV, "USE_CUDA", "false") == "true"; \
         push!(pkgs, "CUDA"); \
@@ -29,86 +35,169 @@ RUN julia -e 'using Pkg; \
     end; \
     Pkg.precompile()'
 
-# Set working directory and generate the embedded Julia script
 WORKDIR /app
 
-# Script generation with conditional CUDA import
-RUN printf 'using Radiomics, ArgParse, CSV, DataFrames\n\
-if get(ENV, "USE_CUDA", "false") == "true"\n\
-    try\n\
-        using CUDA\n\
-    catch e\n\
-        @warn "CUDA non disponibile, esecuzione su CPU"\n\
-    end\n\
-end\n\
-\n\
-function parse_args_custom()\n\
-    s = ArgParseSettings()\n\
-    @add_arg_table! s begin\n\
-        "img"\n\
-            help = "Path to input image (NIfTI, NRRD or DICOM folder)"\n\
-            required = true\n\
-        "mask"\n\
-            help = "Path to mask (NIfTI, NRRD or DICOM folder)"\n\
-            required = true\n\
-        "--output", "-o"\n\
-            help = "Path to output CSV file"\n\
-            arg_type = String\n\
-            default = "features.csv"\n\
-        "--n_bins"\n\
-            help = "Number of bins for histogram"\n\
-            arg_type = Int\n\
-            default = nothing\n\
-        "--bin_width"\n\
-            help = "Bin width for histogram"\n\
-            arg_type = Float64\n\
-            default = nothing\n\
-        "--weighting_norm"\n\
-            help = "Weighting normalization method"\n\
-            arg_type = String\n\
-            default = nothing\n\
-        "--keep_largest_only"\n\
-            help = "Keep only the largest region in mask"\n\
-            arg_type = Bool\n\
-            default = true\n\
-        "--get_raw_matrices"\n\
-            help = "Return raw feature matrices"\n\
-            arg_type = Bool\n\
-            default = false\n\
-        "--suv_ibsi_normalization"\n\
-            help = "Normalize a PET DICOM series to SUV (the image must be a DICOM PET series)"\n\
-            arg_type = Bool\n\
-            default = false\n\
-        "--verbose"\n\
-            help = "Enable verbose output"\n\
-            arg_type = Bool\n\
-            default = true\n\
-    end\n\
-    return parse_args(s)\n\
-end\n\
-\n\
-args = parse_args_custom()\n\
-\n\
-# Run radiomic feature extraction (image and mask are read from the given paths)\n\
-features = Radiomics.extract_radiomic_features(\n\
-    args["img"], args["mask"];\n\
-    features=Symbol[],\n\
-    labels=nothing,\n\
-    n_bins=args["n_bins"],\n\
-    bin_width=args["bin_width"],\n\
-    weighting_norm=args["weighting_norm"],\n\
-    keep_largest_only=args["keep_largest_only"],\n\
-    get_raw_matrices=args["get_raw_matrices"],\n\
-    slices_2d=nothing,\n\
-    suv_ibsi_normalization=args["suv_ibsi_normalization"],\n\
-    verbose=args["verbose"]\n\
-);\n\
-\n\
-# Convert results to DataFrame and save to CSV\n\
-df = DataFrame([features])\n\
-CSV.write(args["output"], df)\n\
-println("Extraction complete. Results saved to: ", args["output"])\n\
-' > /app/extract.jl
+# Command line entry point
+COPY <<'EOF' /app/extract.jl
+using Radiomics, ArgParse, CSV, DataFrames
+if get(ENV, "USE_CUDA", "false") == "true"
+    try
+        using CUDA
+    catch e
+        @warn "CUDA not available, running on CPU"
+    end
+end
+
+function parse_args_custom()
+    s = ArgParseSettings(description="Radiomics.jl feature extraction")
+    @add_arg_table! s begin
+        "img"
+            help = "Path to input image (NIfTI, NRRD or DICOM folder)"
+            required = true
+        "mask"
+            help = "Path to mask (NIfTI, NRRD or DICOM folder)"
+            required = true
+        "--output", "-o"
+            help = "Path to output CSV file"
+            arg_type = String
+            default = "features.csv"
+        "--features"
+            help = "Comma-separated feature families, e.g. first_order,glcm,shape3d (default: all)"
+            arg_type = String
+            default = nothing
+        "--labels"
+            help = "Comma-separated label values, e.g. 1 or 1,2,3 (default: 1)"
+            arg_type = String
+            default = nothing
+        "--n_bins"
+            help = "Number of bins for histogram"
+            arg_type = Int
+            default = nothing
+        "--bin_width"
+            help = "Bin width for histogram"
+            arg_type = Float64
+            default = nothing
+        "--weighting_norm"
+            help = "Weighting normalization method"
+            arg_type = String
+            default = nothing
+        "--keep_largest_only"
+            help = "Keep only the largest region in mask"
+            arg_type = Bool
+            default = true
+        "--get_raw_matrices"
+            help = "Return raw feature matrices"
+            arg_type = Bool
+            default = false
+        "--features_std"
+            help = "Also return std, min and max over directions for GLCM and GLRLM"
+            arg_type = Bool
+            default = false
+        "--slices_2d"
+            help = "Comma-separated plane:slice pairs (1-based, as in Julia), e.g. 3:10,3:11"
+            arg_type = String
+            default = nothing
+        "--filter_type"
+            help = "Image filter(s) applied before extraction: haar, log, gabor (comma-separated)"
+            arg_type = String
+            default = nothing
+        "--filter_params"
+            help = "Filter parameters as a Julia NamedTuple, e.g. '(level=2,)' or '(sigma=[1.0, 3.0],)'"
+            arg_type = String
+            default = nothing
+        "--suv_ibsi_normalization"
+            help = "Normalize a PET DICOM series to SUV (the image must be a DICOM PET series)"
+            arg_type = Bool
+            default = false
+        "--use_gpu"
+            help = "Use the GPU (only in the CUDA image)"
+            arg_type = Bool
+            default = get(ENV, "USE_CUDA", "false") == "true"
+        "--verbose"
+            help = "Enable verbose output"
+            arg_type = Bool
+            default = true
+    end
+    return parse_args(s)
+end
+
+splitlist(s) = [strip(x) for x in split(s, ",") if !isempty(strip(x))]
+
+function parse_labels(s)
+    isnothing(s) && return nothing
+    v = parse.(Int, splitlist(s))
+    return length(v) == 1 ? only(v) : v
+end
+
+function parse_slices(s)
+    isnothing(s) && return nothing
+    return [Tuple(parse.(Int, split(p, ":"))) for p in splitlist(s)]
+end
+
+function parse_filter_params(s)
+    isnothing(s) && return (;)
+    p = eval(Meta.parse(s))
+    p isa NamedTuple || error("--filter_params must be a Julia NamedTuple, e.g. '(level=2,)', got: $s")
+    return p
+end
+
+# One CSV row per feature dictionary. Nested results (several labels, slices or filter
+# response maps) become one row each, identified by the columns filter_map, label and slice.
+function flatten_rows(res, ctx=Dict{String,Any}())
+    if res isa AbstractDict && !isempty(res) && all(v -> v isa AbstractDict, values(res))
+        rows = Dict{String,Any}[]
+        for (k, v) in res
+            c = copy(ctx)
+            if k isa Integer
+                c["label"] = k
+            elseif k isa Tuple
+                c["slice"] = join(k, ":")
+            else
+                c["filter_map"] = string(k)
+            end
+            append!(rows, flatten_rows(v, c))
+        end
+        return rows
+    end
+    row = copy(ctx)
+    for (k, v) in res
+        row[string(k)] = v isa AbstractArray ? string(v) : v
+    end
+    return [row]
+end
+
+args = parse_args_custom()
+
+features = isnothing(args["features"]) ? Symbol[] : Symbol.(splitlist(args["features"]))
+filter_type = isnothing(args["filter_type"]) ? nothing :
+              (ft = String.(splitlist(args["filter_type"])); length(ft) == 1 ? only(ft) : ft)
+
+# Run radiomic feature extraction (image and mask are read from the given paths)
+result = Radiomics.extract_radiomic_features(
+    args["img"], args["mask"];
+    features=features,
+    labels=parse_labels(args["labels"]),
+    n_bins=args["n_bins"],
+    bin_width=args["bin_width"],
+    weighting_norm=args["weighting_norm"],
+    keep_largest_only=args["keep_largest_only"],
+    get_raw_matrices=args["get_raw_matrices"],
+    features_std=args["features_std"],
+    slices_2d=parse_slices(args["slices_2d"]),
+    use_gpu=args["use_gpu"],
+    suv_ibsi_normalization=args["suv_ibsi_normalization"],
+    filter_type=filter_type,
+    filter_params=parse_filter_params(args["filter_params"]),
+    verbose=args["verbose"]
+)
+
+# Convert results to DataFrame (identifier columns first) and save to CSV
+df = DataFrame(flatten_rows(result))
+id_cols = intersect(["filter_map", "label", "slice"], names(df))
+select!(df, id_cols, Not(id_cols))
+CSV.write(args["output"], df)
+println("Extraction complete. ", nrow(df), " row(s) saved to: ", args["output"])
+EOF
 
 # Explicit installation of PackageCompiler and sysimage creation
 RUN julia -e 'using Pkg; Pkg.add("PackageCompiler")'
