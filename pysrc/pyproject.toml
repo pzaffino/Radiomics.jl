@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "radiomicsjl"
-version = "2.1.0"
+version = "2.1.1"
 description = "Python interface to Radiomics.jl: fast, IBSI-compliant radiomic feature extraction (CPU and CUDA GPU)"
 readme = "README.md"
 license = "MIT"
