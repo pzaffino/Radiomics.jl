@@ -37,7 +37,10 @@ The arguments are the same as `Radiomics.extract_radiomic_features` in Julia:
 | `get_raw_matrices` | `False` | also return the texture matrices (numpy arrays) |
 | `use_gpu` | `False` | CUDA acceleration (see below) |
 | `suv_ibsi_normalization` | `False` | SUVbw normalisation for PET DICOM |
-| `verbose` | `False` | |
+| `verbose` | `False` | 
+| `filter_type` | `None` | image filter before extraction: `"haar"`, `"log"`, `"gabor"` → `{"<filter>_<map>": features}` |
+| `filter_params` | `None` | filter parameters as a dict, e.g. `{"level": 2}`, `{"sigma": [1.0, 3.0]}` |
+
 
 ### SimpleITK, numpy and spacing
 
@@ -55,6 +58,14 @@ With numpy arrays, `spacing` must follow the array axes. Beware that
 passing them together gives wrong shape and texture features. Pass the image instead,
 or reverse the spacing (`GetSpacing()[::-1]`). Arrays from nibabel are already (x, y, z),
 in the same order as `header.get_zooms()`.
+
+With an image filter (Haar wavelet, Laplacian of Gaussian or Gabor):
+
+```python
+features = rjl.extract_radiomic_features('DATA_PATH/ct.nii.gz', 'DATA_PATH/mask.nii.gz',
+                                         filter_type="haar", filter_params={"level": 1})
+features["haar_wavelet-LLH"]["glcm_Contrast"]
+```
 
 ## GPU
 

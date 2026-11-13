@@ -925,8 +925,8 @@
                             </div>
                             <pre><code><span class="julia-keyword">import</span> radiomicsjl <span class="julia-keyword">as</span> rjl
 
-    <span class="julia-comment"># Extract radiomic features</span>
-    radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>, <span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)</code></pre>
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>, <span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)</code></pre>
                         </div>
 
                         <p>The result is a Python dictionary <code
@@ -944,14 +944,14 @@
                                 <span class="code-dot"></span>
                             </div>
                             <pre><code><span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
-    <span class="julia-keyword">import</span> radiomicsjl <span class="julia-keyword">as</span> rjl
+<span class="julia-keyword">import</span> radiomicsjl <span class="julia-keyword">as</span> rjl
 
-    <span class="julia-comment"># Load medical images</span>
-    ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
-    mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
+<span class="julia-comment"># Load medical images</span>
+ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
+mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
 
-    <span class="julia-comment"># Extract radiomic features</span>
-    radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct_sitk, mask_sitk)</code></pre>
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct_sitk, mask_sitk)</code></pre>
                         </div>
 
                         <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">From numpy arrays</h4>
@@ -965,21 +965,21 @@
                                 <span class="code-dot"></span>
                             </div>
                             <pre><code><span class="julia-keyword">import</span> SimpleITK <span class="julia-keyword">as</span> sitk
-    <span class="julia-keyword">import</span> radiomicsjl <span class="julia-keyword">as</span> rjl
+<span class="julia-keyword">import</span> radiomicsjl <span class="julia-keyword">as</span> rjl
 
-    <span class="julia-comment"># Load medical images</span>
-    ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
-    mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
+<span class="julia-comment"># Load medical images</span>
+ct_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>)
+mask_sitk = sitk.ReadImage(<span class="julia-string">'DATA_PATH/mask.nii.gz'</span>)
 
-    <span class="julia-comment"># Convert to numpy arrays: axes are (z, y, x)</span>
-    ct = sitk.GetArrayFromImage(ct_sitk)
-    mask = sitk.GetArrayFromImage(mask_sitk)
+<span class="julia-comment"># Convert to numpy arrays: axes are (z, y, x)</span>
+ct = sitk.GetArrayFromImage(ct_sitk)
+mask = sitk.GetArrayFromImage(mask_sitk)
 
-    <span class="julia-comment"># GetSpacing() is (x, y, z): reverse it to match the array axes</span>
-    spacing = ct_sitk.GetSpacing()[::<span class="julia-literal">-1</span>]
+<span class="julia-comment"># GetSpacing() is (x, y, z): reverse it to match the array axes</span>
+spacing = ct_sitk.GetSpacing()[::<span class="julia-literal">-1</span>]
 
-    <span class="julia-comment"># Extract radiomic features</span>
-    radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct, mask, spacing)</code></pre>
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct, mask, spacing)</code></pre>
                         </div>
 
                         <div class="info-box">
@@ -996,8 +996,7 @@
 
                         <h2>Feature Extraction with radiomicsjl with GPU</h2>
                         <p>Once CUDA.jl is installed (see <em>GPU support</em> above), you can extract radiomic features
-                            on
-                            the GPU as shown below:</p>
+                            on the GPU as shown below:</p>
 
                         <div class="code-container">
                             <div class="code-header">
@@ -1007,8 +1006,8 @@
                             </div>
                             <pre><code><span class="julia-keyword">import</span> radiomicsjl <span class="julia-keyword">as</span> rjl
 
-    <span class="julia-comment"># Extract radiomic features</span>
-    radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>, <span class="julia-string">'DATA_PATH/mask.nii.gz'</span>, use_gpu=<span class="julia-literal">True</span>)</code></pre>
+<span class="julia-comment"># Extract radiomic features</span>
+radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(<span class="julia-string">'DATA_PATH/ct.nii.gz'</span>, <span class="julia-string">'DATA_PATH/mask.nii.gz'</span>, use_gpu=<span class="julia-literal">True</span>)</code></pre>
                         </div>
 
                         <div class="info-box">
@@ -1048,7 +1047,7 @@
                                 <span class="code-dot"></span>
                             </div>
                             <pre><code>radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct, mask, spacing, n_bins=<span class="julia-literal">32</span>)
-    radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct, mask, spacing, bin_width=<span class="julia-literal">25</span>)</code></pre>
+radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct, mask, spacing, bin_width=<span class="julia-literal">25</span>)</code></pre>
                         </div>
 
                         <p>To extract features from a specific label (default is 1), execute:</p>
@@ -1088,6 +1087,21 @@
                             </div>
                             <pre><code>radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct_sitk, mask_sitk, slices_2d=[(<span class="julia-literal">2</span>, <span class="julia-literal">10</span>), (<span class="julia-literal">2</span>, <span class="julia-literal">11</span>)])</code></pre>
                         </div>
+                    </div>
+
+                    <p>To apply an image filter before the extraction (Haar wavelet, Laplacian of Gaussian or
+                        Gabor; see <a href="IBSI_filters.html">IBSI Image Filters</a>), pass the filter and its
+                        parameters as a dictionary. With more than one response map, the result is a dictionary
+                        <code style="display: inline;">{"&lt;filter&gt;_&lt;map&gt;": features}</code>:
+                    </p>
+                    <div class="code-container">
+                        <div class="code-header">
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                            <span class="code-dot"></span>
+                        </div>
+                        <pre><code>radiomic_features = rjl.<span class="julia-string">extract_radiomic_features</span>(ct_sitk, mask_sitk, 
+    filter_type=<span class="julia-string">"haar"</span>, filter_params={<span class="julia-string">"level"</span>: <span class="julia-literal">1</span>})</code></pre>
                     </div>
 
                     <!-- Python: Juliacall -->
