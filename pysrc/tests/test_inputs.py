@@ -20,7 +20,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import radiomicsjl as rj
+import radiomicsjl as rjl
 
 sitk = pytest.importorskip("SimpleITK")
 
@@ -79,17 +79,17 @@ def phantom(tmp_path_factory):
         paths.append(str(dest))
     img, msk = paths
     return {"img": img, "msk": msk, "s_img": sitk.ReadImage(img), "s_msk": sitk.ReadImage(msk),
-            "ref": rj.extract_radiomic_features(img, msk, **SETTINGS)}
+            "ref": rjl.extract_radiomic_features(img, msk, **SETTINGS)}
 
 
 # ----------------------------------------------------------------------------- SimpleITK
 def test_simpleitk_equals_path(phantom):
-    f = rj.extract_radiomic_features(phantom["s_img"], phantom["s_msk"], **SETTINGS)
+    f = rjl.extract_radiomic_features(phantom["s_img"], phantom["s_msk"], **SETTINGS)
     assert_same(phantom["ref"], f)
 
 
 def test_simpleitk_passes_ibsi_references(phantom):
-    f = rj.extract_radiomic_features(phantom["s_img"], phantom["s_msk"], **SETTINGS)
+    f = rjl.extract_radiomic_features(phantom["s_img"], phantom["s_msk"], **SETTINGS)
     refs = _refs("Radiomics 3D test")
     fail = [f"{k}: {f.get(k)!r} vs {r!r}" for k, r, t in refs if k not in f or not ibsi_test(f[k], r, t)]
     assert not fail, f"{len(fail)}/{len(refs)} fail:\n  " + "\n  ".join(fail)
@@ -99,8 +99,8 @@ def test_simpleitk_passes_ibsi_references(phantom):
 def test_slices_2d_simpleitk_equals_path(phantom, axis):
     m = sitk.GetArrayViewFromImage(phantom["s_msk"]).transpose()  # (x, y, z), as the file readers
     k = int(np.argmax((m > 0).sum(axis=tuple(a for a in range(3) if a != axis))))
-    a = rj.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(axis, k)], **SETTINGS)
-    b = rj.extract_radiomic_features(phantom["s_img"], phantom["s_msk"], slices_2d=[(axis, k)], **SETTINGS)
+    a = rjl.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(axis, k)], **SETTINGS)
+    b = rjl.extract_radiomic_features(phantom["s_img"], phantom["s_msk"], slices_2d=[(axis, k)], **SETTINGS)
     assert_same(a, b)
 
 
@@ -108,14 +108,14 @@ def test_slices_2d_simpleitk_equals_path(phantom, axis):
 def test_numpy_zyx_with_reversed_spacing_equals_path(phantom):
     arr_i = sitk.GetArrayFromImage(phantom["s_img"])  # (z, y, x)
     arr_m = sitk.GetArrayFromImage(phantom["s_msk"])
-    f = rj.extract_radiomic_features(arr_i, arr_m, phantom["s_img"].GetSpacing()[::-1], **SETTINGS)
+    f = rjl.extract_radiomic_features(arr_i, arr_m, phantom["s_img"].GetSpacing()[::-1], **SETTINGS)
     assert_same(phantom["ref"], f, skip=DIAM_2D)
 
 
 def test_numpy_xyz_equals_path(phantom):
     arr_i = sitk.GetArrayFromImage(phantom["s_img"]).transpose()  # (x, y, z)
     arr_m = sitk.GetArrayFromImage(phantom["s_msk"]).transpose()
-    f = rj.extract_radiomic_features(arr_i, arr_m, phantom["s_img"].GetSpacing(), **SETTINGS)
+    f = rjl.extract_radiomic_features(arr_i, arr_m, phantom["s_img"].GetSpacing(), **SETTINGS)
     assert_same(phantom["ref"], f)
 
 
@@ -124,9 +124,9 @@ def test_numpy_2d_slice_equals_slices_2d(phantom):
     arr_i = sitk.GetArrayFromImage(phantom["s_img"]).transpose()
     arr_m = sitk.GetArrayFromImage(phantom["s_msk"]).transpose()
     k = int(np.argmax((arr_m > 0).sum(axis=(0, 1))))
-    a = rj.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(2, k)],
+    a = rjl.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(2, k)],
                                      features=["first_order"], **SETTINGS)
-    b = rj.extract_radiomic_features(np.ascontiguousarray(arr_i[:, :, k]), np.ascontiguousarray(arr_m[:, :, k]),
+    b = rjl.extract_radiomic_features(np.ascontiguousarray(arr_i[:, :, k]), np.ascontiguousarray(arr_m[:, :, k]),
                                      phantom["s_img"].GetSpacing()[:2], features=["first_order"], **SETTINGS)
     for key in ("firstorder_mean", "firstorder_minimum", "firstorder_maximum", "firstorder_median"):
         assert a[key] == pytest.approx(b[key], rel=1e-12), key
@@ -134,7 +134,7 @@ def test_numpy_2d_slice_equals_slices_2d(phantom):
 
 # ----------------------------------------------------------------------------- options
 def test_bin_width_and_feature_selection(phantom):
-    f = rj.extract_radiomic_features(phantom["img"], phantom["msk"], bin_width=1,
+    f = rjl.extract_radiomic_features(phantom["img"], phantom["msk"], bin_width=1,
                                      features=["first_order", "glcm"], keep_largest_only=False)
     assert any(k.startswith("glcm_") for k in f)
     assert any(k.startswith("firstorder_") for k in f)
@@ -145,16 +145,16 @@ def test_bin_width_and_feature_selection(phantom):
 def test_invalid_inputs(phantom):
     arr = sitk.GetArrayFromImage(phantom["s_img"])
     with pytest.raises(TypeError):                     # path mixed with array
-        rj.extract_radiomic_features(phantom["img"], arr, [1, 1, 1])
+        rjl.extract_radiomic_features(phantom["img"], arr, [1, 1, 1])
     with pytest.raises(TypeError):                     # SimpleITK mixed with array
-        rj.extract_radiomic_features(phantom["s_img"], arr, [1, 1, 1])
+        rjl.extract_radiomic_features(phantom["s_img"], arr, [1, 1, 1])
     with pytest.raises(ValueError):                    # 4D array
-        rj.extract_radiomic_features(arr[None], arr[None], [1, 1, 1])
+        rjl.extract_radiomic_features(arr[None], arr[None], [1, 1, 1])
     with pytest.raises(ValueError):                    # slices_2d axis out of 0..2
-        rj.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(3, 0)])
+        rjl.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(3, 0)])
     with pytest.raises(ValueError):                    # negative slice index
-        rj.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(2, -1)])
+        rjl.extract_radiomic_features(phantom["img"], phantom["msk"], slices_2d=[(2, -1)])
     other = sitk.Image(phantom["s_msk"])               # mask with a different spacing
     other.SetSpacing([s * 2 for s in phantom["s_msk"].GetSpacing()])
     with pytest.raises(ValueError):
-        rj.extract_radiomic_features(phantom["s_img"], other)
+        rjl.extract_radiomic_features(phantom["s_img"], other)

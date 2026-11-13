@@ -12,13 +12,13 @@ current Python environment (a few minutes, once); after that, start-up takes a f
 ## Usage
 
 ```python
-import radiomicsjl as rj
+import radiomicsjl as rjl
 
 # From files (NIfTI, NRRD, DICOM file or folder): spacing is read from the header
-feats = rj.extract_radiomic_features("ct.nii.gz", "mask.nii.gz", n_bins=32)
+feats = rjl.extract_radiomic_features("ct.nii.gz", "mask.nii.gz", n_bins=32)
 
 # From numpy arrays: spacing is required, one value per array axis
-feats = rj.extract_radiomic_features(image, mask, spacing=[0.98, 0.98, 3.0], bin_width=25)
+feats = rjl.extract_radiomic_features(image, mask, spacing=[0.98, 0.98, 3.0], bin_width=25)
 
 print(feats["firstorder_mean"], feats["glcm_Contrast"])
 ```
@@ -47,7 +47,7 @@ from them, in (x, y, z) order like the file readers.
 ```python
 import SimpleITK as sitk
 img, msk = sitk.ReadImage("ct.nii.gz"), sitk.ReadImage("mask.nii.gz")
-feats = rj.extract_radiomic_features(img, msk, n_bins=32)
+feats = rjl.extract_radiomic_features(img, msk, n_bins=32)
 ```
 
 With numpy arrays, `spacing` must follow the array axes. Beware that

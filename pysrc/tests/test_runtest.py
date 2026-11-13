@@ -33,7 +33,7 @@ from pathlib import Path
 import numpy as np
 import pytest
 
-import radiomicsjl as rj
+import radiomicsjl as rjl
 
 # ----------------------------------------------------------------------------- runtests.jl
 RUNTESTS = Path(os.environ.get("RADIOMICSJL_RUNTESTS",
@@ -103,7 +103,7 @@ def _skip_if_no_gpu(device: str):
 
 def _extract(device: str, *args, **kwargs):
     try:
-        return rj.extract_radiomic_features(*args, use_gpu=(device == "gpu"), **kwargs)
+        return rjl.extract_radiomic_features(*args, use_gpu=(device == "gpu"), **kwargs)
     except Exception as e:  # noqa: BLE001
         if device == "gpu" and "CUDA" in str(e) and "could not be loaded" in str(e):
             pytest.skip("CUDA.jl not installed: run `python -m radiomicsjl install-gpu`")
@@ -198,7 +198,7 @@ def test_dro_suv(dro_dir):
     for n in names:
         pt, msk = str(dro_dir / n / "PT"), str(dro_dir / n / "mask" / "DRO_mask.nii.gz")
         try:
-            f = rj.extract_radiomic_features(pt, msk, suv_ibsi_normalization=True, features=["first_order"])
+            f = rjl.extract_radiomic_features(pt, msk, suv_ibsi_normalization=True, features=["first_order"])
         except Exception as e:  # noqa: BLE001
             if n.startswith("DRO_error"):
                 if DRO_ERROR_MSG[n] not in str(e):

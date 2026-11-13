@@ -124,21 +124,21 @@ python -m radiomicsjl install-gpu
 From image files (NIfTI, NRRD, DICOM file or folder), with the voxel spacing read from the header:
 
 ```python
-import radiomicsjl as rj
+import radiomicsjl as rjl
 
-radiomic_features = rj.extract_radiomic_features('DATA_PATH/ct.nii.gz', 'DATA_PATH/mask.nii.gz')
+radiomic_features = rjl.extract_radiomic_features('DATA_PATH/ct.nii.gz', 'DATA_PATH/mask.nii.gz')
 ```
 
 From SimpleITK images:
 
 ```python
 import SimpleITK as sitk
-import radiomicsjl as rj
+import radiomicsjl as rjl
 
 ct_sitk = sitk.ReadImage('DATA_PATH/ct.nii.gz')
 mask_sitk = sitk.ReadImage('DATA_PATH/mask.nii.gz')
 
-radiomic_features = rj.extract_radiomic_features(ct_sitk, mask_sitk)
+radiomic_features = rjl.extract_radiomic_features(ct_sitk, mask_sitk)
 ```
 
 From numpy arrays, with the spacing in the same order as the array axes:
@@ -148,7 +148,7 @@ ct = sitk.GetArrayFromImage(ct_sitk)        # axes (z, y, x)
 mask = sitk.GetArrayFromImage(mask_sitk)
 spacing = ct_sitk.GetSpacing()[::-1]        # GetSpacing() is (x, y, z): reverse it
 
-radiomic_features = rj.extract_radiomic_features(ct, mask, spacing)
+radiomic_features = rjl.extract_radiomic_features(ct, mask, spacing)
 ```
 
 The arguments are the same as in Julia (`features`, `labels`, `n_bins`, `bin_width`, `use_gpu`, ...). `slices_2d` is 0-based in Python: `(2, 10)` is the slice `[:, :, 10]`.
