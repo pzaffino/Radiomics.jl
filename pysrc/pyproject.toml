@@ -1,0 +1,55 @@
+[build-system]
+requires = ["hatchling>=1.24"]
+build-backend = "hatchling.build"
+
+[project]
+name = "radiomicsjl"
+version = "2.1.0"
+description = "Python interface to Radiomics.jl: fast, IBSI-compliant radiomic feature extraction (CPU and CUDA GPU)"
+readme = "README.md"
+license = "MIT"
+license-files = ["LICENSE"]
+requires-python = ">=3.9"
+authors = [
+    { name = "Aldo Giuliani", email = "aldo.giuliani@studenti.unicz.it" },
+    { name = "Paolo Zaffino", email = "p.zaffino@unicz.it" },
+    { name = "Maria Francesca Spadea", email = "mf.spadea@kit.edu" },
+    { name = "Carlo Cosentino", email = "carlo.cosentino@unicz.it" },
+    { name = "Jakub Mitura", email = "jakub.mitura14@gmail.com" },
+    { name = "Ciro Benito Raggio", email = "ciro.raggio@kit.edu" },
+    { name = "Mohammadreza Javadi Namin", email = "mohammadreza.javadi@mail.polimi.it" },
+    { name = "Nastaran Ghaffari Elkhechi", email = "nastaran.ghaffari@mail.polimi.it" },
+    { name = "Michela Destito", email = "michela.destito@unicz.it" },
+]
+keywords = ["radiomics", "medical imaging", "IBSI", "julia", "feature extraction", "GPU", "Radiomics feature maps", "Medical AI", "CUDA Acceleration"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering :: Medical Science Apps.",
+    "Topic :: Scientific/Engineering :: Image Processing",
+    "Intended Audience :: Science/Research",
+]
+dependencies = [
+    "juliacall>=0.9.20",
+    "numpy>=1.21",
+]
+
+[project.optional-dependencies]
+test = ["pytest>=7", "SimpleITK>=2.0"]
+sitk = ["SimpleITK>=2.0"]
+
+[project.urls]
+Homepage = "https://github.com/pzaffino/Radiomics.jl"
+Documentation = "https://github.com/pzaffino/Radiomics.jl"
+Issues = "https://github.com/pzaffino/Radiomics.jl/issues"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/radiomicsjl"]
+
+[tool.hatch.build.targets.sdist]
+include = ["src/radiomicsjl", "tests", "README.md", "LICENSE", "pyproject.toml"]
+
+[tool.pytest.ini_options]
+markers = [
+    "gpu: needs an NVIDIA GPU and `python -m radiomicsjl install-gpu`",
+    "dro: downloads the QIBA PET DROs (~60 DICOM series) for the SUV tests",
+]

@@ -783,6 +783,7 @@
                 <div class="dropdown-content">
                     <a href="IBSI_compliance.html" class="active">IBSI Compliance</a>
                     <a href="IBSI_SUV_Normalization.html">IBSI SUV Normalization</a>
+                    <a href="IBSI_filters.html">IBSI Image Filters</a>
                 </div>
             </div>
             <a href="example.html">Examples</a>
@@ -847,6 +848,98 @@
                     <pre><code><span class="prompt">julia&gt; </span><span class="keyword">using</span> <span class="module">Pkg</span>
 <span class="prompt">julia&gt; </span><span class="module">Pkg</span><span class="operator">.</span><span class="function">activate</span><span class="string">(".")</span>
 <span class="prompt">julia&gt; </span><span class="module">Pkg</span><span class="operator">.</span><span class="function">test</span><span class="string">("Radiomics")</span></code></pre>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>Running the tests from Python</h2>
+                <p>The Python package can be tested with the same IBSI test suite used for Radiomics.jl
+                    (<code style="display: inline;">test/runtests.jl</code>): the IBSI digital phantom (3D and
+                    2D), the single-slice label case and the PET DROs for the SUV normalization, on CPU and,
+                    if available, on GPU. Reference values and tolerances are read directly from
+                    <code style="display: inline;">test/runtests.jl</code>, so the Python and Julia tests always
+                    check the same values.
+                </p>
+
+                <div class="info-box">
+                    <p><strong>Note:</strong> the tests are not included in the package installed with
+                        <code style="display: inline;">pip install radiomicsjl</code>: they require a clone of the
+                        Radiomics.jl repository.
+                    </p>
+                </div>
+
+                <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Setting up the test
+                    environment</h4>
+                <p>Clone the repository and install the package with its test dependencies in a new virtual
+                    environment:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code>
+python -m venv venv
+<span class="keyword">source</span> venv/bin/activate
+pip install <span class="string">"./pysrc[test]"</span></code></pre>
+                </div>
+
+                <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Running the tests</h4>
+                <p>Run the whole test suite with:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code>pytest pysrc/tests <span class="keyword">-v</span></code></pre>
+                </div>
+
+                <p>The PET DRO tests download about 60 DICOM series. To skip them, run:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code>pytest pysrc/tests <span class="keyword">-v -m</span> <span class="string">"not dro"</span></code></pre>
+                </div>
+
+                <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">GPU tests</h4>
+                <p>GPU tests are run automatically when an NVIDIA GPU is detected and CUDA.jl is installed;
+                    otherwise they are skipped. To enable them, install CUDA.jl once before running the
+                    tests:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code>python -m radiomicsjl install-gpu
+pytest pysrc/tests <span class="keyword">-v</span></code></pre>
+                </div>
+
+                <p>To run only the CPU tests on a machine with a GPU, use
+                    <code style="display: inline;">-m "not gpu"</code>.
+                </p>
+
+                <h4 style="font-size: 1.1rem; margin-top: 24px; margin-bottom: 12px;">Testing a local version
+                    of Radiomics.jl</h4>
+                <p>By default the tests use the released version of Radiomics.jl. To test the Julia code of
+                    your local clone instead (e.g. a development branch), run this once from the repository
+                    root, before running the tests:</p>
+
+                <div class="code-container">
+                    <div class="code-header">
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                        <span class="code-dot"></span>
+                    </div>
+                    <pre><code>python -c <span class="string">"import juliapkg; juliapkg.add('Radiomics', 'a80a7044-09a6-4a0a-a486-eb806178b9ba', dev=True, path='$PWD'); juliapkg.resolve()"</span></code></pre>
                 </div>
             </div>
 

@@ -86,7 +86,9 @@ function _resolve_inputs(img, mask, spacing, suv_ibsi_normalization::Bool=false)
         end
         all(isapprox.(i.spacing, m.spacing; atol=1e-3)) ||
             error("Different Spacing: image $(i.spacing), mask $(m.spacing)")
-        return i.data, m.data, isnothing(spacing) ? i.spacing : spacing
+        # Scaled NIfTI masks (e.g. UInt8 0/255 with scl_slope=1/255) give 1.0000001: round to integer labels
+        mask_data = eltype(m.data) <: AbstractFloat ? round.(Int, m.data) : m.data      # ← NUOVA
+        return i.data, mask_data, isnothing(spacing) ? i.spacing : spacing                # ← MODIFICATA
     end
 
     suv_ibsi_normalization &&
@@ -108,7 +110,10 @@ end
 """
 function _read_nifti(path)
     vol = NIfTI.niread(path)
-    data = Array(vol.raw)
+    slope = Float64(vol.header.scl_slope)
+    inter = Float64(vol.header.scl_inter)
+    # NIfTI: apply scl_slope/scl_inter unless slope == 0 (no scaling), as SimpleITK does
+    data = (slope == 0 || (slope == 1 && inter == 0)) ? Array(vol.raw) : Float64.(vol.raw) .* slope .+ inter
     N = ndims(data)
     sp = collect(Float64.(NIfTI.voxel_size(vol.header)))[1:N]
     return MedImage(data, sp, zeros(N), Matrix(Diagonal(ones(N))))

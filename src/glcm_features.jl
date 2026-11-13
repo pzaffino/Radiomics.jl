@@ -355,7 +355,8 @@ function extract_glcm_features(glcm::Matrix{Float64}, gray_levels::Vector{Int}):
     features["glcm_ClusterShade"] = cluster_shade
     features["glcm_ClusterTendency"] = cluster_tend
     features["glcm_Contrast"] = contrast
-    features["glcm_Correlation"] = correlation
+    # Flat region (zero variance): correlation is defined as 1, as in pyradiomics
+    features["glcm_Correlation"] = use_corr ? correlation : 1.0
     features["glcm_JointEnergy"] = joint_energy
     features["glcm_JointEntropy"] = joint_entropy
     features["glcm_Idm"] = idm

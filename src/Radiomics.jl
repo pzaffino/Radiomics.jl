@@ -17,6 +17,12 @@ include("glrlm_features.jl")
 include("gldm_features.jl")
 include("diagnostic_features.jl")
 
+include("utils/filters/filters_utils.jl")
+include("utils/filters/wavelet_filters/haar_filters.jl")
+include("utils/filters/convolutional_filters/log_filter.jl")
+include("utils/filters/convolutional_filters/gabor_filter.jl")
+include("utils/filters/filters_register.jl")
+
 const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
 
 """
@@ -31,6 +37,9 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
                               slices_2d=nothing,
                               use_gpu::Bool=false,
                               suv_ibsi_normalization::Bool=false,
+                              filter_type::Union{Nothing,String,Vector{String}}=nothing,
+                              filter_params::NamedTuple=(;),
+                              prefix::String="",
                               verbose::Bool=false)
     
     Extracts radiomic features from the given image and mask.
@@ -56,6 +65,13 @@ const CUDA_EXT = Ref{Union{Module,Nothing}}(nothing)
     - `features_std`: If true, this parameter return std, min and max of GLCM and GLRLM. 
     - `use_gpu`: If true, performs CUDA compatibility checks and enables GPU acceleration when a supported GPU is available.
     - `suv_ibsi_normalization`: If true, normalizes the image using the IBSI SUV normalization method.
+    - `filter_type::Union{Nothing, String, Vector{String}}`: The image filter(s) to apply before feature extraction
+                (e.g. `"haar"`, `"log"`, `"gabor"`; see `FILTERS` in `filters_register.jl`). Features are computed
+                on every response map returned by the filter. Defaults to `nothing` (no filtering).
+    - `filter_params::NamedTuple`: Filter-specific parameters, forwarded to the filter function. Defaults to `(;)`.
+                e.g. `"haar"`: `(level=2, subbands=["LLL"])`; `"log"`: `(sigma=[1.0, 2.0],)`;
+                `"gabor"`: `(sigma=5.0, lambda=2.0, gamma=1.5, rotation_invariant=true, delta_theta=pi/8)`.
+    - `prefix::String`: An optional prefix to add to the generated variable or column names. Defaults to `""`.
     - `verbose`: If true, prints progress messages.
         
     # Returns:
@@ -74,7 +90,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     slices_2d=nothing,
     use_gpu::Bool=false,
     suv_ibsi_normalization::Bool=false,
-    verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any}}
+    filter_type::Union{Nothing,String,Vector{String}}=nothing,
+    filter_params::NamedTuple=(;),
+    prefix::String="",
+    verbose::Bool=false)::Union{Dict{String,Any},Dict{Int,Dict{String,Any}},Dict{Tuple{Int,Int},Any},Dict{String,Dict{String,Any}}}
 
     img_input, mask_input, voxel_spacing_input = _resolve_inputs(img_input, mask_input, voxel_spacing_input, suv_ibsi_normalization)
 
@@ -93,6 +112,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         keep_largest_only,
         get_raw_matrices,
         use_gpu,
+        filter_type,
         verbose
     )
 
@@ -111,8 +131,59 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
 
     compute_all = isempty(p.features) || :all in p.features
 
+    # Management of image filters (wavelets and convolutional filters)
+    if !isnothing(p.filter_type)
+        filtered_features = if compute_all
+            [:first_order, :glcm, :glszm, :ngtdm, :glrlm, :gldm]
+        else
+            filter(f -> f ∉ (:shape2d, :shape3d), p.features)
+        end
+
+        if !compute_all && isempty(filtered_features)
+            error("With filter_type, shape features cannot be calculated on the filtered images: choose at least one intensity/texture feature.")
+        end
+
+        filter_results = Dict{String,Any}()
+
+        for ftype in p.filter_type
+            filter_fn = get_filter(ftype)
+            response_maps = filter_fn(p.img, p.spacing; filter_params...)
+
+            for (map_name, map_img) in response_maps
+                full_key = "$(ftype)_$(map_name)"
+
+                if verbose
+                    println("\n=== Filtered image: $full_key ===")
+                end
+
+                filter_results[full_key] = extract_radiomic_features(
+                    map_img, mask_input, voxel_spacing_input;
+                    features=filtered_features,
+                    labels=labels,
+                    n_bins=n_bins,
+                    bin_width=bin_width,
+                    weighting_norm=weighting_norm,
+                    keep_largest_only=keep_largest_only,
+                    get_raw_matrices=get_raw_matrices,
+                    features_std=features_std,
+                    slices_2d=slices_2d,
+                    use_gpu=use_gpu,
+                    filter_type=nothing,
+                    prefix=full_key,
+                    verbose=verbose
+                )
+            end
+        end
+
+        if length(filter_results) == 1
+            return only(values(filter_results))
+        end
+
+        return filter_results
+    end
+
     # Management slices_2d
-    if !isnothing(p.slices_2d)
+    if !isnothing(p.slices_2d) && ndims(p.img) == 3
         results_2d = Dict{Tuple{Int,Int},Any}()
         dict_lock = ReentrantLock()
 
@@ -129,28 +200,29 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                 @view p.img[slice_idx, :, :]
             elseif plan == 2
                 @view p.img[:, slice_idx, :]
-            elseif plan == 3
-                @view p.img[:, :, slice_idx]
             else
-                error("Invalid plane: $plan. Must be 1, 2, or 3")
+                @view p.img[:, :, slice_idx]
             end
 
             mask_slice = if plan == 1
                 @view p.mask[slice_idx, :, :]
             elseif plan == 2
                 @view p.mask[:, slice_idx, :]
-            elseif plan == 3
-                @view p.mask[:, :, slice_idx]
             else
-                error("Invalid plane: $plan. Must be 1, 2, or 3")
+                @view p.mask[:, :, slice_idx]
             end
 
             spacing_2d = if plan == 1
                 [p.spacing[2], p.spacing[3], p.spacing[1]]
             elseif plan == 2
                 [p.spacing[1], p.spacing[3], p.spacing[2]]
-            elseif plan == 3
+            else
                 [p.spacing[1], p.spacing[2], p.spacing[3]]
+            end
+
+            if p.labels isa Int && !any(==(p.labels), mask_slice)
+                @warn "Slice (plane=$plan, slice=$slice_idx) contains no voxels with label $(p.labels): skipped"
+                continue
             end
 
             result = extract_radiomic_features(
@@ -164,8 +236,26 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                 keep_largest_only=p.keep_largest_only,
                 get_raw_matrices=p.get_raw_matrices,
                 use_gpu=p.use_gpu,
+                slices_2d=[(plan, slice_idx)],
                 verbose=p.verbose
             )
+
+            if plan != 3
+                for d in (p.labels isa Int ? (result,) : values(result))
+                    s = pop!(d, "shape3d_maximum_2d_diameter_slice", nothing)
+                    isnothing(s) && continue
+                    r = pop!(d, "shape3d_maximum_2d_diameter_row")
+                    c = pop!(d, "shape3d_maximum_2d_diameter_column")
+                    d["shape3d_maximum_2d_diameter_slice"] = c
+                    if plan == 1
+                        d["shape3d_maximum_2d_diameter_row"] = s
+                        d["shape3d_maximum_2d_diameter_column"] = r
+                    else
+                        d["shape3d_maximum_2d_diameter_column"] = s
+                        d["shape3d_maximum_2d_diameter_row"] = r
+                    end
+                end
+            end
 
             lock(dict_lock) do
                 results_2d[(plan, slice_idx)] = result
@@ -173,8 +263,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         end
 
         if length(p.slices_2d) == 1
-            key = first(keys(results_2d))
-            return results_2d[key]
+            return isempty(results_2d) ? Dict{String,Any}() : first(values(results_2d))
         else
             return results_2d
         end
@@ -212,7 +301,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                 push!(log_buffer, "Applying bounding box to Label $label...")
                 local img_to_use
                 img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose; log_buffer=log_buffer)
+                
                 img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
+                # Single-slice ROI (from slices_2d, or a one-slice label of a 3D image): textures in 2D, shape in 3D
+                local is_slice = !isnothing(p.slices_2d) || (ndims(p.img) == 3 && ndims(mask_to_use) == 2)
 
                 if compute_all
                     push!(log_buffer, "Computing ALL features")
@@ -244,6 +336,7 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                         features=p.features,
                         get_raw_matrices=p.get_raw_matrices,
                         use_gpu=p.use_gpu,
+                        is_slice=is_slice,
                         log_buffer=log_buffer
                     )
 
@@ -255,14 +348,16 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
                     push!(log_buffer, "Real time (end-to-end): $(total_time_real) sec")
                     push!(log_buffer, "Overhead: $(total_time_real - total_time_accumulated) sec")
 
-                    diagnosis_features = get_diagnosis_features(
-                        p.bin_width, p.spacing, total_time_real,
-                        p.weighting_norm, p.n_bins, p.keep_largest_only,
-                        p.img, p.features_std, img_to_use, p.mask, mask_to_use
-                    )
-                    merge!(radiomic_features, diagnosis_features)
+                    if p.verbose
+                        diagnosis_features = get_diagnosis_features(
+                            p.bin_width, p.spacing, total_time_real,
+                            p.weighting_norm, p.n_bins, p.keep_largest_only,
+                            p.img, p.features_std, img_to_use, p.mask, mask_to_use
+                        )
+                        merge!(radiomic_features, diagnosis_features)
 
-                    print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
+                        print_features_diagnosis("Diagnosis Features", diagnosis_features; log_buffer=log_buffer)
+                    end
 
                     push!(log_buffer, "Total features extracted: $(length(radiomic_features))")
                     push!(log_buffer, "Features extraction completed for LABEL $label")
@@ -325,7 +420,10 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
     end
 
     img_to_use, mask_to_use = bounding_box(p.img, mask_to_use, p.verbose)
+    
     img_to_use, mask_to_use, spacing_to_use = squeeze_unit_dimension(img_to_use, mask_to_use, p.spacing)
+    # Single-slice ROI (from slices_2d, or a one-slice label of a 3D image): textures in 2D, shape in 3D
+    is_slice = !isnothing(p.slices_2d) || (ndims(p.img) == 3 && ndims(mask_to_use) == 2)
 
     total_start_time = time()
     total_time_accumulated = 0.0
@@ -362,7 +460,8 @@ function extract_radiomic_features(img_input, mask_input, voxel_spacing_input=no
         compute_all=compute_all,
         features=p.features,
         use_gpu=p.use_gpu,
-        get_raw_matrices=p.get_raw_matrices
+        get_raw_matrices=p.get_raw_matrices,
+        is_slice=is_slice
     )
 
     total_time_accumulated += time_acc
@@ -428,6 +527,7 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     features::Vector{Symbol}=Symbol[],
     get_raw_matrices::Bool=false,
     use_gpu::Bool=false,
+    is_slice::Bool=false,
     log_buffer::Union{Nothing,Vector{String}}=nothing)::Tuple{Dict{String,Any},Float64}
 
     radiomic_features = Dict{String,Any}()
@@ -560,14 +660,14 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
-    # Control dimension of the mask 
-    if ndims(mask) == 3
-        # 3D shape features
+    # 3D shape: 3D volumes, or slices from slices_2d (thickness = voxel_spacing[3])
+    if ndims(mask) == 3 || is_slice
         if compute_all || :shape3d in features
             t_shape3d_features = Threads.@spawn begin
+                mask3d = ndims(mask) == 2 ? reshape(mask, size(mask)..., 1) : mask
                 result = @timed Base.invokelatest(
                     get_shape3d_features,
-                    mask,
+                    mask3d,
                     voxel_spacing;
                     verbose=verbose,
                     keep_largest_only=keep_largest_only,
@@ -578,8 +678,8 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
         end
     end
 
-    # Launch parallel threads for 2D features
-    if ndims(mask) == 2
+    # 2D shape: pure 2D input only
+    if ndims(mask) == 2 && !is_slice
         if compute_all || :shape2d in features
             t_shape2d_features = Threads.@spawn begin
                 result = @timed Base.invokelatest(
@@ -676,28 +776,24 @@ function _compute_radiomics_impl(img::Array{Float64}, mask::BitArray, voxel_spac
     end
 
     # 3D shape features
-    if ndims(mask) == 3
-        if !isnothing(t_shape3d_features)
-            shape3d_dict, shape3d_time = fetch(t_shape3d_features)::Tuple{Dict{String,Any},Float64}
-            merge!(radiomic_features, shape3d_dict)
-            total_time_accumulated += shape3d_time
-            if verbose
-                log_println("3D shape: $(shape3d_time) sec")
-                print_features("3D Shape Features", shape3d_dict; log_buffer=log_buffer)
-            end
+    if !isnothing(t_shape3d_features)
+        shape3d_dict, shape3d_time = fetch(t_shape3d_features)::Tuple{Dict{String,Any},Float64}
+        merge!(radiomic_features, shape3d_dict)
+        total_time_accumulated += shape3d_time
+        if verbose
+            log_println("3D shape: $(shape3d_time) sec")
+            print_features("3D Shape Features", shape3d_dict; log_buffer=log_buffer)
         end
     end
 
     # 2D shape features
-    if ndims(mask) == 2
-        if !isnothing(t_shape2d_features)
-            shape2d_dict, shape2d_time = fetch(t_shape2d_features)::Tuple{Dict{String,Any},Float64}
-            merge!(radiomic_features, shape2d_dict)
-            total_time_accumulated += shape2d_time
-            if verbose
-                log_println("2D shape: $(shape2d_time) sec")
-                print_features("2D Shape Features", shape2d_dict; log_buffer=log_buffer)
-            end
+    if !isnothing(t_shape2d_features)
+        shape2d_dict, shape2d_time = fetch(t_shape2d_features)::Tuple{Dict{String,Any},Float64}
+        merge!(radiomic_features, shape2d_dict)
+        total_time_accumulated += shape2d_time
+        if verbose
+            log_println("2D shape: $(shape2d_time) sec")
+            print_features("2D Shape Features", shape2d_dict; log_buffer=log_buffer)
         end
     end
 

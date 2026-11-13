@@ -1,0 +1,9 @@
+{
+    "julia": "^1.10",
+    "packages": {
+        "Radiomics": {
+            "uuid": "a80a7044-09a6-4a0a-a486-eb806178b9ba",
+            "version": "2.1"
+        }
+    }
+}

@@ -99,10 +99,11 @@ end
 function squeeze_unit_dimension(img::AbstractArray{Float64}, mask::BitArray, voxel_spacing::Vector{Float64})::Tuple{AbstractArray{Float64},BitArray,Vector{Float64}}
     if ndims(mask) == 3 && any(size(mask) .== 1)
         squeeze_dim = findfirst(==(1), size(mask))
-        @warn "Detected a unit dimension (size 1) along axis $squeeze_dim in a 3D array of size $(size(mask)). Squeezing to 2D and computing 2D features instead of 3D."
+        @warn "Detected a unit dimension (size 1) along axis $squeeze_dim in a 3D array of size $(size(mask))."
         img_out = dropdims(img, dims=squeeze_dim)
         mask_out = dropdims(mask, dims=squeeze_dim)
-        spacing_out = [voxel_spacing[d] for d in 1:3 if d != squeeze_dim]
+        # In-plane spacings first (same order as dropdims), then the squeezed axis spacing (= slice thickness)
+        spacing_out = [[voxel_spacing[d] for d in 1:3 if d != squeeze_dim]; voxel_spacing[squeeze_dim]]
         return img_out, mask_out, spacing_out
     else
         return img, mask, voxel_spacing
@@ -228,10 +229,13 @@ function discretize_image(img::AbstractArray{Float64},
     end
 
     if !isnothing(n_bins)
-        bin_width_used = (vmax - vmin) / Float64(n_bins)
-        if bin_width_used ≈ 0.0
-            bin_width_used = 1.0
+        if vmax == vmin
+            # Constant ROI: np.histogram uses [v-0.5, v+0.5] → the value falls in the central bin (as pyradiomics)
+            disc[mask] .= n_bins ÷ 2 + 1
+            gray_levels = [n_bins ÷ 2 + 1]
+            return disc, 1, gray_levels, 1.0 / n_bins
         end
+        bin_width_used = (vmax - vmin) / Float64(n_bins)
         inv_bin_width = 1.0 / bin_width_used
         @inbounds for i in eachindex(mask)
             if mask[i]
@@ -387,8 +391,7 @@ function print_features(title::String,
 end
 
 """
-    _cast_inputs(img_input, mask_input, voxel_spacing_input,
-                 features, labels, n_bins, bin_width, weighting_norm)
+    _cast_inputs(...)
 
     Converts all input parameters to their correct concrete types.
     Acts as a type barrier before the main feature extraction logic.
@@ -410,9 +413,10 @@ function _cast_inputs(
     keep_largest_only,
     get_raw_matrices,
     use_gpu,
+    filter_type,
     verbose
 )::NamedTuple{
-    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :verbose),
+    (:img, :mask, :spacing, :features, :labels, :n_bins, :bin_width, :weighting_norm, :features_std, :slices_2d, :keep_largest_only, :get_raw_matrices, :use_gpu, :filter_type, :verbose),
     Tuple{
         Union{Array{Float64,2},Array{Float64,3}},
         Union{Array{Int,2},Array{Int,3}},
@@ -427,6 +431,7 @@ function _cast_inputs(
         Bool,
         Bool,
         Bool,
+        Union{Nothing,Vector{String}},
         Bool
     }
 }
@@ -494,6 +499,18 @@ function _cast_inputs(
         Int(labels)
     end
 
+    # filter_type
+    filter_type_cast = if isnothing(filter_type)
+        nothing
+    elseif filter_type isa String
+        [filter_type]
+    elseif filter_type isa Vector{String}
+        isempty(filter_type) && error("filter_type cannot be an empty vector")
+        filter_type
+    else
+        error("filter_type must be `nothing`, a String, or a Vector{String}, got $(typeof(filter_type))")
+    end
+
     # Convert n_bins 
     n_bins_out::Union{Nothing,Int} = isnothing(n_bins) ? nothing : Int(n_bins)
 
@@ -510,6 +527,23 @@ function _cast_inputs(
         Tuple{Int,Int}[(Int(s[1]), Int(s[2])) for s in slices_2d]
     end
 
+    # Shape family must match the input: shape3d → 3D volume or slices_2d; shape2d → pure 2D image only
+    if ndims(img) == 2 && isnothing(slices_2d_out) && :shape3d in features_out
+        throw(ArgumentError("`:shape3d` requires a 3D image or `slices_2d`. For a 2D image use `:shape2d`."))
+    end
+    if (ndims(img) == 3 || !isnothing(slices_2d_out)) && :shape2d in features_out
+        throw(ArgumentError("`:shape2d` is only available for 2D images. For 3D images or `slices_2d` use `:shape3d`."))
+    end
+
+    # Validate slices_2d against the 3D volume (skipped in the recursive call, where img is 2D)
+    if !isnothing(slices_2d_out) && ndims(img) == 3
+        for (plan, idx) in slices_2d_out
+            plan in 1:3 || throw(ArgumentError("Invalid plane $plan in slices_2d: must be 1, 2 or 3"))
+            n = size(img, plan)
+            1 <= idx <= n || throw(ArgumentError("Slice $idx out of range for plane $plan in slices_2d (valid: 1:$n)"))
+        end
+    end
+
     return (
         img=img,
         mask=mask,
@@ -524,6 +558,7 @@ function _cast_inputs(
         keep_largest_only=Bool(keep_largest_only),
         get_raw_matrices=Bool(get_raw_matrices),
         use_gpu=Bool(use_gpu),
+        filter_type=filter_type_cast,
         verbose=Bool(verbose)
     )
 end

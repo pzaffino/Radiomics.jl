@@ -79,6 +79,18 @@ function parse_args_custom()\n\
             help = "Normalize a PET DICOM series to SUV (the image must be a DICOM PET series)"\n\
             arg_type = Bool\n\
             default = false\n\
+        "--filter_type"\n\
+            help = "Image filter applied before extraction: haar, log or gabor"\n\
+            arg_type = String\n\
+            default = nothing\n\
+        "--filter_params"\n\
+            help = "Filter parameters as a Julia NamedTuple, e.g. (level=2,) or (sigma=[1.0, 3.0],)"\n\
+            arg_type = String\n\
+            default = nothing\n\
+        "--use_gpu"\n\
+            help = "Use the GPU (default: true in the CUDA image)"\n\
+            arg_type = Bool\n\
+            default = get(ENV, "USE_CUDA", "false") == "true"\n\
         "--verbose"\n\
             help = "Enable verbose output"\n\
             arg_type = Bool\n\
@@ -101,11 +113,18 @@ features = Radiomics.extract_radiomic_features(\n\
     get_raw_matrices=args["get_raw_matrices"],\n\
     slices_2d=nothing,\n\
     suv_ibsi_normalization=args["suv_ibsi_normalization"],\n\
+    use_gpu=args["use_gpu"],\n\
+    filter_type=args["filter_type"],\n\
+    filter_params=isnothing(args["filter_params"]) ? (;) : eval(Meta.parse(args["filter_params"])),\n\
     verbose=args["verbose"]\n\
 );\n\
 \n\
-# Convert results to DataFrame and save to CSV\n\
-df = DataFrame([features])\n\
+# Convert results to DataFrame (one row per filter response map) and save to CSV\n\
+if !isempty(features) && all(v -> v isa AbstractDict, values(features))\n\
+    df = vcat([DataFrame([merge(Dict{String,Any}("filter_map" => string(k)), v)]) for (k, v) in features]...; cols=:union)\n\
+else\n\
+    df = DataFrame([features])\n\
+end\n\
 CSV.write(args["output"], df)\n\
 println("Extraction complete. Results saved to: ", args["output"])\n\
 ' > /app/extract.jl

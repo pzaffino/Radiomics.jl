@@ -31,3 +31,9 @@ Manifest.toml
 test/data
 benchmark.jl
 settings.json
+
+# Python package (pysrc/)
+pysrc/dist/
+pysrc/build/
+pysrc/**/__pycache__/
+pysrc/**/*.egg-info/
