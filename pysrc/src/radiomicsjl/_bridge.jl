@@ -25,6 +25,22 @@ end
 
 _features(s::AbstractString) = isempty(s) ? Symbol[] : Symbol[Symbol(f) for f in split(s, ",")]
 
+# filter_type: "" -> nothing, "haar" -> "haar", "haar,log" -> ["haar", "log"]
+function _filter_type(s::AbstractString)
+    isempty(s) && return nothing
+    v = String[strip(f) for f in split(s, ",")]
+    return length(v) == 1 ? only(v) : v
+end
+
+# filter_params: a NamedTuple literal built by the Python side from plain values
+# (numbers, booleans, strings and lists of them), e.g. "(level=2, subbands=[\"LLL\"],)"
+function _filter_params(s::AbstractString)
+    isempty(s) && return (;)
+    p = Core.eval(@__MODULE__, Meta.parse(s))
+    p isa NamedTuple || error("filter_params must be a NamedTuple, got $(typeof(p))")
+    return p
+end
+
 # ---------- Julia -> Python ----------
 const _np = Ref{Py}()
 _numpy() = isassigned(_np) ? _np[] : (_np[] = pyimport("numpy"))
@@ -52,7 +68,7 @@ topy(x) = Py(x)
 
 function extract(img, mask, spacing, features, labels, slices_2d, n_bins, bin_width,
                  weighting_norm, keep_largest_only, get_raw_matrices, features_std,
-                 use_gpu, suv_ibsi_normalization, verbose)
+                 use_gpu, suv_ibsi_normalization, filter_type, filter_params, verbose)
     res = Radiomics.extract_radiomic_features(
         _arr(img), _arr(mask), _spacing(spacing);
         features=_features(features),
@@ -66,6 +82,8 @@ function extract(img, mask, spacing, features, labels, slices_2d, n_bins, bin_wi
         slices_2d=_slices(slices_2d),
         use_gpu=use_gpu,
         suv_ibsi_normalization=suv_ibsi_normalization,
+        filter_type=_filter_type(filter_type),
+        filter_params=_filter_params(filter_params),
         verbose=verbose)
     return topy(res)
 end
