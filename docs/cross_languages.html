@@ -854,16 +854,15 @@
                         </div>
 
                         <div class="info-box">
-                            <p><strong>Note:</strong> Julia and Radiomics.jl are installed automatically the first time
-                                a
-                                feature extraction is run (this takes a few minutes, only once). If a compatible Julia
-                                is
+                            <p><strong>Note:</strong>Julia and Radiomics.jl are installed automatically the first time
+                                you run
+                                `import radiomicsjl` (this takes a few minutes, only once). If a compatible Julia is
                                 already installed on your system, it is used; otherwise an embedded version is
-                                downloaded.
-                                Each Python environment (venv or conda) gets its own Julia environment.</p>
+                                downloaded. Each Python environment (venv or conda) gets its own Julia environment.</p>
                         </div>
 
-                        <p>To install everything immediately instead of at the first extraction, run:</p>
+                        <p>To prepare everything in advance without importing the package (e.g. in a Dockerfile
+                            or on a cluster node), you can also run:</p>
 
                         <div class="code-container">
                             <div class="code-header">
