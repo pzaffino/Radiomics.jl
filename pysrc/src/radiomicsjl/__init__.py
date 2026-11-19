@@ -3,13 +3,14 @@
     >>> import radiomicsjl
     >>> feats = radiomicsjl.extract_radiomic_features("ct.nii.gz", "mask.nii.gz", n_bins=32)
 
-Julia and Radiomics.jl are installed automatically the first time a function is called.
+Julia and Radiomics.jl are installed automatically on first import.
 """
 
 from __future__ import annotations
 
 import json
 import os
+import sys
 from importlib.metadata import PackageNotFoundError, version as _pkg_version
 from typing import Any, Iterable, Sequence, Union
 
@@ -251,3 +252,13 @@ def extract_radiomic_features(
 def julia_version() -> str:
     """Version of the Radiomics.jl package in use."""
     return str(get_bridge().version())
+
+def _init_at_import() -> None:
+    # `python -m radiomicsjl ...`: the CLI decides itself whether Julia is needed
+    # (sys.argv[0] is "-m" while runpy imports the package)
+    if sys.argv and sys.argv[0] == "-m":
+        return
+    get_bridge()
+
+
+_init_at_import()
