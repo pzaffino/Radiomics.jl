@@ -4,12 +4,25 @@ from __future__ import annotations
 
 import os
 import threading
+import sys
 from pathlib import Path
 
 _lock = threading.Lock()
 _bridge = None
 
 CUDA_UUID = "052768ef-5323-5732-b1bb-66c8b64840ba"
+
+
+def _needs_setup() -> bool:
+    """No Manifest.toml in the juliapkg project: Julia packages not installed yet."""
+    try:
+        # juliapkg.project() would resolve (install) first: read the path without resolving
+        from juliapkg.state import STATE
+
+        project = STATE["project"]
+    except Exception:
+        project = os.environ.get("PYTHON_JULIAPKG_PROJECT") or os.path.join(sys.prefix, "julia_env")
+    return not os.path.isfile(os.path.join(project, "Manifest.toml"))
 
 
 def _configure_env() -> None:
@@ -27,7 +40,6 @@ def _fast_exit_in_workers() -> None:
 
     def _exit_now():
         import multiprocessing
-        import sys
 
         # checked at exit time: spawn workers import radiomicsjl before
         # multiprocessing knows they are workers
@@ -51,7 +63,15 @@ def get_bridge():
     with _lock:
         if _bridge is None:
             _configure_env()
+
+            first_time = _needs_setup()
+            if first_time:
+                print("radiomicsjl: first-time setup, installing Julia and Radiomics.jl,this takes a few minutes and happens only once,for this Python environment.", file=sys.stderr, flush=True)
+
             from juliacall import Main as jl  # first import resolves/installs Julia packages
+
+            if first_time:
+                print("radiomicsjl: setup complete.", file=sys.stderr, flush=True)
 
             _fast_exit_in_workers()
 
