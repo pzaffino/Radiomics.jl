@@ -1,4 +1,4 @@
-"""Lazy start-up of the Julia runtime and of Radiomics.jl."""
+"""Start-up of the Julia runtime and of Radiomics.jl (called when radiomicsjl is imported)."""
 
 from __future__ import annotations
 
@@ -19,6 +19,30 @@ def _configure_env() -> None:
     os.environ.setdefault("PYTHON_JULIACALL_HANDLE_SIGNALS", "yes")
 
 
+def _fast_exit_in_workers() -> None:
+    """In multiprocessing workers, skip Python/Julia finalization at exit: it is slow,
+    and Pool.terminate() would SIGTERM the worker meanwhile, making Julia print a
+    backtrace of every thread."""
+    import atexit
+
+    def _exit_now():
+        import multiprocessing
+        import sys
+
+        # checked at exit time: spawn workers import radiomicsjl before
+        # multiprocessing knows they are workers
+        if multiprocessing.parent_process() is None:
+            return
+        try:
+            sys.stdout.flush()
+            sys.stderr.flush()
+        finally:
+            os._exit(0)
+
+    # registered after juliacall's own atexit hook, so it runs first
+    atexit.register(_exit_now)
+
+
 def get_bridge():
     """Start Julia (installing it and Radiomics.jl on first use) and return the bridge module."""
     global _bridge
@@ -28,6 +52,8 @@ def get_bridge():
         if _bridge is None:
             _configure_env()
             from juliacall import Main as jl  # first import resolves/installs Julia packages
+
+            _fast_exit_in_workers()
 
             bridge_file = (Path(__file__).parent / "_bridge.jl").as_posix()
             jl.seval(f'include("{bridge_file}")')
