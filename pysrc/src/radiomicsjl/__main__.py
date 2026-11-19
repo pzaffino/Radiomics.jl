@@ -1,6 +1,6 @@
 """Command line helpers.
 
-    python -m radiomicsjl setup        # install Julia + Radiomics.jl now (otherwise done at first use)
+    python -m radiomicsjl setup        # install Julia + Radiomics.jl now (otherwise done at first import)
     python -m radiomicsjl install-gpu  # add CUDA.jl for use_gpu=True
     python -m radiomicsjl version
 """

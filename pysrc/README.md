@@ -78,7 +78,7 @@ then `use_gpu=True`. Requires an NVIDIA GPU with a recent driver.
 ## Other commands
 
 ```bash
-python -m radiomicsjl setup     # install Julia + Radiomics.jl now instead of at first use
+python -m radiomicsjl setup     # install Julia + Radiomics.jl now instead of at first import
 python -m radiomicsjl version
 ```
 

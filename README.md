@@ -111,7 +111,7 @@ Radiomics.jl can be used directly from Python through the `radiomicsjl` package.
 pip install radiomicsjl
 ```
 
-Julia and Radiomics.jl are installed automatically the first time a feature extraction is run (a few minutes, only once). If a compatible Julia is already installed on your system, it is used; otherwise an embedded version is downloaded.
+Julia and Radiomics.jl are installed automatically the first time you run `import radiomicsjl` (a few minutes, only once). If a compatible Julia is already installed on your system, it is used; otherwise an embedded version is downloaded.
 
 For GPU acceleration (NVIDIA GPU required), install CUDA.jl once:
 
